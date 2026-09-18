@@ -54,5 +54,3 @@ src/
  ├── store/          # Tiendas globales de Zustand (authStore, uiStore)
  ├── types/          # Interfaces y tipos globales de TypeScript
  └── utils/          # Formateadores, constantes globales y helpers
-
-
