@@ -4,6 +4,7 @@ import {
   FolderKanban,
   KeyRound,
   LayoutDashboard,
+  Lock,
   LogOut,
   SquareKanban,
   Ticket,
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { to: "/licenses", label: "Licencias", icon: KeyRound },
   { to: "/projects", label: "Proyectos", icon: FolderKanban },
   { to: "/reports", label: "Reportes", icon: ChartBar },
+  { to: "/passwords", label: "Contraseñas", icon: Lock },
 ]
 
 function navLinkClassName({ isActive }: { isActive: boolean }) {

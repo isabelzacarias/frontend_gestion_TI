@@ -6,6 +6,7 @@ import { LoginRoute, RequireAuth } from "@/features/auth/components/AuthGuards"
 import InventoryPage from "@/features/inventory/pages/InventoryPage"
 import KanbanPage from "@/features/kanban/pages/KanbanPage"
 import LicensesPage from "@/features/licenses/pages/LicensesPage"
+import PasswordsPage from "@/features/passwords/pages/PasswordsPage"
 import ProjectsPage from "@/features/projects/pages/ProjectsPage"
 import ReportsPage from "@/features/reports/pages/ReportsPage"
 import TicketsPage from "@/features/tickets/pages/TicketsPage"
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
           { path: "licenses", element: <LicensesPage /> },
           { path: "projects", element: <ProjectsPage /> },
           { path: "reports", element: <ReportsPage /> },
+          { path: "passwords", element: <PasswordsPage /> },
         ],
       },
     ],
