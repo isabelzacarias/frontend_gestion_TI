@@ -10,6 +10,9 @@ import PasswordsPage from "@/features/passwords/pages/PasswordsPage"
 import ProjectsPage from "@/features/projects/pages/ProjectsPage"
 import ReportsPage from "@/features/reports/pages/ReportsPage"
 import TicketsPage from "@/features/tickets/pages/TicketsPage"
+import ChangePasswordPage from "@/features/user/pages/ChangePasswordPage"
+import ProfilePage from "@/features/user/pages/ProfilePage"
+import SettingsPage from "@/features/user/pages/SettingsPage"
 
 const router = createBrowserRouter([
   {
@@ -31,6 +34,9 @@ const router = createBrowserRouter([
           { path: "projects", element: <ProjectsPage /> },
           { path: "reports", element: <ReportsPage /> },
           { path: "passwords", element: <PasswordsPage /> },
+          { path: "perfil", element: <ProfilePage /> },
+          { path: "configuracion", element: <SettingsPage /> },
+          { path: "cambiar-password", element: <ChangePasswordPage /> },
         ],
       },
     ],

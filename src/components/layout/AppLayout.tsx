@@ -16,6 +16,7 @@ import { cn } from "cn"
 import { NavLink, Outlet, useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
+import { ProfileMenu } from "@/components/layout/ProfileMenu"
 import ThemeToggle from "@/components/theme/ThemeToggle"
 import { useAuthStore } from "@/store/authStore"
 import logoCompleto from "@/assets/logo-header-hr.png"
@@ -56,7 +57,6 @@ function navLinkClassName({
 
 function AppLayout() {
   const navigate = useNavigate()
-  const usuario = useAuthStore((state) => state.usuario)
   const cerrarSesion = useAuthStore((state) => state.cerrarSesion)
   const [colapsado, setColapsado] = useState<boolean>(() => {
     return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true"
@@ -122,14 +122,9 @@ function AppLayout() {
           ))}
         </nav>
         <div className="border-t border-sidebar-border p-3">
-          {!colapsado && usuario && (
-            <div className="mb-2 truncate px-3 py-2">
-              <p className="truncate text-sm font-medium">{usuario.nombre}</p>
-              <p className="truncate text-xs text-sidebar-foreground/70">
-                {usuario.email}
-              </p>
-            </div>
-          )}
+          <div className="mb-2 flex justify-center">
+            <ProfileMenu collapsed={colapsado} onLogout={handleLogout} />
+          </div>
           <div className="mb-1">
             <ThemeToggle compact={colapsado} />
           </div>
