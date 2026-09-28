@@ -2,7 +2,7 @@ import { Navigate, createBrowserRouter } from "react-router"
 
 import NotFoundPage from "@/components/common/NotFoundPage"
 import AppLayout from "@/components/layout/AppLayout"
-import LoginPage from "@/features/auth/pages/LoginPage"
+import { LoginRoute, RequireAuth } from "@/features/auth/components/AuthGuards"
 import InventoryPage from "@/features/inventory/pages/InventoryPage"
 import KanbanPage from "@/features/kanban/pages/KanbanPage"
 import LicensesPage from "@/features/licenses/pages/LicensesPage"
@@ -13,19 +13,24 @@ import TicketsPage from "@/features/tickets/pages/TicketsPage"
 const router = createBrowserRouter([
   {
     path: "/login",
-    element: <LoginPage />,
+    element: <LoginRoute />,
   },
   {
     path: "/",
-    element: <AppLayout />,
+    element: <RequireAuth />,
     children: [
-      { index: true, element: <Navigate to="/tickets" replace /> },
-      { path: "tickets", element: <TicketsPage /> },
-      { path: "kanban", element: <KanbanPage /> },
-      { path: "inventory", element: <InventoryPage /> },
-      { path: "licenses", element: <LicensesPage /> },
-      { path: "projects", element: <ProjectsPage /> },
-      { path: "reports", element: <ReportsPage /> },
+      {
+        element: <AppLayout />,
+        children: [
+          { index: true, element: <Navigate to="/tickets" replace /> },
+          { path: "tickets", element: <TicketsPage /> },
+          { path: "kanban", element: <KanbanPage /> },
+          { path: "inventory", element: <InventoryPage /> },
+          { path: "licenses", element: <LicensesPage /> },
+          { path: "projects", element: <ProjectsPage /> },
+          { path: "reports", element: <ReportsPage /> },
+        ],
+      },
     ],
   },
   {

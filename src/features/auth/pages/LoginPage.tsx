@@ -1,5 +1,6 @@
 import { useState } from "react"
 import type { FormEvent } from "react"
+import { toast } from "sonner"
 import {
   Eye,
   EyeOff,
@@ -15,10 +16,40 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import LoginNetworkIllustration from "@/features/auth/components/LoginNetworkIllustration"
+import { AuthApiError } from "@/services/auth.service"
+import { useAuthStore } from "@/store/authStore"
 import logo from "@/assets/Logo_footer.webp"
+
+function getLoginErrorMessage(error: unknown): string {
+  if (error instanceof AuthApiError) {
+    if (error.status === 401) return "Credenciales inválidas."
+
+    if (error.status === 400) {
+      const firstError = error.errors[0]
+      if (
+        typeof firstError === "object" &&
+        firstError !== null &&
+        "mensaje" in firstError &&
+        typeof firstError.mensaje === "string"
+      ) {
+        return firstError.mensaje
+      }
+      return error.message
+    }
+
+    if (error.status === undefined) {
+      return "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo."
+    }
+
+    return error.message
+  }
+
+  return "No pudimos iniciar sesión. Inténtalo de nuevo."
+}
 
 function LoginPage() {
   const navigate = useNavigate()
+  const iniciarSesion = useAuthStore((state) => state.iniciarSesion)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
@@ -32,10 +63,13 @@ function LoginPage() {
     setError(null)
 
     try {
-      // await login({ email, password })
+      await iniciarSesion(email, password, rememberMe)
+      toast.success("Sesión iniciada correctamente.")
       navigate("/tickets", { replace: true })
-    } catch {
-      setError("No pudimos iniciar sesión. Inténtalo de nuevo.")
+    } catch (error) {
+      const message = getLoginErrorMessage(error)
+      setError(message)
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }

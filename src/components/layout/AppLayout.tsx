@@ -10,9 +10,10 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "cn"
-import { Link, NavLink, Outlet } from "react-router"
+import { NavLink, Outlet, useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
+import { useAuthStore } from "@/store/authStore"
 
 interface NavItem {
   to: string
@@ -39,6 +40,15 @@ function navLinkClassName({ isActive }: { isActive: boolean }) {
 }
 
 function AppLayout() {
+  const navigate = useNavigate()
+  const usuario = useAuthStore((state) => state.usuario)
+  const cerrarSesion = useAuthStore((state) => state.cerrarSesion)
+
+  function handleLogout() {
+    cerrarSesion()
+    navigate("/login", { replace: true })
+  }
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
@@ -55,11 +65,23 @@ function AppLayout() {
           ))}
         </nav>
         <div className="border-t border-sidebar-border p-3">
-          <Button asChild variant="ghost" size="sm" className="w-full justify-start">
-            <Link to="/login">
-              <LogOut className="size-4" />
-              Cerrar sesion
-            </Link>
+          {usuario && (
+            <div className="mb-2 truncate px-3 py-2">
+              <p className="truncate text-sm font-medium">{usuario.nombre}</p>
+              <p className="truncate text-xs text-sidebar-foreground/70">
+                {usuario.email}
+              </p>
+            </div>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start"
+            onClick={handleLogout}
+          >
+            <LogOut className="size-4" />
+            Cerrar sesión
           </Button>
         </div>
       </aside>
