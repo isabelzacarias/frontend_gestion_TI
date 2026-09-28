@@ -4,9 +4,12 @@ function InventoryPage() {
   return (
     <PagePlaceholder
       title="Inventario"
-      description="Consulta los activos de TI y sus asignaciones."
+      description="Consulta los activos de TI."
+
     />
+     
   )
+
 }
 
 export default InventoryPage

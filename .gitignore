@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Agentes de IA y Skills
+.agents/
+.claude/
+.opencode/
+.skills/
+agent/skills/
