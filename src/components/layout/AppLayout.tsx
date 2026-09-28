@@ -13,6 +13,7 @@ import { cn } from "cn"
 import { NavLink, Outlet, useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
+import ThemeToggle from "@/components/theme/ThemeToggle"
 import { useAuthStore } from "@/store/authStore"
 
 interface NavItem {
@@ -73,6 +74,9 @@ function AppLayout() {
               </p>
             </div>
           )}
+          <div className="mb-1">
+            <ThemeToggle />
+          </div>
           <Button
             type="button"
             variant="ghost"
@@ -87,24 +91,27 @@ function AppLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center gap-1 overflow-x-auto border-b border-border px-3 md:hidden">
-          {navItems.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )
-              }
-            >
-              <Icon className="size-4" />
-              {label}
-            </NavLink>
-          ))}
+        <header className="flex h-14 items-center gap-2 border-b border-border px-3 md:hidden">
+          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+            {navItems.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  cn(
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )
+                }
+              >
+                <Icon className="size-4" />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+          <ThemeToggle compact />
         </header>
 
         <main className="flex flex-1 flex-col p-6">

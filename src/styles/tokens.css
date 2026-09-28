@@ -87,7 +87,7 @@
 }
 
 .dark {
-    --background: #231420;
+    --background: #010409;
     --foreground: #f5f5f5;
     --card: #302432;
     --card-foreground: #f5f5f5;
@@ -103,9 +103,9 @@
     --accent-foreground: #f5f5f5;
     --destructive: #f97066;
     --success: #32d583;
-    --success-foreground: #231420;
+    --success-foreground: #010409;
     --warning: #fec84b;
-    --warning-foreground: #231420;
+    --warning-foreground: #010409;
     --border: #514455;
     --input: #514455;
     --ring: #c4a3d9;
@@ -114,7 +114,7 @@
     --chart-3: #fec84b;
     --chart-4: #f97066;
     --chart-5: #f5f5f5;
-    --sidebar: #302432;
+    --sidebar: #010409;
     --sidebar-foreground: #f5f5f5;
     --sidebar-primary: #5b2480;
     --sidebar-primary-foreground: #f5f5f5;

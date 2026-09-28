@@ -15,6 +15,8 @@ import { Link, useNavigate } from "react-router"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import ThemeToggle from "@/components/theme/ThemeToggle"
+import { useTheme } from "@/hooks/useTheme"
 import LoginNetworkIllustration from "@/features/auth/components/LoginNetworkIllustration"
 import { AuthApiError } from "@/services/auth.service"
 import { useAuthStore } from "@/store/authStore"
@@ -49,6 +51,7 @@ function getLoginErrorMessage(error: unknown): string {
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { theme } = useTheme()
   const iniciarSesion = useAuthStore((state) => state.iniciarSesion)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -76,18 +79,35 @@ function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-dvh flex-col items-center justify-center gap-5 overflow-hidden bg-[radial-gradient(ellipse_at_16%_12%,rgba(91,36,128,0.48),transparent_42%),radial-gradient(ellipse_at_88%_86%,rgba(34,211,238,0.22),transparent_42%),linear-gradient(135deg,#1a0f2e_0%,#24113e_48%,#10243a_100%)] p-4 sm:p-8">
+    <main
+      className={`relative flex min-h-dvh flex-col items-center justify-center gap-5 overflow-hidden p-4 transition-colors sm:p-8 ${
+        theme === "dark"
+          ? "bg-[radial-gradient(ellipse_at_16%_12%,rgba(91,36,128,0.48),transparent_42%),radial-gradient(ellipse_at_88%_86%,rgba(34,211,238,0.22),transparent_42%),linear-gradient(135deg,#1a0f2e_0%,#24113e_48%,#10243a_100%)]"
+          : "bg-[radial-gradient(ellipse_at_16%_12%,rgba(91,36,128,0.14),transparent_42%),radial-gradient(ellipse_at_88%_86%,rgba(34,211,238,0.12),transparent_42%),linear-gradient(135deg,#faf8fc_0%,#f3edf7_48%,#edf7f8_100%)]"
+      }`}
+    >
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle compact />
+      </div>
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-36 -top-40 size-[34rem] rounded-full bg-primary/60 blur-[120px]"
+        className={`pointer-events-none absolute -left-36 -top-40 size-[34rem] rounded-full blur-[120px] ${
+          theme === "dark" ? "bg-primary/60" : "bg-primary/20"
+        }`}
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-40 -right-36 size-[34rem] rounded-full bg-cyan-400/30 blur-[130px]"
+        className={`pointer-events-none absolute -bottom-40 -right-36 size-[34rem] rounded-full blur-[130px] ${
+          theme === "dark" ? "bg-cyan-400/30" : "bg-cyan-400/20"
+        }`}
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:3rem_3rem] [mask-image:radial-gradient(ellipse_at_center,black_0%,transparent_76%)]"
+        className={`pointer-events-none absolute inset-0 [background-size:3rem_3rem] [mask-image:radial-gradient(ellipse_at_center,black_0%,transparent_76%)] ${
+          theme === "dark"
+            ? "bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)]"
+            : "bg-[linear-gradient(rgba(35,20,32,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(35,20,32,0.035)_1px,transparent_1px)]"
+        }`}
       />
 
       <div className="relative grid min-h-0 w-full max-w-[72rem] overflow-hidden rounded-2xl bg-card shadow-[0_24px_80px_-32px_rgba(0,0,0,0.55)] ring-1 ring-white/10 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:min-h-[min(44rem,calc(100dvh-4rem))] lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:rounded-[1.75rem]">
@@ -292,7 +312,7 @@ function LoginPage() {
           </div>
         </section>
       </div>
-      <p className="relative text-center text-xs text-white/50">
+      <p className="relative text-center text-xs text-foreground/60">
         © 2026 HorbIS Group · v1.0.0
       </p>
     </main>
