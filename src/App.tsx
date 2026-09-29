@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router"
 import { Toaster, toast } from "sonner"
 
 import ThemeProvider from "@/components/theme/ThemeProvider"
+import AppPreferencesProvider from "@/preferences/AppPreferencesProvider"
 import { router } from "@/router"
 import { AuthApiError } from "@/services/auth.service"
 import { useAuthStore } from "@/store/authStore"
@@ -30,7 +31,9 @@ function App() {
 
   return (
     <ThemeProvider>
-      <AppContent />
+      <AppPreferencesProvider>
+        <AppContent />
+      </AppPreferencesProvider>
     </ThemeProvider>
   )
 }

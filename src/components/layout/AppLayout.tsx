@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
   Boxes,
   ChartBar,
@@ -29,9 +29,8 @@ import { ProfileMenu } from "@/components/layout/ProfileMenu"
 import { NotificationsMenu } from "@/components/layout/NotificationsMenu"
 import ThemeToggle from "@/components/theme/ThemeToggle"
 import { useAuthStore } from "@/store/authStore"
+import { useAppPreferences } from "@/hooks/useAppPreferences"
 import logoCompleto from "@/assets/logo-header-hr.png"
-
-const SIDEBAR_STORAGE_KEY = "sidebar-collapsada"
 
 interface NavItem {
   to: string
@@ -68,14 +67,9 @@ function navLinkClassName({
 function AppLayout() {
   const navigate = useNavigate()
   const cerrarSesion = useAuthStore((state) => state.cerrarSesion)
-  const [colapsado, setColapsado] = useState<boolean>(() => {
-    return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true"
-  })
+  const { preferences, updatePreference } = useAppPreferences()
+  const colapsado = preferences.sidebarCollapsed
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
-
-  useEffect(() => {
-    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(colapsado))
-  }, [colapsado])
 
   function requestLogout() {
     setConfirmLogoutOpen(true)
@@ -199,7 +193,9 @@ function AppLayout() {
           "absolute top-4 z-10 hidden border-sidebar-border bg-sidebar shadow-sm transition-[left] duration-200 ease-in-out motion-reduce:transition-none md:inline-flex",
           colapsado ? "left-[52px]" : "left-[228px]",
         )}
-        onClick={() => setColapsado((v) => !v)}
+        onClick={() =>
+          updatePreference("sidebarCollapsed", !preferences.sidebarCollapsed)
+        }
       >
         {colapsado ? (
           <PanelLeftOpen className="size-3.5" />
