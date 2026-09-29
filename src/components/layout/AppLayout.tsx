@@ -16,6 +16,15 @@ import { cn } from "cn"
 import { NavLink, Outlet, useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { ProfileMenu } from "@/components/layout/ProfileMenu"
 import ThemeToggle from "@/components/theme/ThemeToggle"
 import { useAuthStore } from "@/store/authStore"
@@ -61,12 +70,18 @@ function AppLayout() {
   const [colapsado, setColapsado] = useState<boolean>(() => {
     return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true"
   })
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
 
   useEffect(() => {
     window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(colapsado))
   }, [colapsado])
 
-  function handleLogout() {
+  function requestLogout() {
+    setConfirmLogoutOpen(true)
+  }
+
+  function confirmLogout() {
+    setConfirmLogoutOpen(false)
     cerrarSesion()
     navigate("/login", { replace: true })
   }
@@ -123,7 +138,7 @@ function AppLayout() {
         </nav>
         <div className="border-t border-sidebar-border p-3">
           <div className="mb-2 flex justify-center">
-            <ProfileMenu collapsed={colapsado} onLogout={handleLogout} />
+            <ProfileMenu collapsed={colapsado} />
           </div>
           <div className="mb-1">
             <ThemeToggle compact={colapsado} />
@@ -135,13 +150,42 @@ function AppLayout() {
             className="w-full justify-start"
             aria-label={colapsado ? "Cerrar sesión" : undefined}
             title={colapsado ? "Cerrar sesión" : undefined}
-            onClick={handleLogout}
+            onClick={requestLogout}
           >
             <LogOut className="size-4" />
             {!colapsado && "Cerrar sesión"}
           </Button>
         </div>
       </aside>
+
+      <Dialog open={confirmLogoutOpen} onOpenChange={setConfirmLogoutOpen}>
+        <DialogContent
+          role="alertdialog"
+          aria-describedby="logout-confirmation-description"
+          showCloseButton={false}
+        >
+          <DialogHeader>
+            <DialogTitle>¿Cerrar sesión?</DialogTitle>
+            <DialogDescription id="logout-confirmation-description">
+              Tendrás que volver a iniciar sesión para acceder al sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmLogout}
+            >
+              Cerrar sesión
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Button
         type="button"

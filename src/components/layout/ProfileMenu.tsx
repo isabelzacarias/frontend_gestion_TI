@@ -1,4 +1,4 @@
-import { KeyRound, LogOut, Settings, User } from "lucide-react"
+import { KeyRound, Settings, User } from "lucide-react"
 import { useNavigate } from "react-router"
 
 import {
@@ -13,10 +13,9 @@ import { useAuthStore } from "@/store/authStore"
 
 interface ProfileMenuProps {
   collapsed: boolean
-  onLogout: () => void
 }
 
-function ProfileMenu({ collapsed, onLogout }: ProfileMenuProps) {
+function ProfileMenu({ collapsed }: ProfileMenuProps) {
   const navigate = useNavigate()
   const usuario = useAuthStore((state) => state.usuario)
 
@@ -70,11 +69,6 @@ function ProfileMenu({ collapsed, onLogout }: ProfileMenuProps) {
         <DropdownMenuItem onSelect={() => navigate("/cambiar-password")}>
           <KeyRound />
           Cambiar contraseña
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={onLogout}>
-          <LogOut />
-          Cerrar sesión
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
