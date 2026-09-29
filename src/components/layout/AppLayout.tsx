@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ProfileMenu } from "@/components/layout/ProfileMenu"
+import { NotificationsMenu } from "@/components/layout/NotificationsMenu"
 import ThemeToggle from "@/components/theme/ThemeToggle"
 import { useAuthStore } from "@/store/authStore"
 import logoCompleto from "@/assets/logo-header-hr.png"
@@ -208,6 +209,9 @@ function AppLayout() {
       </Button>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <header className="hidden h-14 shrink-0 items-center justify-end border-b border-border px-6 md:flex">
+          <NotificationsMenu />
+        </header>
         <header className="flex h-14 items-center gap-2 border-b border-border px-3 md:hidden">
           <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             {navItems.map(({ to, label, icon: Icon }) => (
@@ -228,7 +232,10 @@ function AppLayout() {
               </NavLink>
             ))}
           </nav>
-          <ThemeToggle compact />
+          <div className="flex shrink-0 items-center gap-1">
+            <NotificationsMenu compact />
+            <ThemeToggle compact />
+          </div>
         </header>
 
         <main className="flex flex-1 flex-col p-6">
