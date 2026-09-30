@@ -82,8 +82,8 @@ function LoginPage() {
     <main
       className={`relative flex min-h-dvh flex-col items-center justify-center gap-5 overflow-hidden p-4 transition-colors sm:p-8 ${
         theme === "dark"
-          ? "bg-[radial-gradient(ellipse_at_16%_12%,rgba(91,36,128,0.48),transparent_42%),radial-gradient(ellipse_at_88%_86%,rgba(34,211,238,0.22),transparent_42%),linear-gradient(135deg,#1a0f2e_0%,#24113e_48%,#10243a_100%)]"
-          : "bg-[radial-gradient(ellipse_at_16%_12%,rgba(91,36,128,0.14),transparent_42%),radial-gradient(ellipse_at_88%_86%,rgba(34,211,238,0.12),transparent_42%),linear-gradient(135deg,#faf8fc_0%,#f3edf7_48%,#edf7f8_100%)]"
+          ? "bg-[radial-gradient(ellipse_at_16%_12%,#5b24807a,transparent_42%),radial-gradient(ellipse_at_88%_86%,#22d3ee38,transparent_42%),linear-gradient(135deg,var(--secondary-800)_0%,var(--primary-900)_48%,var(--secondary-900)_100%)]"
+          : "bg-[radial-gradient(ellipse_at_16%_12%,#5b248023,transparent_42%),radial-gradient(ellipse_at_88%_86%,#22d3ee1f,transparent_42%),linear-gradient(135deg,var(--white)_0%,var(--primary-100)_48%,var(--accent-100)_100%)]"
       }`}
     >
       <div className="absolute top-4 right-4 z-20">
@@ -98,22 +98,22 @@ function LoginPage() {
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute -bottom-40 -right-36 size-[34rem] rounded-full blur-[130px] ${
-          theme === "dark" ? "bg-cyan-400/30" : "bg-cyan-400/20"
+          theme === "dark" ? "bg-accent/30" : "bg-accent/20"
         }`}
       />
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute inset-0 [background-size:3rem_3rem] [mask-image:radial-gradient(ellipse_at_center,black_0%,transparent_76%)] ${
           theme === "dark"
-            ? "bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)]"
-            : "bg-[linear-gradient(rgba(35,20,32,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(35,20,32,0.035)_1px,transparent_1px)]"
+            ? "bg-[linear-gradient(#ffffff0f_1px,transparent_1px),linear-gradient(90deg,#ffffff0f_1px,transparent_1px)]"
+            : "bg-[linear-gradient(#231f2009_1px,transparent_1px),linear-gradient(90deg,#231f2009_1px,transparent_1px)]"
         }`}
       />
 
       <div className="relative grid min-h-0 w-full max-w-[72rem] overflow-hidden rounded-2xl bg-card shadow-[0_24px_80px_-32px_rgba(0,0,0,0.55)] ring-1 ring-white/10 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:min-h-[min(44rem,calc(100dvh-4rem))] lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:rounded-[1.75rem]">
         <section
           aria-labelledby="brand-heading"
-          className="relative hidden min-h-[42rem] flex-col justify-between overflow-hidden bg-[#21102f] px-12 py-11 text-white lg:flex xl:px-14 xl:py-12"
+          className="relative hidden min-h-[42rem] flex-col justify-between overflow-hidden bg-[var(--primary-900)] px-12 py-11 text-white lg:flex xl:px-14 xl:py-12"
         >
           <div
             aria-hidden="true"
@@ -169,7 +169,7 @@ function LoginPage() {
           className="flex items-center justify-center bg-card px-6 py-10 sm:px-10 sm:py-12 lg:px-10 xl:px-14"
         >
           <div className="w-full max-w-[26rem]">
-            <div className="mb-8 flex justify-center rounded-xl bg-[#21102f] px-5 py-4 lg:hidden">
+            <div className="mb-8 flex justify-center rounded-xl bg-[var(--primary-900)] px-5 py-4 lg:hidden">
               <img
                 src={logo}
                 alt="HorbIS Group"
