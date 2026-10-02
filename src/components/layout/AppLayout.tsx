@@ -100,7 +100,7 @@ function AppLayout() {
   }
 
   return (
-    <div className="relative flex min-h-screen bg-background text-foreground">
+    <div className="relative flex h-dvh bg-background text-foreground">
       <aside
         aria-label="Navegación principal"
         className={cn(
@@ -245,7 +245,7 @@ function AppLayout() {
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col p-6">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
           <Outlet />
         </main>
       </div>
