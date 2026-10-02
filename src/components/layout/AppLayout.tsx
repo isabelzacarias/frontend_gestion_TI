@@ -8,8 +8,6 @@ import {
   Lock,
   LogOut,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
   SquareKanban,
   Ticket,
   type LucideIcon,
@@ -106,7 +104,7 @@ function AppLayout() {
       <aside
         aria-label="Navegación principal"
         className={cn(
-          "hidden shrink-0 flex-col border-r border-[#2a124b] bg-[#07020d] text-white transition-[width] duration-200 ease-in-out md:flex",
+          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-[#2a124b] bg-[#07020d] text-white transition-[width] duration-200 ease-in-out md:flex",
           colapsado ? "w-16" : "w-[15.5rem]",
         )}
       >
@@ -130,7 +128,10 @@ function AppLayout() {
             />
           )}
         </div>
-        <nav id="primary-sidebar-navigation" className="flex flex-1 flex-col py-3">
+        <nav
+          id="primary-sidebar-navigation"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto py-3"
+        >
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

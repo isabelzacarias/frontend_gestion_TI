@@ -195,19 +195,19 @@ function PasswordsPage() {
               </caption>
               <thead className="bg-muted/20 text-xs font-medium tracking-wide text-muted-foreground">
                 <tr className="border-b border-border">
-                  <th scope="col" className="px-5 py-3.5">
+                  <th scope="col" className="px-6 py-4">
                     Servicio
                   </th>
-                  <th scope="col" className="px-5 py-3.5">
+                  <th scope="col" className="px-6 py-4">
                     Cuenta
                   </th>
-                  <th scope="col" className="px-5 py-3.5">
+                  <th scope="col" className="px-6 py-4">
                     Categoría
                   </th>
-                  <th scope="col" className="px-5 py-3.5">
+                  <th scope="col" className="px-6 py-4">
                     Contraseña
                   </th>
-                  <th scope="col" className="px-5 py-3.5">
+                  <th scope="col" className="px-6 py-4">
                     Última actualización
                   </th>
                 </tr>
@@ -222,35 +222,35 @@ function PasswordsPage() {
                     >
                       <th
                         scope="row"
-                        className="whitespace-nowrap px-5 py-4 font-medium text-foreground"
+                        className="whitespace-nowrap px-6 py-6 font-semibold text-foreground"
                       >
                         <button
                           type="button"
-                          className="flex items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          className="flex items-center gap-4 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           aria-haspopup="dialog"
                           aria-label={`Ver detalles de ${credential.service}`}
                           onClick={() => openCredential(credential)}
                         >
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <Icon aria-hidden="true" className="size-4" />
+                          <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <Icon aria-hidden="true" className="size-5" />
                           </span>
-                          <span className="underline-offset-4 hover:underline">
+                          <span className="text-base underline-offset-4 hover:underline">
                             {credential.service}
                           </span>
                         </button>
                       </th>
-                      <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
+                      <td className="whitespace-nowrap px-6 py-6 text-sm text-muted-foreground">
                         {credential.account}
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4">
-                        <Badge variant="outline" className="font-normal">
+                      <td className="whitespace-nowrap px-6 py-6">
+                        <Badge variant="outline" className="px-2.5 py-1 text-sm font-medium">
                           {credential.category}
                         </Badge>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 font-mono text-muted-foreground">
+                      <td className="whitespace-nowrap px-6 py-6 font-mono text-sm text-muted-foreground">
                         <span aria-label="Contraseña oculta">••••••••••••</span>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
+                      <td className="whitespace-nowrap px-6 py-6 text-sm text-muted-foreground">
                         {credential.updatedAt}
                       </td>
                     </tr>
