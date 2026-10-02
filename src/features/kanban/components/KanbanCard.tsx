@@ -6,7 +6,8 @@ import type { DropTarget, KanbanTicket, TicketPriority, TicketStatus } from "@/f
 
 const priorityStyles: Record<TicketPriority, string> = {
   Alta: "border-destructive/30 bg-destructive/10 text-destructive",
-  Media: "border-warning/30 bg-warning/10 text-warning-foreground",
+  Media:
+    "border-warning-300 bg-warning-100 text-warning-800 dark:border-warning-700 dark:bg-warning-1000/60 dark:text-warning-300",
   Baja: "border-border bg-muted text-muted-foreground",
 }
 

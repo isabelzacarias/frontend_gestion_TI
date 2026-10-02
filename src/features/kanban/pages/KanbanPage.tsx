@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge"
 
 const columns = [
   { title: "Nuevo", statusColor: "bg-info" },
+    { title: "En análisis", statusColor: "bg-primary" },
   { title: "En curso", statusColor: "bg-warning" },
-  { title: "Completado", statusColor: "bg-success" },
   { title: "Duplicado", statusColor: "bg-destructive" },
-  { title: "En análisis", statusColor: "bg-primary" },
+   { title: "Completado", statusColor: "bg-success" },
 ] as const
 
 type TicketStatus = (typeof columns)[number]["title"]
@@ -121,7 +121,8 @@ const sampleTickets: KanbanTicket[] = [
 
 const priorityStyles: Record<TicketPriority, string> = {
   Alta: "border-destructive/30 bg-destructive/10 text-destructive",
-  Media: "border-warning/30 bg-warning/10 text-warning-foreground",
+  Media:
+    "border-warning-300 bg-warning-100 text-warning-800 dark:border-warning-700 dark:bg-warning-1000/60 dark:text-warning-300",
   Baja: "border-border bg-muted text-muted-foreground",
 }
 
@@ -133,9 +134,9 @@ function DropIndicator() {
       aria-hidden="true"
       className="pointer-events-none flex animate-in fade-in items-center gap-1.5 duration-100"
     >
-      <span className="size-2 shrink-0 rounded-full bg-primary" />
-      <span className="h-0.5 flex-1 rounded-full bg-primary" />
-      <span className="size-2 shrink-0 rounded-full bg-primary" />
+      <span className="size-2 shrink-0 rounded-full bg-primary dark:bg-accent" />
+      <span className="h-0.5 flex-1 rounded-full bg-primary dark:bg-accent" />
+      <span className="size-2 shrink-0 rounded-full bg-primary dark:bg-accent" />
     </div>
   )
 }
