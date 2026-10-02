@@ -2,7 +2,6 @@ import { createBrowserRouter } from "react-router"
 
 import NotFoundPage from "@/components/common/NotFoundPage"
 import AppLayout from "@/components/layout/AppLayout"
-import DashboardPage from "@/features/dashboard/pages/DashboardPage"
 import { LoginRoute, RequireAuth } from "@/features/auth/components/AuthGuards"
 import InventoryPage from "@/features/inventory/pages/InventoryPage"
 import KanbanPage from "@/features/kanban/pages/KanbanPage"
@@ -14,6 +13,7 @@ import TicketsPage from "@/features/tickets/pages/TicketsPage"
 import ChangePasswordPage from "@/features/user/pages/ChangePasswordPage"
 import ProfilePage from "@/features/user/pages/ProfilePage"
 import SettingsPage from "@/features/user/pages/SettingsPage"
+import HomeRedirect from "@/router/HomeRedirect"
 
 const router = createBrowserRouter([
   {
@@ -27,7 +27,7 @@ const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { index: true, element: <DashboardPage /> },
+          { index: true, element: <HomeRedirect /> },
           { path: "tickets", element: <TicketsPage /> },
           { path: "kanban", element: <KanbanPage /> },
           { path: "inventory", element: <InventoryPage /> },

@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "cn"
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router"
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -114,19 +114,26 @@ function AppLayout() {
             colapsado ? "justify-center px-3" : "px-6",
           )}
         >
-          {colapsado ? (
-            <img
-              src={logoIcono}
-              alt="HO"
-              className="h-8 w-8 object-contain"
-            />
-          ) : (
-            <img
-              src={logoCompleto}
-              alt="Horbis Group"
-              className="h-10 w-auto max-w-full object-contain object-left"
-            />
-          )}
+          <Link
+            to="/"
+            aria-label="Ir al inicio"
+            title="Ir al inicio"
+            className="flex h-full items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#07020d]"
+          >
+            {colapsado ? (
+              <img
+                src={logoIcono}
+                alt=""
+                className="h-8 w-8 object-contain"
+              />
+            ) : (
+              <img
+                src={logoCompleto}
+                alt=""
+                className="h-10 w-auto max-w-full object-contain object-left"
+              />
+            )}
+          </Link>
         </div>
         <nav
           id="primary-sidebar-navigation"
