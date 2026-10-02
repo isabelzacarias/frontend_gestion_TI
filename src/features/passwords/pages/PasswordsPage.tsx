@@ -1,10 +1,17 @@
 import { useState } from "react"
 import type { FormEvent } from "react"
-import { ChevronRight, KeyRound, Search, ShieldAlert } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  KeyRound,
+  Search,
+  ShieldAlert,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { PagePlaceholder } from "@/components/common/PagePlaceholder"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import CredentialDialog from "@/features/passwords/components/CredentialDialog"
 import { sampleCredentials } from "@/features/passwords/data/sample-credentials"
@@ -14,8 +21,10 @@ import type {
 } from "@/features/passwords/types/credential"
 
 function PasswordsPage() {
+  const pageSize = 10
   const [credentials, setCredentials] = useState(sampleCredentials)
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
   const [selectedCredentialId, setSelectedCredentialId] = useState<string | null>(
     null,
   )
@@ -34,6 +43,28 @@ function PasswordsPage() {
       credential.username,
     ].some((value) => value.toLocaleLowerCase("es").includes(normalizedSearch)),
   )
+  const pageCount = Math.max(1, Math.ceil(filteredCredentials.length / pageSize))
+  const activePage = Math.min(currentPage, pageCount)
+  const pageStartIndex = (activePage - 1) * pageSize
+  const pageCredentials = filteredCredentials.slice(
+    pageStartIndex,
+    pageStartIndex + pageSize,
+  )
+  const firstVisibleCredential =
+    filteredCredentials.length === 0 ? 0 : pageStartIndex + 1
+  const lastVisibleCredential = Math.min(
+    pageStartIndex + pageSize,
+    filteredCredentials.length,
+  )
+
+  function changeSearch(value: string) {
+    setSearchTerm(value)
+    setCurrentPage(1)
+  }
+
+  function changePage(page: number) {
+    setCurrentPage(Math.min(Math.max(page, 1), pageCount))
+  }
 
   function openCredential(credential: Credential) {
     setSelectedCredentialId(credential.id)
@@ -138,7 +169,7 @@ function PasswordsPage() {
             <Input
               type="search"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => changeSearch(event.target.value)}
               placeholder="Buscar servicio o cuenta"
               className="h-10 pl-9"
             />
@@ -182,7 +213,7 @@ function PasswordsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredCredentials.map((credential) => {
+                {pageCredentials.map((credential) => {
                   const Icon = credential.icon
                   return (
                     <tr
@@ -225,7 +256,7 @@ function PasswordsPage() {
                     </tr>
                   )
                 })}
-                {filteredCredentials.length === 0 && (
+                {pageCredentials.length === 0 && (
                   <tr>
                     <td
                       colSpan={5}
@@ -241,7 +272,7 @@ function PasswordsPage() {
           </div>
 
           <div className="divide-y divide-border lg:hidden">
-            {filteredCredentials.map((credential) => {
+            {pageCredentials.map((credential) => {
               const Icon = credential.icon
               return (
                 <article
@@ -301,7 +332,7 @@ function PasswordsPage() {
                 </article>
               )
             })}
-            {filteredCredentials.length === 0 && (
+            {pageCredentials.length === 0 && (
               <p className="px-5 py-12 text-center text-sm text-muted-foreground">
                 No encontramos credenciales que coincidan con “{searchTerm}”.
               </p>
@@ -310,12 +341,51 @@ function PasswordsPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 sm:px-5">
             <p className="text-xs text-muted-foreground">
-              {filteredCredentials.length} de {credentials.length} credenciales
+              {firstVisibleCredential}–{lastVisibleCredential} de{" "}
+              {filteredCredentials.length} credenciales
             </p>
             <p className="text-xs text-muted-foreground">
               Los cambios se mantienen mientras esta vista esté abierta.
             </p>
           </div>
+
+          {pageCount > 1 && (
+            <nav
+              aria-label="Paginación de credenciales"
+              className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 sm:px-5"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 gap-1.5"
+                disabled={activePage === 1}
+                onClick={() => changePage(activePage - 1)}
+              >
+                <ChevronLeft aria-hidden="true" />
+                <span className="hidden sm:inline">Anterior</span>
+                <span className="sr-only sm:hidden">Página anterior</span>
+              </Button>
+              <p
+                className="text-sm text-muted-foreground"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                Página <span className="font-medium text-foreground">{activePage}</span>{" "}
+                de {pageCount}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 gap-1.5"
+                disabled={activePage === pageCount}
+                onClick={() => changePage(activePage + 1)}
+              >
+                <span className="hidden sm:inline">Siguiente</span>
+                <span className="sr-only sm:hidden">Página siguiente</span>
+                <ChevronRight aria-hidden="true" />
+              </Button>
+            </nav>
+          )}
         </div>
 
         <CredentialDialog
