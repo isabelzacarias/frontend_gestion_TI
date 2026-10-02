@@ -372,6 +372,14 @@ export const sampleCredentials = credentialSamples.map((credential) => {
   return {
     ...credential,
     id: `${credential.id}-${occurrence}`,
+    account:
+      occurrence === 1
+        ? credential.account
+        : credential.account.replace("@", `+${occurrence}@`),
+    username:
+      occurrence === 1
+        ? credential.username
+        : `${credential.username}-${occurrence}`,
     service:
       occurrence === 1
         ? credential.service
