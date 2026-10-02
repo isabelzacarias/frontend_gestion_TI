@@ -8,14 +8,12 @@ import {
   Lock,
   LogOut,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
   SquareKanban,
   Ticket,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "cn"
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router"
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -102,11 +100,11 @@ function AppLayout() {
   }
 
   return (
-    <div className="relative flex min-h-screen bg-background text-foreground">
+    <div className="relative flex h-dvh bg-background text-foreground">
       <aside
         aria-label="Navegación principal"
         className={cn(
-          "hidden shrink-0 flex-col border-r border-[#2a124b] bg-[#07020d] text-white transition-[width] duration-200 ease-in-out md:flex",
+          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-[#2a124b] bg-[#07020d] text-white transition-[width] duration-200 ease-in-out md:flex",
           colapsado ? "w-16" : "w-[15.5rem]",
         )}
       >
@@ -116,21 +114,31 @@ function AppLayout() {
             colapsado ? "justify-center px-3" : "px-6",
           )}
         >
-          {colapsado ? (
-            <img
-              src={logoIcono}
-              alt="HO"
-              className="h-8 w-8 object-contain"
-            />
-          ) : (
-            <img
-              src={logoCompleto}
-              alt="Horbis Group"
-              className="h-10 w-auto max-w-full object-contain object-left"
-            />
-          )}
+          <Link
+            to="/"
+            aria-label="Ir al inicio"
+            title="Ir al inicio"
+            className="flex h-full items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#07020d]"
+          >
+            {colapsado ? (
+              <img
+                src={logoIcono}
+                alt=""
+                className="h-8 w-8 object-contain"
+              />
+            ) : (
+              <img
+                src={logoCompleto}
+                alt=""
+                className="h-10 w-auto max-w-full object-contain object-left"
+              />
+            )}
+          </Link>
         </div>
-        <nav id="primary-sidebar-navigation" className="flex flex-1 flex-col py-3">
+        <nav
+          id="primary-sidebar-navigation"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto py-3"
+        >
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -244,7 +252,7 @@ function AppLayout() {
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col p-6">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
           <Outlet />
         </main>
       </div>

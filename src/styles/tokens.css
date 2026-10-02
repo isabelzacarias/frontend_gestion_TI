@@ -164,9 +164,11 @@
     --secondary: var(--secondary-100);
     --secondary-foreground: var(--black);
     --muted: var(--primary-100);
-    --muted-foreground: var(--secondary-400);
+    --muted-foreground: var(--primary-700);
+    /* Antes: var(--secondary-400) */
     --accent: var(--accent-500);
-    --accent-foreground: var(--white);
+    --accent-foreground: var(--black);
+    /* Antes: var(--white) */
     --destructive: var(--destructive-600);
     --destructive-foreground: var(--white);
     --success: var(--success-600);
@@ -174,9 +176,12 @@
     --warning: var(--warning-600);
     --warning-foreground: var(--white);
     --info: var(--info-500);
-    --info-foreground: var(--white);
-    --border: var(--primary-200);
-    --input: var(--primary-200);
+    --info-foreground: var(--secondary-1000);
+    /* Antes: var(--white) */
+    --border: var(--primary-400);
+    /* Antes: var(--primary-200) */
+    --input: var(--primary-400);
+    /* Antes: var(--primary-200) */
     --ring: var(--primary-600);
     --chart-1: var(--primary-600);
     --chart-2: var(--success-600);
@@ -220,8 +225,10 @@
     --warning-foreground: var(--secondary-1000);
     --info: var(--info-400);
     --info-foreground: var(--secondary-1000);
-    --border: var(--secondary-600);
-    --input: var(--secondary-600);
+    --border: var(--secondary-400);
+    /* Antes: var(--secondary-600) */
+    --input: var(--secondary-400);
+    /* Antes: var(--secondary-600) */
     --ring: var(--primary-300);
     --chart-1: var(--primary-300);
     --chart-2: var(--success-400);
