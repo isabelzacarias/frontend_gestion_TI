@@ -10,6 +10,7 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import {
   AssetFormDialog,
   type AssetFormDraft,
@@ -45,6 +46,61 @@ const createEmptyAssetDraft = (): AssetFormDraft => ({
   responsableNombre: "",
   responsableEmail: "",
 })
+
+/* ──────────────────────────────────────────────
+ * Definición declarativa de las columnas
+ * ────────────────────────────────────────────── */
+const cellBase = "border-b border-border/70 px-4 py-3 text-foreground/90"
+
+const columns: DataTableColumn<InventoryItem>[] = [
+  {
+    key: "id",
+    header: "ID",
+    cellClassName: "border-b border-border/70 px-4 py-3 font-semibold text-foreground",
+    render: (item) => item.id,
+  },
+  { key: "cb23", header: "CB23", cellClassName: cellBase, render: (item) => item.cb23 },
+  { key: "tipo", header: "Tipo", cellClassName: cellBase, render: (item) => item.tipo },
+  { key: "marca", header: "Marca", cellClassName: cellBase, render: (item) => item.marca },
+  { key: "modelo", header: "Modelo", cellClassName: cellBase, render: (item) => item.modelo },
+  { key: "numeroSerie", header: "No. serie", cellClassName: cellBase, render: (item) => item.numeroSerie },
+  { key: "sucursal", header: "Sucursal", cellClassName: cellBase, render: (item) => item.sucursal },
+  {
+    key: "estado",
+    header: "Estado",
+    cellClassName: "border-b border-border/70 px-4 py-3",
+    render: (item) => <Badge className={stateClasses[item.estado]}>{item.estado}</Badge>,
+  },
+  {
+    key: "estadoGeneral",
+    header: "General",
+    cellClassName: "border-b border-border/70 px-4 py-3",
+    render: (item) => (
+      <Badge className={generalClasses[item.estadoGeneral]}>{item.estadoGeneral}</Badge>
+    ),
+  },
+  { key: "nombreRed", header: "Red", cellClassName: cellBase, render: (item) => item.nombreRed },
+  {
+    key: "responsable",
+    header: "Responsable",
+    cellClassName: "border-b border-border/70 px-4 py-3",
+    render: (item) => (
+      <div className="flex items-start gap-2">
+        <span className="mt-0.5 flex size-7 items-center justify-center rounded-full bg-[rgba(6,182,212,0.12)] text-primary">
+          <UserRound className="size-3.5" />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">
+            {item.responsable.nombre}
+          </div>
+          <div className="truncate text-xs text-muted-foreground">
+            {item.responsable.email}
+          </div>
+        </div>
+      </div>
+    ),
+  },
+]
 
 function InventoryPage() {
   const [inventory, setInventory] = useState(inventoryData)
@@ -210,123 +266,16 @@ function InventoryPage() {
         onSubmit={handleCreateAsset}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-border/80 bg-card shadow-[0_12px_35px_rgba(17,24,39,0.06)]">
-        <div
-          className="min-h-0 flex-1 overflow-auto"
-          style={{ overscrollBehaviorY: "none", overflowAnchor: "none" }}
-        >
-          <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] text-white shadow-sm">
-              <tr>
-                {[
-                  "ID",
-                  "CB23",
-                  "Tipo",
-                  "Marca",
-                  "Modelo",
-                  "No. serie",
-                  "Sucursal",
-                  "Estado",
-                  "General",
-                  "Red",
-                  "Responsable",
-                ].map((header) => (
-                  <th
-                    key={header}
-                    className="px-4 py-3 font-semibold tracking-[0.04em] first:rounded-tl-2xl last:rounded-tr-2xl"
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedInventory.map((item, index) => (
-                <tr
-                  key={item.id}
-                  className={index % 2 === 0 ? "bg-background/80" : "bg-[rgba(91,36,128,0.04)]"}
-                >
-                  <td className="border-b border-border/70 px-4 py-3 font-semibold text-foreground">
-                    {item.id}
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3 text-foreground/90">
-                    {item.cb23}
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3 text-foreground/90">
-                    {item.tipo}
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3 text-foreground/90">
-                    {item.marca}
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3 text-foreground/90">
-                    {item.modelo}
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3 text-foreground/90">
-                    {item.numeroSerie}
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3 text-foreground/90">
-                    {item.sucursal}
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3">
-                    <Badge className={stateClasses[item.estado]}>{item.estado}</Badge>
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3">
-                    <Badge className={generalClasses[item.estadoGeneral]}>
-                      {item.estadoGeneral}
-                    </Badge>
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3 text-foreground/90">
-                    {item.nombreRed}
-                  </td>
-                  <td className="border-b border-border/70 px-4 py-3">
-                    <div className="flex items-start gap-2">
-                      <span className="mt-0.5 flex size-7 items-center justify-center rounded-full bg-[rgba(6,182,212,0.12)] text-primary">
-                        <UserRound className="size-3.5" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="truncate font-medium text-foreground">
-                          {item.responsable.nombre}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {item.responsable.email}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex items-center justify-between gap-3 border-t border-border/80 bg-background/80 px-3 py-2 text-xs text-muted-foreground">
-          <span>
-            Mostrando {Math.min((page - 1) * ITEMS_PER_PAGE + 1, filteredInventory.length)}-{Math.min(page * ITEMS_PER_PAGE, filteredInventory.length)} de {filteredInventory.length}
-          </span>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => handlePageChange(page - 1)}
-              disabled={page === 1}
-              className="rounded-md border border-border bg-background px-2.5 py-1 font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              Anterior
-            </button>
-            <span className="min-w-[72px] text-center font-medium text-foreground">
-              {page} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => handlePageChange(page + 1)}
-              disabled={page === totalPages}
-              className="rounded-md border border-border bg-background px-2.5 py-1 font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
-      </div>
+      <DataTable<InventoryItem>
+        columns={columns}
+        data={paginatedInventory}
+        rowKey={(item) => item.id}
+        page={page}
+        totalPages={totalPages}
+        totalFiltered={filteredInventory.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={handlePageChange}
+      />
     </div>
   )
 }
