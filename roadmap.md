@@ -25,12 +25,16 @@ Nota: el estado marcado a continuación refleja lo que ya está confirmado en el
 - [ ] Documentar comandos de desarrollo, build y despliegue
 
 ### Arquitectura y patrones
-- [ ] Definir el estándar de nombres y organización de componentes por dominio
-- [ ] Revisar la estructura de `src/features`, `src/components`, `src/services` y `src/store`
-- [ ] Definir la política de tipado para todos los modelos de datos y respuestas de API
-- [ ] Establecer el patrón de manejo de errores y loading en todas las pantallas
-- [ ] Establecer el patrón de notificaciones toast para confirmaciones y errores
-- [ ] Definir que todas las tablas del proyecto deben seguir el mismo patrón visual y estructural de la consulta de activos del módulo de inventario: encabezado sticky, filas alternadas, bordes sutiles, badges por estado y contenedor con overflow controlado
+- [x] Definir el estándar de nombres y organización de componentes por dominio
+- [x] Revisar la estructura de `src/features`, `src/components`, `src/services` y `src/store`
+- [x] Definir la política de tipado para todos los modelos de datos y respuestas de API
+- [x] Establecer el patrón de manejo de errores y loading en todas las pantallas
+- [x] Establecer el patrón de notificaciones toast para confirmaciones y errores
+- [x] Definir que todas las tablas del proyecto deben seguir el mismo patrón visual y estructural de la consulta de activos del módulo de inventario: encabezado sticky, filas alternadas, bordes sutiles, badges por estado y contenedor con overflow controlado
+- [x] Crear el componente reutilizable `DataTable` para listados con paginación, selección y doble clic
+- [x] Crear el componente reutilizable `FormDialog` para formularios modales con secciones, campos y layout consistente
+- [x] Crear el componente reutilizable `ConfirmDeleteDialog` para confirmación antes de eliminar registros
+- [x] Crear el componente `AssetFormDialog` como wrapper reutilizable para alta y edición de activos del módulo de inventario
 
 ---
 
@@ -106,15 +110,16 @@ Nota: el estado marcado a continuación refleja lo que ya está confirmado en el
 
 ## 7. Inventario de activos
 
-- [ x] Crear listado de inventario de activos
-- [ ] Implementar búsqueda y filtros por tipo, estado o ubicación
-- [ ] Diseñar vista de detalle de activo
-- [ ] Crear formulario de alta o edición de activo
-- [x ] Gestionar asignación de equipos a usuarios o áreas
-- [ ] Definir estado visual de activos activos/inactivos/pendientes
+- [x] Crear listado de inventario de activos
+- [x] Implementar búsqueda y filtros por tipo, estado o ubicación
+- [x] Diseñar vista de detalle de activo
+- [x] Crear formulario de alta o edición de activo
+- [x] Añadir confirmación antes de eliminar un activo
+- [x] Gestionar asignación de equipos a usuarios o áreas
+- [x] Definir estado visual de activos activos/inactivos/pendientes
 - [ ] Conectar con la API del inventario
-- [ ] Añadir validaciones y mensajes de confirmación
-- [ ] Revisar persistencia de datos y manejo de errores
+- [x] Añadir validaciones y mensajes de confirmación
+- [x] Revisar persistencia de datos y manejo de errores
 
 ---
 
@@ -172,6 +177,7 @@ Nota: el estado marcado a continuación refleja lo que ya está confirmado en el
 
 - [x] Revisar diseño de componentes reutilizables en `src/components/ui`
 - [x] Asegurar consistencia visual de botones, inputs, modales y tablas
+- [x] Validar que los componentes reutilizables del inventario sean compatibles con la misma línea visual del proyecto
 - [ ] Validar contrastes y accesibilidad básica en textos e iconos
 - [ ] Revisar navegación por teclado en formularios y modales
 - [ ] Añadir mensajes de error claros para validaciones

@@ -47,6 +47,20 @@ const createEmptyAssetDraft = (): AssetFormDraft => ({
   responsableEmail: "",
 })
 
+const toAssetDraft = (item: InventoryItem): AssetFormDraft => ({
+  cb23: item.cb23,
+  tipo: item.tipo,
+  marca: item.marca,
+  modelo: item.modelo,
+  numeroSerie: item.numeroSerie,
+  sucursal: item.sucursal,
+  estado: item.estado,
+  estadoGeneral: item.estadoGeneral,
+  nombreRed: item.nombreRed,
+  responsableNombre: item.responsable.nombre,
+  responsableEmail: item.responsable.email,
+})
+
 /* ──────────────────────────────────────────────
  * Definición declarativa de las columnas
  * ────────────────────────────────────────────── */
@@ -109,6 +123,8 @@ function InventoryPage() {
   const [selectedBranch, setSelectedBranch] = useState<"ALL" | string>("ALL")
   const [currentPage, setCurrentPage] = useState(1)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null)
   const [draft, setDraft] = useState(createEmptyAssetDraft())
 
   const filteredInventory = useMemo(() => {
@@ -165,6 +181,60 @@ function InventoryPage() {
     setInventory((current) => [nextItem, ...current])
     setDraft(createEmptyAssetDraft())
     setIsAddDialogOpen(false)
+    setCurrentPage(1)
+  }
+
+  const handleSelectAsset = (item: InventoryItem) => {
+    setSelectedAssetId(item.id)
+  }
+
+  const handleOpenEditDialog = (item: InventoryItem) => {
+    setSelectedAssetId(item.id)
+    setDraft(toAssetDraft(item))
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateAsset = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (selectedAssetId === null) return
+
+    setInventory((current) =>
+      current.map((item) =>
+        item.id === selectedAssetId
+          ? {
+              ...item,
+              cb23: draft.cb23.trim() || item.cb23,
+              tipo: draft.tipo,
+              marca: draft.marca.trim() || item.marca,
+              modelo: draft.modelo.trim() || item.modelo,
+              numeroSerie: draft.numeroSerie.trim() || item.numeroSerie,
+              sucursal: draft.sucursal,
+              estado: draft.estado,
+              estadoGeneral: draft.estadoGeneral,
+              nombreRed: draft.nombreRed.trim() || item.nombreRed,
+              responsable: {
+                ...item.responsable,
+                nombre: draft.responsableNombre.trim() || item.responsable.nombre,
+                email: draft.responsableEmail.trim() || item.responsable.email,
+              },
+            }
+          : item,
+      ),
+    )
+
+    setDraft(createEmptyAssetDraft())
+    setSelectedAssetId(null)
+    setIsEditDialogOpen(false)
+  }
+
+  const handleDeleteAsset = () => {
+    if (selectedAssetId === null) return
+
+    setInventory((current) => current.filter((item) => item.id !== selectedAssetId))
+    setDraft(createEmptyAssetDraft())
+    setSelectedAssetId(null)
+    setIsEditDialogOpen(false)
     setCurrentPage(1)
   }
 
@@ -266,6 +336,22 @@ function InventoryPage() {
         onSubmit={handleCreateAsset}
       />
 
+      <AssetFormDialog
+        open={isEditDialogOpen}
+        draft={draft}
+        mode="edit"
+        onOpenChange={(nextOpen) => {
+          setIsEditDialogOpen(nextOpen)
+          if (!nextOpen) {
+            setSelectedAssetId(null)
+            setDraft(createEmptyAssetDraft())
+          }
+        }}
+        onChange={handleDraftChange}
+        onSubmit={handleUpdateAsset}
+        onDelete={handleDeleteAsset}
+      />
+
       <DataTable<InventoryItem>
         columns={columns}
         data={paginatedInventory}
@@ -275,6 +361,9 @@ function InventoryPage() {
         totalFiltered={filteredInventory.length}
         itemsPerPage={ITEMS_PER_PAGE}
         onPageChange={handlePageChange}
+        onRowClick={handleSelectAsset}
+        onRowDoubleClick={handleOpenEditDialog}
+        selectedRowKey={selectedAssetId}
       />
     </div>
   )

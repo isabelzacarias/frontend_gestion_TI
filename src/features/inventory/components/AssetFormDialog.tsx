@@ -1,5 +1,6 @@
-import type { FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import {
   FormDialog,
   type FormSection,
@@ -20,12 +21,19 @@ export type AssetFormDraft = {
   responsableEmail: string
 }
 
+/** Modo del formulario: crear o editar */
+export type AssetFormMode = "create" | "edit"
+
 interface AssetFormDialogProps {
   open: boolean
   draft: AssetFormDraft
+  /** Modo del formulario — por defecto "create" */
+  mode?: AssetFormMode
   onOpenChange: (open: boolean) => void
   onChange: <K extends keyof AssetFormDraft>(field: K, value: AssetFormDraft[K]) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  /** Callback para eliminar — solo se usa en modo "edit" */
+  onDelete?: () => void
 }
 
 /* ──────────────────────────────────────────────
@@ -122,24 +130,71 @@ const sections: FormSection<AssetFormDraft>[] = [
   },
 ]
 
+/* ──────────────────────────────────────────────
+ * Textos según modo
+ * ────────────────────────────────────────────── */
+const modeConfig = {
+  create: {
+    title: "Registrar activo",
+    description: "Completa los datos para agregar un equipo nuevo al inventario TI.",
+    submitLabel: "Guardar activo",
+    icon: <span className="text-lg font-bold">+</span>,
+  },
+  edit: {
+    title: "Editar activo",
+    description: "Modifica los datos del equipo seleccionado.",
+    submitLabel: "Actualizar",
+    icon: <span className="text-lg font-bold text-white">+</span>,
+  },
+}
+
 export function AssetFormDialog({
   open,
   draft,
+  mode = "create",
   onOpenChange,
   onChange,
   onSubmit,
+  onDelete,
 }: AssetFormDialogProps) {
+  const config = modeConfig[mode]
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+
+  const handleDeleteClick = () => {
+    if (mode === "edit" && onDelete) {
+      setIsConfirmOpen(true)
+    }
+  }
+
+  const handleConfirmDelete = () => {
+    onDelete?.()
+    setIsConfirmOpen(false)
+  }
+
   return (
-    <FormDialog<AssetFormDraft>
-      open={open}
-      draft={draft}
-      onOpenChange={onOpenChange}
-      onChange={onChange}
-      onSubmit={onSubmit}
-      title="Registrar activo"
-      description="Completa los datos para agregar un equipo nuevo al inventario TI."
-      submitLabel="Guardar activo"
-      sections={sections}
-    />
+    <>
+      <FormDialog<AssetFormDraft>
+        open={open}
+        draft={draft}
+        onOpenChange={onOpenChange}
+        onChange={onChange}
+        onSubmit={onSubmit}
+        title={config.title}
+        description={config.description}
+        submitLabel={config.submitLabel}
+        icon={config.icon}
+        sections={sections}
+        onDelete={mode === "edit" ? handleDeleteClick : undefined}
+      />
+
+      <ConfirmDeleteDialog
+        open={isConfirmOpen}
+        title="Eliminar activo"
+        itemName={draft.cb23 || "este activo"}
+        description={`¿Deseas eliminar el activo ${draft.cb23 || "seleccionado"}? Esta acción no se puede deshacer.`}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
+    </>
   )
 }

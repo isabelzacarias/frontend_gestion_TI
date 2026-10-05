@@ -37,6 +37,12 @@ export interface DataTableProps<T> {
   itemsPerPage: number
   /** Callback para cambiar de página */
   onPageChange: (page: number) => void
+  /** Callback al hacer click en una fila */
+  onRowClick?: (item: T, index: number) => void
+  /** Callback al hacer doble clic en una fila */
+  onRowDoubleClick?: (item: T, index: number) => void
+  /** Clave seleccionada actualmente */
+  selectedRowKey?: string | number | null
   /** Texto del botón "Anterior" — default "Anterior" */
   prevLabel?: string
   /** Texto del botón "Siguiente" — default "Siguiente" */
@@ -68,6 +74,9 @@ export function DataTable<T>({
   totalFiltered,
   itemsPerPage,
   onPageChange,
+  onRowClick,
+  onRowDoubleClick,
+  selectedRowKey = null,
   prevLabel = "Anterior",
   nextLabel = "Siguiente",
   showingLabel = "Mostrando",
@@ -111,21 +120,32 @@ export function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              data.map((item, index) => (
-                <tr
-                  key={rowKey(item, index)}
-                  className={index % 2 === 0 ? evenRowClass : oddRowClass}
-                >
-                  {columns.map((col) => (
-                    <td
-                      key={col.key}
-                      className={col.cellClassName ?? defaultCellClass}
-                    >
-                      {col.render(item, index)}
-                    </td>
-                  ))}
-                </tr>
-              ))
+              data.map((item, index) => {
+                const currentRowKey = rowKey(item, index)
+                const isSelected = selectedRowKey !== null && currentRowKey === selectedRowKey
+
+                return (
+                  <tr
+                    key={currentRowKey}
+                    className={`${index % 2 === 0 ? evenRowClass : oddRowClass}${onRowDoubleClick || onRowClick ? " cursor-pointer transition-colors hover:bg-primary/[0.06] dark:hover:bg-primary/[0.1]" : ""}${isSelected ? " bg-primary/[0.06] ring-1 ring-inset ring-primary/20" : ""}`}
+                    onClick={onRowClick ? () => onRowClick(item, index) : undefined}
+                    onDoubleClick={
+                      onRowDoubleClick
+                        ? () => onRowDoubleClick(item, index)
+                        : undefined
+                    }
+                  >
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className={col.cellClassName ?? defaultCellClass}
+                      >
+                        {col.render(item, index)}
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>

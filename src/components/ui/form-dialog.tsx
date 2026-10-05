@@ -105,6 +105,10 @@ export interface FormDialogProps<T extends Record<string, unknown>> {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   /** Definición de las secciones y sus campos */
   sections: FormSection<T>[]
+  /** Callback opcional para eliminar — cuando se pasa, se muestra un botón rojo de eliminar */
+  onDelete?: () => void
+  /** Texto del botón de eliminar — por defecto "Eliminar" */
+  deleteLabel?: string
 }
 
 /* ──────────────────────────────────────────────
@@ -122,6 +126,8 @@ export function FormDialog<T extends Record<string, unknown>>({
   onChange,
   onSubmit,
   sections,
+  onDelete,
+  deleteLabel = "Eliminar",
 }: FormDialogProps<T>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -218,21 +224,53 @@ export function FormDialog<T extends Record<string, unknown>>({
 
           {/* ─── Footer ─── */}
           <DialogFooter className="m-0 shrink-0 rounded-none border-t border-border/80 bg-transparent p-0">
-            <div className="flex w-full justify-end gap-2 px-5 py-4 sm:gap-2.5 sm:px-6">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="h-9 rounded-xl border border-white/70 bg-white/70 px-3 text-xs font-semibold shadow-sm hover:bg-white/90 dark:border-white/10 dark:bg-slate-900/60 dark:hover:bg-slate-900/80"
-              >
-                {cancelLabel}
-              </Button>
-              <Button
-                type="submit"
-                className="h-9 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-3 text-xs font-semibold text-white shadow-[0_12px_24px_rgba(109,40,217,0.28)] hover:brightness-110"
-              >
-                {submitLabel}
-              </Button>
+            <div className="flex w-full items-center px-5 py-4 sm:px-6">
+              {/* Botón de eliminar (lado izquierdo, solo si onDelete existe) */}
+              {onDelete ? (
+                <Button
+                  type="button"
+                  onClick={onDelete}
+                  className="h-9 rounded-xl border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-600 shadow-sm transition hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-1.5 size-3.5"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                    <line x1="10" x2="10" y1="11" y2="17" />
+                    <line x1="14" x2="14" y1="11" y2="17" />
+                  </svg>
+                  {deleteLabel}
+                </Button>
+              ) : (
+                <div />
+              )}
+
+              {/* Cancelar + Submit (lado derecho) */}
+              <div className="ml-auto flex gap-2 sm:gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="h-9 rounded-xl border border-white/70 bg-white/70 px-3 text-xs font-semibold shadow-sm hover:bg-white/90 dark:border-white/10 dark:bg-slate-900/60 dark:hover:bg-slate-900/80"
+                >
+                  {cancelLabel}
+                </Button>
+                <Button
+                  type="submit"
+                  className="h-9 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-3 text-xs font-semibold text-white shadow-[0_12px_24px_rgba(109,40,217,0.28)] hover:brightness-110"
+                >
+                  {submitLabel}
+                </Button>
+              </div>
             </div>
           </DialogFooter>
         </form>
