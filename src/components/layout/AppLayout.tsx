@@ -1,18 +1,37 @@
+import { useState } from "react"
 import {
   Boxes,
   ChartBar,
   FolderKanban,
+  Home,
   KeyRound,
-  LayoutDashboard,
+  Lock,
   LogOut,
+  Menu,
   SquareKanban,
   Ticket,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "cn"
-import { Link, NavLink, Outlet } from "react-router"
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { ProfileMenu } from "@/components/layout/ProfileMenu"
+import { NotificationsMenu } from "@/components/layout/NotificationsMenu"
+import ThemeToggle from "@/components/theme/ThemeToggle"
+import { useAuthStore } from "@/store/authStore"
+import { useAppPreferences } from "@/hooks/useAppPreferences"
+import logoCompleto from "@/assets/Logo_footer.webp"
+import logoIcono from "@/assets/lohoHO.png"
 
 interface NavItem {
   to: string
@@ -21,71 +40,219 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  { to: "/", label: "Home", icon: Home },
   { to: "/tickets", label: "Tickets", icon: Ticket },
   { to: "/kanban", label: "Tablero Kanban", icon: SquareKanban },
   { to: "/inventory", label: "Inventario", icon: Boxes },
   { to: "/licenses", label: "Licencias", icon: KeyRound },
   { to: "/projects", label: "Proyectos", icon: FolderKanban },
   { to: "/reports", label: "Reportes", icon: ChartBar },
+  { to: "/passwords", label: "Contraseñas", icon: Lock },
 ]
 
-function navLinkClassName({ isActive }: { isActive: boolean }) {
+function navLinkClassName({
+  isActive,
+  collapsed,
+}: {
+  isActive: boolean
+  collapsed: boolean
+}) {
+  if (collapsed) {
+    return cn(
+      "relative flex h-12 w-full items-center justify-center text-sm transition-colors",
+      isActive
+        ? "bg-[#2a124b] text-white before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--accent-500)]"
+        : "text-white/70 hover:bg-white/5 hover:text-white"
+    )
+  }
+
   return cn(
-    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+    "relative flex w-full items-center gap-3 px-6 py-3 text-sm font-medium transition-colors",
     isActive
-      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+      ? "bg-[#2a124b] text-white before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--accent-500)]"
+      : "text-white/70 hover:bg-white/5 hover:text-white",
   )
 }
 
 function AppLayout() {
-  return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-          <LayoutDashboard className="size-5 text-sidebar-primary" />
-          <span className="font-heading text-sm font-semibold">Gestion TI</span>
-        </div>
-        <nav className="flex flex-1 flex-col gap-1 p-3">
-          {navItems.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} className={navLinkClassName}>
-              <Icon className="size-4" />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="border-t border-sidebar-border p-3">
-          <Button asChild variant="ghost" size="sm" className="w-full justify-start">
-            <Link to="/login">
-              <LogOut className="size-4" />
-              Cerrar sesion
-            </Link>
-          </Button>
-        </div>
-      </aside>
+  const navigate = useNavigate()
+  const location = useLocation()
+  const cerrarSesion = useAuthStore((state) => state.cerrarSesion)
+  const { preferences, updatePreference } = useAppPreferences()
+  const colapsado = preferences.sidebarCollapsed
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center gap-1 overflow-x-auto border-b border-border px-3 md:hidden">
+  const currentNavItem = navItems.find((item) =>
+    item.to === "/"
+      ? location.pathname === "/"
+      : location.pathname.startsWith(item.to)
+  )
+  const pageTitle = currentNavItem?.label || "Sistema de Gestión"
+
+  function requestLogout() {
+    setConfirmLogoutOpen(true)
+  }
+
+  function confirmLogout() {
+    setConfirmLogoutOpen(false)
+    cerrarSesion()
+    navigate("/login", { replace: true })
+  }
+
+  return (
+    <div className="relative flex h-dvh bg-background text-foreground">
+      <aside
+        aria-label="Navegación principal"
+        className={cn(
+          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-[#2a124b] bg-[#07020d] text-white transition-[width] duration-200 ease-in-out md:flex",
+          colapsado ? "w-16" : "w-[15.5rem]",
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-16 shrink-0 items-center border-b border-[#2a124b]",
+            colapsado ? "justify-center px-3" : "px-6",
+          )}
+        >
+          <Link
+            to="/"
+            aria-label="Ir al inicio"
+            title="Ir al inicio"
+            className="flex h-full items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#07020d]"
+          >
+            {colapsado ? (
+              <img
+                src={logoIcono}
+                alt=""
+                className="h-8 w-8 object-contain"
+              />
+            ) : (
+              <img
+                src={logoCompleto}
+                alt=""
+                className="h-10 w-auto max-w-full object-contain object-left"
+              />
+            )}
+          </Link>
+        </div>
+        <nav
+          id="primary-sidebar-navigation"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto py-3"
+        >
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
+              aria-label={colapsado ? label : undefined}
+              title={colapsado ? label : undefined}
               className={({ isActive }) =>
-                cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )
+                navLinkClassName({ isActive, collapsed: colapsado })
               }
             >
-              <Icon className="size-4" />
-              {label}
+              <Icon className={cn("size-4", colapsado && "size-5")} />
+              {!colapsado && label}
             </NavLink>
           ))}
+        </nav>
+        <div className="border-t border-[#2a124b] p-3">
+          <div className="mb-2 flex justify-center">
+            <ProfileMenu collapsed={colapsado} />
+          </div>
+          <div className="mb-1">
+            <ThemeToggle compact={colapsado} />
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start"
+            aria-label={colapsado ? "Cerrar sesión" : undefined}
+            title={colapsado ? "Cerrar sesión" : undefined}
+            onClick={requestLogout}
+          >
+            <LogOut className="size-4" />
+            {!colapsado && "Cerrar sesión"}
+          </Button>
+        </div>
+      </aside>
+
+      <Dialog open={confirmLogoutOpen} onOpenChange={setConfirmLogoutOpen}>
+        <DialogContent
+          role="alertdialog"
+          aria-describedby="logout-confirmation-description"
+          showCloseButton={false}
+        >
+          <DialogHeader>
+            <DialogTitle>¿Cerrar sesión?</DialogTitle>
+            <DialogDescription id="logout-confirmation-description">
+              Tendrás que volver a iniciar sesión para acceder al sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmLogout}
+            >
+              Cerrar sesión
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="flex min-w-0 flex-1 flex-col bg-background">
+        <header className="hidden h-16 shrink-0 items-center justify-between border-b border-border px-6 md:flex">
+          <div className="flex items-center gap-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={colapsado ? "Expandir sidebar" : "Colapsar sidebar"}
+              aria-expanded={!colapsado}
+              aria-controls="primary-sidebar-navigation"
+              className="text-primary hover:bg-muted hover:text-primary"
+              onClick={() =>
+                updatePreference("sidebarCollapsed", !preferences.sidebarCollapsed)
+              }
+            >
+              <Menu className="size-5" />
+            </Button>
+            <span className="text-lg font-bold text-foreground">{pageTitle}</span>
+          </div>
+          <NotificationsMenu />
+        </header>
+        <header className="flex h-14 items-center gap-2 border-b border-border px-3 md:hidden">
+          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+            {navItems.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  cn(
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )
+                }
+              >
+                <Icon className="size-4" />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="flex shrink-0 items-center gap-1">
+            <NotificationsMenu compact />
+            <ThemeToggle compact />
+          </div>
         </header>
 
-        <main className="flex flex-1 flex-col p-6">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
           <Outlet />
         </main>
       </div>

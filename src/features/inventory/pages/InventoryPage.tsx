@@ -41,24 +41,13 @@ function InventoryPage() {
 
       if (!term) return true
 
-      const searchableText = [
-        item.tipo,
-        item.responsable.nombre,
-      ]
-        .join(" ")
-        .toLowerCase()
+      const searchableText = [item.tipo, item.responsable.nombre].join(" ").toLowerCase()
 
       return searchableText.includes(term)
     })
   }, [search, selectedState, selectedBranch])
 
   return (
-<<<<<<< Updated upstream
-    <PagePlaceholder
-      title="Inventario"
-      description="Consulta los activos de TI y sus asignaciones."
-    />
-=======
     <div className="flex h-full flex-col gap-4 overflow-hidden">
       <div className="rounded-[30px] border border-border/80 bg-[radial-gradient(circle_at_top_left,_rgba(123,64,163,0.16),transparent_35%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.18),transparent_30%),linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(238,232,245,0.96))] p-4 shadow-[0_18px_45px_rgba(91,36,128,0.08)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(123,64,163,0.18),transparent_35%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.16),transparent_30%),linear-gradient(135deg,_rgba(17,11,28,0.96),_rgba(14,22,36,0.96))]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -96,7 +85,9 @@ function InventoryPage() {
             <div className="relative inline-flex min-w-[180px] items-center">
               <select
                 value={selectedState}
-                onChange={(event) => setSelectedState(event.target.value as "ALL" | InventoryItem["estado"])}
+                onChange={(event) =>
+                  setSelectedState(event.target.value as "ALL" | InventoryItem["estado"])
+                }
                 className="w-full appearance-none rounded-xl border border-border bg-background/85 px-3 py-2.5 pr-9 text-sm font-medium text-foreground shadow-sm outline-none transition focus:border-primary"
                 aria-label="Filtrar por estado"
               >
@@ -192,7 +183,9 @@ function InventoryPage() {
                     <Badge className={stateClasses[item.estado]}>{item.estado}</Badge>
                   </td>
                   <td className="border-b border-border/70 px-4 py-3">
-                    <Badge className={generalClasses[item.estadoGeneral]}>{item.estadoGeneral}</Badge>
+                    <Badge className={generalClasses[item.estadoGeneral]}>
+                      {item.estadoGeneral}
+                    </Badge>
                   </td>
                   <td className="border-b border-border/70 px-4 py-3 text-foreground/90">
                     {item.nombreRed}
@@ -219,7 +212,6 @@ function InventoryPage() {
         </div>
       </div>
     </div>
->>>>>>> Stashed changes
   )
 }
 
