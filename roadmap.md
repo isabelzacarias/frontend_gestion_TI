@@ -30,6 +30,7 @@ Nota: el estado marcado a continuación refleja lo que ya está confirmado en el
 - [ ] Definir la política de tipado para todos los modelos de datos y respuestas de API
 - [ ] Establecer el patrón de manejo de errores y loading en todas las pantallas
 - [ ] Establecer el patrón de notificaciones toast para confirmaciones y errores
+- [ ] Definir que todas las tablas del proyecto deben seguir el mismo patrón visual y estructural de la consulta de activos del módulo de inventario: encabezado sticky, filas alternadas, bordes sutiles, badges por estado y contenedor con overflow controlado
 
 ---
 
@@ -91,12 +92,12 @@ Nota: el estado marcado a continuación refleja lo que ya está confirmado en el
 
 ## 6. Tablero Kanban
 
-- [ ] Crear estructura del tablero por columnas
-- [ ] Implementar drag and drop para mover tickets entre columnas
+- [x ] Crear estructura del tablero por columnas
+- [x ] Implementar drag and drop para mover tickets entre columnas
 - [ ] Gestionar estados del tablero y sincronización visual
 - [ ] Conectar con datos reales de tickets
 - [ ] Añadir indicadores de carga mientras se actualiza el tablero
-- [ ] Implementar actualización en tiempo real con WebSockets
+- [x ] Implementar actualización en tiempo real con WebSockets
 - [ ] Añadir filtros o búsqueda dentro del Kanban
 - [ ] Revisar UX del drag and drop en escritorio y móvil
 - [ ] Validar manejo de errores al mover elementos
@@ -105,11 +106,11 @@ Nota: el estado marcado a continuación refleja lo que ya está confirmado en el
 
 ## 7. Inventario de activos
 
-- [ ] Crear listado de inventario de activos
+- [ x] Crear listado de inventario de activos
 - [ ] Implementar búsqueda y filtros por tipo, estado o ubicación
 - [ ] Diseñar vista de detalle de activo
 - [ ] Crear formulario de alta o edición de activo
-- [ ] Gestionar asignación de equipos a usuarios o áreas
+- [x ] Gestionar asignación de equipos a usuarios o áreas
 - [ ] Definir estado visual de activos activos/inactivos/pendientes
 - [ ] Conectar con la API del inventario
 - [ ] Añadir validaciones y mensajes de confirmación
