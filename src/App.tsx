@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router"
 import { Toaster, toast } from "sonner"
 
 import ThemeProvider from "@/components/theme/ThemeProvider"
+import { NotificationsSocketManager } from "@/features/notifications/components/NotificationsSocketManager"
 import AppPreferencesProvider from "@/preferences/AppPreferencesProvider"
 import { router } from "@/router"
 import { AuthApiError } from "@/services/auth.service"
@@ -14,6 +15,7 @@ function AppContent() {
 
   return (
     <>
+      <NotificationsSocketManager />
       <RouterProvider router={router} />
       <Toaster position="top-right" theme={theme} />
     </>
