@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import CredentialDialog from "@/features/passwords/components/CredentialDialog"
+import type { CredentialFormMode } from "@/features/passwords/components/CredentialDialog"
 import { sampleCredentials } from "@/features/passwords/data/sample-credentials"
 import type {
   Credential,
@@ -47,8 +48,7 @@ function PasswordsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedCredentialId, setSelectedCredentialId] = useState<string | null>(null)
   const [draft, setDraft] = useState<CredentialDraft>(createEmptyCredentialDraft())
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<CredentialFormMode | null>(null)
 
   const normalizedSearch = searchTerm.trim().toLocaleLowerCase("es")
   const filteredCredentials = credentials.filter((credential) =>
@@ -133,23 +133,30 @@ function PasswordsPage() {
   function openCreateDialog() {
     setDraft(createEmptyCredentialDraft())
     setSelectedCredentialId(null)
-    setIsCreateDialogOpen(true)
-    setIsEditDialogOpen(false)
+    setDialogMode("create")
   }
 
-  function openEditDialog(credential: Credential) {
+  function openViewDialog(credential: Credential) {
     setSelectedCredentialId(credential.id)
     setDraft(toCredentialDraft(credential))
-    setIsCreateDialogOpen(false)
-    setIsEditDialogOpen(true)
+    setDialogMode("view")
+  }
+
+  function startEditing() {
+    const selectedCredential = credentials.find(
+      (credential) => credential.id === selectedCredentialId,
+    )
+    if (!selectedCredential) return
+
+    setDraft(toCredentialDraft(selectedCredential))
+    setDialogMode("edit")
   }
 
   function closeDialog(open: boolean) {
     if (!open) {
       setDraft(createEmptyCredentialDraft())
       setSelectedCredentialId(null)
-      setIsCreateDialogOpen(false)
-      setIsEditDialogOpen(false)
+      setDialogMode(null)
     }
   }
 
@@ -178,7 +185,7 @@ function PasswordsPage() {
 
     setCredentials((current) => [nextCredential, ...current])
     setDraft(createEmptyCredentialDraft())
-    setIsCreateDialogOpen(false)
+    setDialogMode(null)
     toast.success("Credencial creada correctamente.")
   }
 
@@ -212,7 +219,7 @@ function PasswordsPage() {
 
     setDraft(createEmptyCredentialDraft())
     setSelectedCredentialId(null)
-    setIsEditDialogOpen(false)
+    setDialogMode(null)
     toast.success("Cambios aplicados correctamente.")
   }
 
@@ -222,7 +229,7 @@ function PasswordsPage() {
     setCredentials((current) => current.filter((credential) => credential.id !== selectedCredentialId))
     setDraft(createEmptyCredentialDraft())
     setSelectedCredentialId(null)
-    setIsEditDialogOpen(false)
+    setDialogMode(null)
   }
 
   return (
@@ -313,19 +320,20 @@ function PasswordsPage() {
         totalFiltered={filteredCredentials.length}
         itemsPerPage={pageSize}
         onPageChange={changePage}
-        onRowDoubleClick={(credential) => openEditDialog(credential)}
+        onRowDoubleClick={openViewDialog}
         selectedRowKey={selectedCredentialId}
         emptyMessage={`No encontramos credenciales que coincidan con “${searchTerm}”.`}
       />
 
       <CredentialDialog
-        open={isCreateDialogOpen || isEditDialogOpen}
+        open={dialogMode !== null}
         draft={draft}
-        mode={isEditDialogOpen ? "edit" : "create"}
+        mode={dialogMode ?? "create"}
         onOpenChange={closeDialog}
         onChange={handleDraftChange}
-        onSubmit={isEditDialogOpen ? submitEdit : submitCreate}
-        onDelete={isEditDialogOpen ? deleteCredential : undefined}
+        onSubmit={dialogMode === "edit" ? submitEdit : submitCreate}
+        onEdit={startEditing}
+        onDelete={dialogMode === "edit" ? deleteCredential : undefined}
       />
     </div>
   )
