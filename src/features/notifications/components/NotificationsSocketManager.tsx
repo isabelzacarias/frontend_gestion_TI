@@ -57,6 +57,16 @@ function NotificationsSocketManager() {
             })
           }
         },
+        onLicenseExpiring(notification) {
+          const added = useNotificationsStore
+            .getState()
+            .addSocketNotification(notification)
+          if (added) {
+            toast.info("Licencia próxima a vencer", {
+              description: notification.software,
+            })
+          }
+        },
       })
     } catch (error) {
       console.error("No se pudo iniciar la conexión de notificaciones.", error)

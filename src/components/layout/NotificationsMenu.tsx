@@ -1,5 +1,6 @@
 import {
   Bell,
+  CalendarClock,
   CheckCheck,
   CircleCheck,
   LoaderCircle,
@@ -23,6 +24,10 @@ const dateFormatter = new Intl.DateTimeFormat("es-MX", {
   dateStyle: "short",
   timeStyle: "short",
 })
+const expiryDateFormatter = new Intl.DateTimeFormat("es-MX", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+})
 
 interface NotificationsMenuProps {
   compact?: boolean
@@ -33,6 +38,7 @@ function NotificationsMenu({ compact = false }: NotificationsMenuProps) {
   const connectionStatus = useNotificationsStore(
     (state) => state.connectionStatus,
   )
+  const accessStatus = useNotificationsStore((state) => state.accessStatus)
   const noLeidas = useNotificationsStore((state) => state.noLeidas)
   const page = useNotificationsStore((state) => state.page)
   const totalPages = useNotificationsStore((state) => state.totalPages)
@@ -46,7 +52,7 @@ function NotificationsMenu({ compact = false }: NotificationsMenuProps) {
   const loadUnread = useNotificationsStore((state) => state.loadUnread)
   const markRead = useNotificationsStore((state) => state.markRead)
   const markAllRead = useNotificationsStore((state) => state.markAllRead)
-  const notificationCount = noLeidas
+  const notificationCount = accessStatus === "forbidden" ? 0 : noLeidas
 
   const connectionDetails = {
     idle: {
@@ -196,7 +202,12 @@ function NotificationsMenu({ compact = false }: NotificationsMenuProps) {
           </p>
         )}
         <DropdownMenuSeparator />
-        {loadError && (
+        {accessStatus === "forbidden" ? (
+          <p role="alert" className="px-3 py-3 text-sm text-muted-foreground">
+            No tienes permiso para consultar esta bandeja. Solicita el acceso a
+            notificaciones al administrador.
+          </p>
+        ) : loadError ? (
           <div role="alert" className="px-3 py-3">
             <p className="text-sm text-destructive">{loadError}</p>
             <button
@@ -212,8 +223,9 @@ function NotificationsMenu({ compact = false }: NotificationsMenuProps) {
               Reintentar
             </button>
           </div>
-        )}
-        {isLoading && notifications.length === 0 ? (
+        ) : null}
+        {accessStatus === "forbidden" ? null : isLoading &&
+          notifications.length === 0 ? (
           <div
             role="status"
             aria-live="polite"
@@ -231,13 +243,13 @@ function NotificationsMenu({ compact = false }: NotificationsMenuProps) {
             />
             <p className="text-sm font-medium">Estás al día</p>
             <p className="text-sm text-muted-foreground">
-              Las incidencias sin leer aparecerán aquí.
+              Las incidencias y licencias próximas a vencer aparecerán aquí.
             </p>
           </div>
         ) : (
           <div
             role="list"
-            aria-label="Nuevas incidencias"
+            aria-label="Notificaciones sin leer"
             className="max-h-[min(22rem,60vh)] overflow-y-auto"
           >
             {notifications.map((notification) => (
@@ -246,30 +258,81 @@ function NotificationsMenu({ compact = false }: NotificationsMenuProps) {
                 role="listitem"
                 className="border-b border-border px-3 py-3 last:border-b-0"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Incidencia #{notification.incidenciaId}
-                  </span>
-                  <time
-                    dateTime={notification.creadaEn}
-                    className="shrink-0 text-xs text-muted-foreground"
-                  >
-                    {dateFormatter.format(
-                      new Date(notification.creadaEn),
+                {notification.tipo === "INCIDENCIA_NUEVA" ? (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Incidencia #{notification.incidenciaId}
+                      </span>
+                      <time
+                        dateTime={notification.creadaEn}
+                        className="shrink-0 text-xs text-muted-foreground"
+                      >
+                        {dateFormatter.format(new Date(notification.creadaEn))}
+                      </time>
+                    </div>
+                    <p className="mt-1.5 text-sm font-medium text-popover-foreground">
+                      {notification.incidencia.titulo}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Badge
+                        variant="outline"
+                        className="h-5 rounded-md text-[11px]"
+                      >
+                        {notification.incidencia.estado}
+                      </Badge>
+                      <Badge
+                        variant="secondary"
+                        className="h-5 rounded-md text-[11px]"
+                      >
+                        Prioridad {notification.incidencia.prioridad}
+                      </Badge>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning-foreground">
+                        <CalendarClock
+                          aria-hidden="true"
+                          className="size-3.5"
+                        />
+                        Licencia por vencer
+                      </span>
+                      <time
+                        dateTime={notification.creadaEn}
+                        className="shrink-0 text-xs text-muted-foreground"
+                      >
+                        {dateFormatter.format(new Date(notification.creadaEn))}
+                      </time>
+                    </div>
+                    <p className="mt-1.5 text-sm font-medium text-popover-foreground">
+                      {notification.licencia.software}
+                    </p>
+                    {notification.licencia.proveedor && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {notification.licencia.proveedor}
+                      </p>
                     )}
-                  </time>
-                </div>
-                <p className="mt-1.5 text-sm font-medium text-popover-foreground">
-                  {notification.incidencia.titulo}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <Badge variant="outline" className="h-5 rounded-md text-[11px]">
-                    {notification.incidencia.estado}
-                  </Badge>
-                  <Badge variant="secondary" className="h-5 rounded-md text-[11px]">
-                    Prioridad {notification.incidencia.prioridad}
-                  </Badge>
-                </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Badge
+                        variant="outline"
+                        className="h-5 rounded-md text-[11px]"
+                      >
+                        Vence{" "}
+                        {expiryDateFormatter.format(
+                          new Date(notification.licencia.fechaVencimiento),
+                        )}
+                      </Badge>
+                      <Badge
+                        variant="secondary"
+                        className="h-5 rounded-md text-[11px]"
+                      >
+                        Aviso {notification.hitoDias} días antes
+                      </Badge>
+                    </div>
+                  </>
+                )}
                 <div className="mt-2 flex justify-end">
                   <button
                     type="button"

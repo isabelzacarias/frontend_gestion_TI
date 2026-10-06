@@ -4,9 +4,11 @@ import {
   listUnreadNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  NotificationsApiError,
 } from "@/features/notifications/services/notifications.service"
 import type {
   IncidentNotification,
+  LicenseNotification,
   NotificationConnectionStatus,
   NotificationsMeta,
   PersistedNotification,
@@ -17,6 +19,7 @@ const PAGE_LIMIT = 20
 interface NotificationsState {
   notifications: PersistedNotification[]
   connectionStatus: NotificationConnectionStatus
+  accessStatus: "unknown" | "allowed" | "forbidden"
   noLeidas: number
   page: number
   totalPages: number
@@ -27,7 +30,9 @@ interface NotificationsState {
   isMarkingAllRead: boolean
   processedNotificationIds: string[]
   pendingSocketNotificationIds: string[]
-  addSocketNotification: (notification: IncidentNotification) => boolean
+  addSocketNotification: (
+    notification: IncidentNotification | LicenseNotification,
+  ) => boolean
   loadUnread: (options?: { append?: boolean }) => Promise<void>
   markRead: (id: string) => Promise<void>
   markAllRead: () => Promise<void>
@@ -38,6 +43,7 @@ interface NotificationsState {
 const initialState = {
   notifications: [],
   connectionStatus: "idle" as const,
+  accessStatus: "unknown" as const,
   noLeidas: 0,
   page: 0,
   totalPages: 0,
@@ -51,20 +57,44 @@ const initialState = {
 }
 
 function toPersistedNotification(
-  event: IncidentNotification,
+  event: IncidentNotification | LicenseNotification,
 ): PersistedNotification {
+  if ("titulo" in event) {
+    return {
+      id: event.notificacionId,
+      tipo: "INCIDENCIA_NUEVA",
+      incidenciaId: event.id,
+      licenciaId: null,
+      hitoDias: null,
+      creadaEn: event.fechaNotificacion,
+      leidaEn: null,
+      leida: false,
+      incidencia: {
+        id: event.id,
+        titulo: event.titulo,
+        estado: event.estado,
+        prioridad: event.prioridad,
+        fechaNotificacion: event.fechaNotificacion,
+      },
+      licencia: null,
+    }
+  }
+
   return {
     id: event.notificacionId,
-    incidenciaId: event.id,
-    creadaEn: event.fechaNotificacion,
+    tipo: "LICENCIA_POR_VENCER",
+    incidenciaId: null,
+    licenciaId: event.licenciaId,
+    hitoDias: event.hitoDias,
+    creadaEn: event.creadaEn,
     leidaEn: null,
     leida: false,
-    incidencia: {
-      id: event.id,
-      titulo: event.titulo,
-      estado: event.estado,
-      prioridad: event.prioridad,
-      fechaNotificacion: event.fechaNotificacion,
+    incidencia: null,
+    licencia: {
+      id: event.licenciaId,
+      software: event.software,
+      proveedor: null,
+      fechaVencimiento: event.fechaVencimiento,
     },
   }
 }
@@ -134,6 +164,7 @@ const useNotificationsStore = create<NotificationsState>((set, get) => ({
           : pageNotifications
 
         return {
+          accessStatus: "allowed",
           notifications,
           noLeidas:
             result.meta.noLeidas + unconfirmedSocketNotifications.length,
@@ -156,7 +187,20 @@ const useNotificationsStore = create<NotificationsState>((set, get) => ({
         error instanceof Error
           ? error.message
           : "No se pudieron cargar las notificaciones."
-      set({ loadError: message })
+      set({
+        loadError: message,
+        ...(error instanceof NotificationsApiError && error.status === 403
+          ? {
+              accessStatus: "forbidden" as const,
+              notifications: [],
+              noLeidas: 0,
+              page: 0,
+              totalPages: 0,
+              processedNotificationIds: [],
+              pendingSocketNotificationIds: [],
+            }
+          : {}),
+      })
       throw error
     } finally {
       set({ isLoading: false, loadingMore: false })
@@ -177,8 +221,22 @@ const useNotificationsStore = create<NotificationsState>((set, get) => ({
             (notification) => notification.id !== id,
           ),
           noLeidas: Math.max(0, state.noLeidas - (wasUnread ? 1 : 0)),
+          accessStatus: "allowed",
         }
       })
+    } catch (error) {
+      if (error instanceof NotificationsApiError && error.status === 403) {
+        set({
+          accessStatus: "forbidden",
+          notifications: [],
+          noLeidas: 0,
+          page: 0,
+          totalPages: 0,
+          processedNotificationIds: [],
+          pendingSocketNotificationIds: [],
+        })
+      }
+      throw error
     } finally {
       set((state) => ({
         pendingReadIds: state.pendingReadIds.filter(
@@ -201,7 +259,21 @@ const useNotificationsStore = create<NotificationsState>((set, get) => ({
           ({ id }) => !notificationIdsAtRequest.has(id),
         ),
         noLeidas: Math.max(0, state.noLeidas - markedCount),
+        accessStatus: "allowed",
       }))
+    } catch (error) {
+      if (error instanceof NotificationsApiError && error.status === 403) {
+        set({
+          accessStatus: "forbidden",
+          notifications: [],
+          noLeidas: 0,
+          page: 0,
+          totalPages: 0,
+          processedNotificationIds: [],
+          pendingSocketNotificationIds: [],
+        })
+      }
+      throw error
     } finally {
       set({ isMarkingAllRead: false })
     }
