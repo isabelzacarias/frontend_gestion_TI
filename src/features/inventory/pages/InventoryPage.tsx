@@ -8,6 +8,7 @@ import {
   UserRound,
 } from "lucide-react"
 
+import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
@@ -240,18 +241,11 @@ function InventoryPage() {
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-hidden">
-      <div className="rounded-[30px] border border-white/40 bg-[radial-gradient(circle_at_top_left,_rgba(123,64,163,0.28),transparent_35%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.28),transparent_30%),linear-gradient(135deg,_rgba(255,255,255,0.9),_rgba(243,232,255,0.82),_rgba(230,247,255,0.86))] p-4 shadow-[0_22px_70px_rgba(91,36,128,0.12)] backdrop-blur-xl ring-1 ring-white/40 dark:border-white/10 dark:bg-[radial-gradient(circle_at_top_left,_rgba(123,64,163,0.28),transparent_35%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.22),transparent_30%),linear-gradient(135deg,_rgba(17,11,28,0.92),_rgba(14,22,36,0.96),_rgba(17,24,39,0.92))] dark:shadow-[0_26px_80px_rgba(13,18,32,0.42)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80 dark:text-violet-200 dark:drop-shadow-[0_0_10px_rgba(196,181,253,0.35)]">
-              Inventario TI
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground dark:text-white dark:drop-shadow-[0_0_14px_rgba(255,255,255,0.12)]">
-              Consulta de activos
-            </h1>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
+      <ModuleHeader
+        eyebrow="Inventario TI"
+        title="Consulta de activos"
+        actions={
+          <>
             <Button
               type="button"
               variant="outline"
@@ -269,11 +263,10 @@ function InventoryPage() {
               <Plus className="size-4" />
               Agregar
             </Button>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 flex-col gap-3 md:flex-row md:items-center">
+          </>
+        }
+        filters={
+          <>
             <div className="flex items-center gap-2 rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 text-sm text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_10px_24px_rgba(91,36,128,0.08)] backdrop-blur-md md:min-w-[290px] dark:border-white/10 dark:bg-slate-900/55 dark:shadow-[inset_0_1px_0_rgba(148,163,184,0.12),0_12px_25px_rgba(15,23,42,0.18)]">
               <Search className="size-4 text-primary" />
               <input
@@ -317,16 +310,15 @@ function InventoryPage() {
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 size-4 text-muted-foreground" />
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
-              <ArrowUpDown className="size-3.5 text-violet-700 dark:text-violet-200" />
-              {filteredInventory.length} registros
-            </span>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        summary={
+          <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
+            <ArrowUpDown className="size-3.5 text-violet-700 dark:text-violet-200" />
+            {filteredInventory.length} registros
+          </span>
+        }
+      />
 
       <AssetFormDialog
         open={isAddDialogOpen}

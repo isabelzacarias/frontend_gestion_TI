@@ -188,7 +188,26 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ---
 
-## 9. Gestión de Proyectos y Tareas de TI
+## 9. Módulo de Contraseñas y Credenciales de Servicios
+
+- [x] Definir la estructura del módulo de contraseñas dentro del shell principal y exponer la ruta `/passwords` en la navegación.
+- [x] Diseñar la vista de listado con búsqueda por servicio, cuenta y categoría, junto con paginación y estado de resultados vacíos.
+- [x] Implementar la tabla de credenciales con ocultación por defecto, badges de categoría y fecha de última actualización.
+- [x] Crear el modal de detalle para consultar los datos de acceso y abrir el flujo de edición.
+- [x] Implementar la edición temporal de credenciales en sesión actual con validación y feedback visual de guardado.
+- [x] Añadir indicador visual de fortaleza de contraseña con criterios de longitud, mayúsculas, minúsculas, números y caracteres especiales.
+- [x] Agregar alternancia de visibilidad de contraseña y mensajes de contexto para entorno demo sin conexión a API.
+- [x] Diseñar la experiencia con datos ficticios para validar la interacción del módulo antes de conectarlo al backend.
+- [ ] Conectar el módulo de contraseñas con la API real y persistencia del backend.
+- [ ] Implementar almacenamiento seguro de secretos con enmascarado, control de permisos y trazabilidad de acceso.
+- [ ] Añadir filtros avanzados por categoría, servicio, responsable y estado de uso.
+- [ ] Incorporar acciones de copia segura al portapapeles, historial de acceso y auditoría de cambios.
+- [ ] Configurar validaciones reforzadas para evitar contraseñas débiles y rotación programada.
+- [ ] Establecer políticas de eliminación y revocación con confirmación explícita y registro de actividad.
+
+---
+
+## 10. Gestión de Proyectos y Tareas de TI
 
 - [ ] Diseñar e implementar el listado general de proyectos activos, planificados y concluidos utilizando `DataTable`.
 - [ ] Implementar filtros por fase del proyecto, departamento solicitante y líder técnico.
@@ -200,7 +219,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ---
 
-## 10. Asistente Virtual y Chatbot de TI con IA
+## 11. Asistente Virtual y Chatbot de TI con IA
 
 - [ ] Diseñar e implementar el botón flotante y panel desplegable del asistente de soporte técnico.
 - [ ] Construir la interfaz de chat con diferenciación clara de burbujas (usuario, sistema, asistente con IA).
@@ -213,7 +232,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ---
 
-## 11. Estado Global, Arquitectura de Datos y Servicios
+## 12. Estado Global, Arquitectura de Datos y Servicios
 
 - [ ] Completar la store de autenticación (`useAuthStore`) con persistencia segura y datos del usuario autenticado.
 - [ ] Desarrollar la store global de preferencias (`useAppPreferences`) para tema, densidad de tablas y notificaciones.
@@ -223,7 +242,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ---
 
-## 12. Calidad, Accesibilidad (a11y) y Experiencia de Usuario (UX)
+## 13. Calidad, Accesibilidad (a11y) y Experiencia de Usuario (UX)
 
 - [x] Auditar la colección de componentes reutilizables en `src/components/ui/` para validar coherencia estética y funcional.
 - [x] Consolidar la paleta de colores, curvaturas, tipografías y sombras en botones, modales y tablas.
@@ -235,7 +254,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ---
 
-## 13. Estrategia de Testing y Control de Calidad
+## 14. Estrategia de Testing y Control de Calidad
 
 - [ ] Configurar el entorno de pruebas unitarias y de integración en el frontend.
 - [ ] Implementar pruebas unitarias para los componentes base críticos (`DataTable`, `FormDialog`, `ConfirmDeleteDialog`).
@@ -246,7 +265,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ---
 
-## 14. Preparación para Despliegue y Entrega Continua
+## 15. Preparación para Despliegue y Entrega Continua
 
 - [ ] Validar la correcta separación de variables de entorno para entornos de desarrollo, staging y producción.
 - [ ] Ejecutar y optimizar el build final con `npm run build`, asegurando cero errores tipográficos y code splitting adecuado.
@@ -256,7 +275,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ---
 
-## 15. Backlog de Mejoras Futuras
+## 16. Backlog de Mejoras Futuras
 
 - [ ] Implementar exportación nativa de reportes a formatos PDF y hojas de cálculo Excel/CSV con filtros aplicados.
 - [ ] Desarrollar búsqueda global unificada (Command Palette tipo `Ctrl + K`) para saltar a cualquier activo, ticket o proyecto.
@@ -266,7 +285,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ---
 
-## 16. Checklist de Cierre de Sprint
+## 17. Checklist de Cierre de Sprint
 
 - [ ] Verificar las tareas marcadas como completadas (`[x]`) contra las evidencias reales en el código.
 - [ ] Confirmar que cada pantalla desarrollada use estrictamente los componentes base (`DataTable`, `FormDialog`, `ConfirmDeleteDialog`).
