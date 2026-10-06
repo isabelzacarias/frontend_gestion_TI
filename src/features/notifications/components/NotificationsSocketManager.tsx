@@ -11,18 +11,17 @@ function NotificationsSocketManager() {
   const previousToken = useRef<string | null>(null)
 
   useEffect(() => {
-    const { clearNotifications, setConnectionStatus } =
-      useNotificationsStore.getState()
+    const { setConnectionStatus } = useNotificationsStore.getState()
 
     if (authStatus !== "authenticated" || !token) {
       previousToken.current = null
-      clearNotifications()
+      useNotificationsStore.getState().reset()
       setConnectionStatus("idle")
       return
     }
 
     if (previousToken.current && previousToken.current !== token) {
-      clearNotifications()
+      useNotificationsStore.getState().reset()
     }
     previousToken.current = token
     setConnectionStatus("connecting")
@@ -31,6 +30,15 @@ function NotificationsSocketManager() {
       return connectNotificationSocket(token, {
         onConnect() {
           setConnectionStatus("connected")
+          void useNotificationsStore
+            .getState()
+            .loadUnread()
+            .catch((error: unknown) => {
+              console.error(
+                "No se pudieron sincronizar las notificaciones al conectar.",
+                error,
+              )
+            })
         },
         onDisconnect(_reason, willReconnect) {
           setConnectionStatus(willReconnect ? "reconnecting" : "disconnected")
@@ -42,7 +50,7 @@ function NotificationsSocketManager() {
         onNewIncident(notification) {
           const added = useNotificationsStore
             .getState()
-            .addNotification(notification)
+            .addSocketNotification(notification)
           if (added) {
             toast.info("Nueva incidencia", {
               description: notification.titulo,

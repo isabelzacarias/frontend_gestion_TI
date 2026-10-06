@@ -216,6 +216,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 ## 11. Estado Global, Arquitectura de Datos y Servicios
 
 - [ ] Completar la store de autenticación (`useAuthStore`) con persistencia segura y datos del usuario autenticado.
+- [x] Consumir notificaciones persistentes de incidencias por REST y Socket.IO, con paginación, lectura individual/masiva y sincronización al reconectar.
 - [ ] Desarrollar la store global de preferencias (`useAppPreferences`) para tema, densidad de tablas y notificaciones.
 - [ ] Crear un cliente HTTP Axios centralizado con interceptores automáticos para inyección de token JWT y captura unificada de errores (401, 403, 500).
 - [ ] Estandarizar el uso de Zustand para evitar duplicación de estado y renderizados innecesarios.

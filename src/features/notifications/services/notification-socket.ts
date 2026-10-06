@@ -23,6 +23,12 @@ function parseIncidentNotification(
       (typeof value.id === "string" && value.id.trim().length > 0) ||
       (typeof value.id === "number" && Number.isFinite(value.id))
     ) ||
+    !(
+      (typeof value.notificacionId === "string" &&
+        value.notificacionId.trim().length > 0) ||
+      (typeof value.notificacionId === "number" &&
+        Number.isFinite(value.notificacionId))
+    ) ||
     typeof value.titulo !== "string" ||
     value.titulo.trim().length === 0 ||
     typeof value.estado !== "string" ||
@@ -41,6 +47,7 @@ function parseIncidentNotification(
 
   return {
     id: String(value.id),
+    notificacionId: String(value.notificacionId),
     titulo: value.titulo,
     estado: value.estado,
     prioridad: value.prioridad,
