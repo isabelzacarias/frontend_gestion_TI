@@ -41,6 +41,24 @@ const toCredentialDraft = (credential: Credential): CredentialDraft => ({
   notes: credential.notes,
 })
 
+const createCredentialFromDraft = (draft: CredentialDraft, id: number): Credential => ({
+  id: `cred-${id}`,
+  service: draft.service.trim() || "Nuevo servicio",
+  account: draft.account.trim() || "Cuenta no especificada",
+  username: draft.username.trim() || "usuario",
+  password: draft.password,
+  website: draft.website.trim() || "https://example.com",
+  category: draft.category.trim() || "Cloud",
+  updatedAt: new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date()),
+  createdBy: "Usuario actual",
+  notes: draft.notes.trim(),
+  icon: sampleCredentials[0].icon,
+})
+
 function PasswordsPage() {
   const pageSize = 10
   const [credentials, setCredentials] = useState(sampleCredentials)
@@ -163,30 +181,28 @@ function PasswordsPage() {
   function submitCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const createdAt = new Intl.DateTimeFormat("es-MX", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date())
-
-    const nextCredential: Credential = {
-      id: `cred-${Date.now()}`,
-      service: draft.service.trim() || "Nuevo servicio",
-      account: draft.account.trim() || "Cuenta no especificada",
-      username: draft.username.trim() || "usuario",
-      password: draft.password,
-      website: draft.website.trim() || "https://example.com",
-      category: draft.category.trim() || "Cloud",
-      updatedAt: createdAt,
-      createdBy: "Usuario actual",
-      notes: draft.notes.trim(),
-      icon: sampleCredentials[0].icon,
-    }
+    const nextCredential = createCredentialFromDraft(draft, Date.now())
 
     setCredentials((current) => [nextCredential, ...current])
     setDraft(createEmptyCredentialDraft())
     setDialogMode(null)
     toast.success("Credencial creada correctamente.")
+  }
+
+  function importCredentials(records: CredentialDraft[]) {
+    const idBase = Date.now()
+    const importedCredentials = records.map((record, index) =>
+      createCredentialFromDraft(record, idBase + index),
+    )
+
+    setCredentials((current) => [...importedCredentials, ...current])
+    setDraft(createEmptyCredentialDraft())
+    setSearchTerm("")
+    setCurrentPage(1)
+    setDialogMode(null)
+    toast.success(
+      `${importedCredentials.length} ${importedCredentials.length === 1 ? "credencial registrada" : "credenciales registradas"} correctamente.`,
+    )
   }
 
   function submitEdit(event: FormEvent<HTMLFormElement>) {
@@ -333,6 +349,7 @@ function PasswordsPage() {
         onChange={handleDraftChange}
         onSubmit={dialogMode === "edit" ? submitEdit : submitCreate}
         onEdit={startEditing}
+        onImport={dialogMode === "create" ? importCredentials : undefined}
         onDelete={dialogMode === "edit" ? deleteCredential : undefined}
       />
     </div>

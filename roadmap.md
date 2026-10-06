@@ -20,7 +20,7 @@ Este documento centraliza la planificación, el estado de avance y los lineamien
 
 Para garantizar una experiencia de usuario (UX) homogénea, profesional y predecible en todo el sistema, **queda estrictamente prohibido crear tablas HTML ad-hoc, formularios modales dispersos o cuadros de diálogo de eliminación no estandarizados**.
 
-Todo nuevo módulo (Tickets, Licencias, Proyectos, Usuarios, etc.) debe construirse obligatoriamente sobre los siguientes tres componentes base ubicados en `src/components/ui/`:
+Todo nuevo módulo (Tickets, Licencias, Proyectos, Usuarios, etc.) debe construirse obligatoriamente sobre los siguientes componentes base ubicados en `src/components/ui/`:
 
 ### 1. `DataTable<T>` (`src/components/ui/data-table.tsx`)
 Es el componente mandatorio para cualquier listado o vista tabular del sistema.
@@ -33,16 +33,16 @@ Es el componente mandatorio para cualquier listado o vista tabular del sistema.
   - **Interacciones nativas:**
     - Efecto hover suave (`hover:bg-primary/[0.06]`).
     - Selección visual de fila activa mediante `selectedRowKey` con anillo de enfoque sutil.
-    - Soporte para clic simple (`onRowClick`) y doble clic (`onRowDoubleClick`) para abrir detalles o disparar modales de edición sin botones redundantes.
+    - Soporte para clic simple (`onRowClick`) y doble clic (`onRowDoubleClick`); el doble clic abre el `DetailDialog` y desde allí se inicia la edición con el formulario del módulo.
   - **Paginación integrada:** Barra inferior con conteo descriptivo de registros (`Mostrando X-Y de Z`), controles de página anterior/siguiente deshabilitables y visualización de página actual.
 * **Regla de uso:** Definir columnas tipadas mediante la interfaz `DataTableColumn<T>[]`, especificando la función `render(item, index)` para badges, fechas o acciones personalizadas.
 
 ---
 
 ### 2. `FormDialog<T>` (`src/components/ui/form-dialog.tsx`)
-Es el componente base mandatorio para modales de creación, consulta y edición de registros.
+Es el componente base mandatorio para formularios modales de creación y edición de registros.
 
-* **Objetivo:** Eliminar la inconsistencia de layouts en formularios modales, asegurando una distribución balanceada de campos por secciones temáticas.
+* **Objetivo:** Eliminar la inconsistencia de layouts en formularios modales, asegurando una distribución balanceada de campos editables por secciones temáticas.
 * **Características de diseño y comportamiento:**
   - **Estética Glassmorphism Premium:** Ventana modal amplia (`max-w-[980px]`, `rounded-[28px]`) con fondos radiales translúcidos, desenfoque de fondo (`backdrop-blur-xl`) y borde sutil adaptado tanto a tema claro como oscuro.
   - **Cabecera destacada:** Barra superior de acento con gradiente, badge distintivo con contenedor de icono (`size-12`, gradiente primario y sombra de elevación), título nítido y descripción de contexto.
@@ -55,7 +55,20 @@ Es el componente base mandatorio para modales de creación, consulta y edición 
 
 ---
 
-### 3. `ConfirmDeleteDialog` (`src/components/ui/confirm-delete-dialog.tsx`)
+### 3. `DetailDialog` (`src/components/ui/detail-dialog.tsx`)
+Es el componente base mandatorio para consultar registros sin permitir su modificación directa.
+
+* **Objetivo:** Mostrar la información de un registro en secciones reutilizables de etiquetas y valores, sin presentar inputs de solo lectura.
+* **Características de diseño y comportamiento:**
+  - Comparte la cabecera, el tratamiento visual de secciones y el layout modal de los formularios.
+  - Distribuye los datos automáticamente en una rejilla responsiva; usar `colSpan` solo cuando un dato realmente necesite ocupar varias columnas.
+  - Incluye las acciones **Cerrar** y **Editar**. La consulta no contiene controles de guardado ni de eliminación.
+  - Permite valores personalizados como enlaces, badges o contraseñas enmascaradas con alternancia de visibilidad.
+* **Regla de uso / Flujo común:** El doble clic sobre una fila de `DataTable` abre el detalle. Al elegir **Editar**, se cierra la consulta y se abre el wrapper `FormDialog` del módulo con los datos del mismo registro.
+
+---
+
+### 4. `ConfirmDeleteDialog` (`src/components/ui/confirm-delete-dialog.tsx`)
 Es el diálogo modal obligatorio para cualquier confirmación de eliminación o acción destructiva.
 
 * **Objetivo:** Proteger al usuario contra pérdidas accidentales de datos mediante un diálogo claro, seguro y estéticamente coordinado con el sistema de diseño.
@@ -86,7 +99,8 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 - [x] Configurar el sistema centralizado de notificaciones toast (Sonner) para feedback de operaciones.
 - [x] Definir que todas las tablas y listados sigan el patrón visual de la consulta de inventario: encabezado sticky con gradiente primario, alternancia de filas, bordes sutiles y paginación integrada.
 - [x] Desarrollar el componente genérico reutilizable `DataTable` con paginación, selección y doble clic.
-- [x] Desarrollar el componente genérico reutilizable `FormDialog` con secciones tipadas, soporte multiformato y footer ergonómico.
+- [x] Desarrollar el componente genérico reutilizable `FormDialog` para altas y ediciones, con secciones tipadas, soporte multiformato y footer ergonómico.
+- [x] Desarrollar el componente genérico reutilizable `DetailDialog` para consultas, con etiquetas/valores, secciones y acciones de cerrar/editar.
 - [x] Desarrollar el componente genérico reutilizable `ConfirmDeleteDialog` para confirmaciones de borrado seguro.
 - [x] Crear el componente de dominio `AssetFormDialog` como implementación de referencia para alta y edición de activos.
 
@@ -164,7 +178,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 - [x] Implementar el listado centralizado de inventario de equipos utilizando el componente base `DataTable`.
 - [x] Desarrollar la barra de búsqueda y filtros combinados por tipo de equipo, sucursal, estado operativo y estado físico.
-- [x] Diseñar el drawer o modal de vista de detalle rápido del activo.
+- [x] Consultar el detalle del activo con `DetailDialog` al hacer doble clic y abrir `AssetFormDialog` en edición mediante la acción **Editar**.
 - [x] Construir el modal de alta y edición de activos utilizando el componente `AssetFormDialog` (basado en `FormDialog`).
 - [x] Integrar el diálogo de confirmación de baja de activos utilizando `ConfirmDeleteDialog`.
 - [x] Gestionar la asignación de equipos a usuarios responsables, puestos y ubicaciones físicas.
@@ -193,7 +207,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 - [x] Definir la estructura del módulo de contraseñas dentro del shell principal y exponer la ruta `/passwords` en la navegación.
 - [x] Diseñar la vista de listado con búsqueda por servicio, cuenta y categoría, junto con paginación y estado de resultados vacíos.
 - [x] Implementar la tabla de credenciales con ocultación por defecto, badges de categoría y fecha de última actualización.
-- [x] Crear el modal de detalle para consultar los datos de acceso y abrir el flujo de edición.
+- [x] Consultar los datos de acceso con `DetailDialog` al hacer doble clic y abrir el formulario de edición con la acción **Editar**.
 - [x] Implementar la edición temporal de credenciales en sesión actual con validación y feedback visual de guardado.
 - [x] Añadir indicador visual de fortaleza de contraseña con criterios de longitud, mayúsculas, minúsculas, números y caracteres especiales.
 - [x] Agregar alternancia de visibilidad de contraseña y mensajes de contexto para entorno demo sin conexión a API.
@@ -249,7 +263,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 - [x] Consolidar la paleta de colores, curvaturas, tipografías y sombras en botones, modales y tablas.
 - [x] Validar que las vistas de inventario y futuros módulos utilicen estrictamente la misma línea visual y componentes base.
 - [ ] Verificar ratios de contraste WCAG 2.2 AA en textos, badges y estados sobre tema claro y tema oscuro.
-- [ ] Asegurar navegación completa mediante teclado (Tab, Escape, Enter) en modales (`FormDialog`, `ConfirmDeleteDialog`) y tablas (`DataTable`).
+- [ ] Asegurar navegación completa mediante teclado (Tab, Escape, Enter) en modales (`DetailDialog`, `FormDialog`, `ConfirmDeleteDialog`) y tablas (`DataTable`).
 - [ ] Estandarizar mensajes de error de validación descriptivos e inmediatos debajo de cada campo de formulario.
 - [ ] Asegurar consistencia en la librería de iconos Lucide en todas las vistas del proyecto.
 
@@ -258,7 +272,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 ## 14. Estrategia de Testing y Control de Calidad
 
 - [ ] Configurar el entorno de pruebas unitarias y de integración en el frontend.
-- [ ] Implementar pruebas unitarias para los componentes base críticos (`DataTable`, `FormDialog`, `ConfirmDeleteDialog`).
+- [ ] Implementar pruebas unitarias para los componentes base críticos (`DataTable`, `DetailDialog`, `FormDialog`, `ConfirmDeleteDialog`).
 - [ ] Desarrollar pruebas sobre los hooks principales de estado y servicios de API.
 - [ ] Validar flujos de interacción críticos de usuario: inicio de sesión, alta/edición de registros y eliminación con confirmación.
 - [ ] Validar la resiliencia del tablero Kanban ante caídas o desconexiones de WebSocket.
@@ -289,7 +303,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 ## 17. Checklist de Cierre de Sprint
 
 - [ ] Verificar las tareas marcadas como completadas (`[x]`) contra las evidencias reales en el código.
-- [ ] Confirmar que cada pantalla desarrollada use estrictamente los componentes base (`DataTable`, `FormDialog`, `ConfirmDeleteDialog`).
+- [ ] Confirmar que cada pantalla desarrollada use estrictamente los componentes base (`DataTable`, `DetailDialog`, `FormDialog`, `ConfirmDeleteDialog`) y el flujo común de consulta/edición.
 - [ ] Validar que la compilación (`npm run build`) y el linter (`npm run lint`) pasen satisfactoriamente sin advertencias críticas.
 - [ ] Comprobar el recorrido completo del usuario (End-to-End básico) desde el acceso hasta la operación en módulos activos.
 - [ ] Respaldar y documentar los cambios implementados para la entrega formal.

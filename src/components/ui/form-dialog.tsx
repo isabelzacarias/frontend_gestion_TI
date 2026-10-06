@@ -110,6 +110,8 @@ export interface FormDialogProps<T extends Record<string, unknown>> {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   /** Definición de las secciones y sus campos */
   sections: FormSection<T>[]
+  /** Acciones opcionales dentro del formulario, antes de las secciones */
+  formActions?: ReactNode
   /** Callback opcional para eliminar — cuando se pasa, se muestra un botón rojo de eliminar */
   onDelete?: () => void
   /** Texto del botón de eliminar — por defecto "Eliminar" */
@@ -133,6 +135,7 @@ export function FormDialog<T extends Record<string, unknown>>({
   onChange,
   onSubmit,
   sections,
+  formActions,
   onDelete,
   deleteLabel = "Eliminar",
   submitDisabled = false,
@@ -161,6 +164,7 @@ export function FormDialog<T extends Record<string, unknown>>({
         {/* ─── Form body ─── */}
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+            {formActions}
             {sections.map((section) => (
               <section key={section.title} className={sectionClass}>
                 <div className="mb-2.5 flex items-center gap-2">

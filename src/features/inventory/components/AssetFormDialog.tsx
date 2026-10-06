@@ -1,11 +1,19 @@
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react"
+import { Download, Upload } from "lucide-react"
+import { toast } from "sonner"
 
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
+import { Button } from "@/components/ui/button"
+import { ImportConfirmDialog } from "@/components/ui/import-confirm-dialog"
 import {
   FormDialog,
   type FormSection,
 } from "@/components/ui/form-dialog"
 import type { InventoryItem } from "@/features/inventory/data/inventoryData"
+import {
+  downloadAssetCsvTemplate,
+  parseAssetCsv,
+} from "@/features/inventory/utils/asset-import"
 
 export type AssetFormDraft = {
   cb23: string
@@ -32,6 +40,7 @@ interface AssetFormDialogProps {
   onOpenChange: (open: boolean) => void
   onChange: <K extends keyof AssetFormDraft>(field: K, value: AssetFormDraft[K]) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onImport?: (records: AssetFormDraft[]) => void
   /** Callback para eliminar — solo se usa en modo "edit" */
   onDelete?: () => void
 }
@@ -52,6 +61,7 @@ const sections: FormSection<AssetFormDraft>[] = [
         type: "select",
         options: [
           { value: "Laptop", label: "Laptop" },
+          { value: "Tablet", label: "Tablet" },
           { value: "Desktop", label: "Desktop" },
           { value: "Monitor", label: "Monitor" },
           { value: "Servidor", label: "Servidor" },
@@ -155,10 +165,41 @@ export function AssetFormDialog({
   onOpenChange,
   onChange,
   onSubmit,
+  onImport,
   onDelete,
 }: AssetFormDialogProps) {
   const config = modeConfig[mode]
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false)
+  const [pendingImport, setPendingImport] = useState<AssetFormDraft[]>([])
+  const importInputRef = useRef<HTMLInputElement>(null)
+
+  const handleImportClick = () => {
+    importInputRef.current?.click()
+  }
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      if (!file.name.toLocaleLowerCase().endsWith(".csv")) {
+        throw new Error("Selecciona un archivo CSV compatible con Excel.")
+      }
+
+      const importedDrafts = parseAssetCsv(await file.text())
+      setPendingImport(importedDrafts)
+      setIsImportConfirmOpen(true)
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo leer el archivo. Descarga la plantilla e inténtalo de nuevo.",
+      )
+    } finally {
+      event.target.value = ""
+    }
+  }
 
   const handleDeleteClick = () => {
     if (mode === "edit" && onDelete) {
@@ -169,6 +210,13 @@ export function AssetFormDialog({
   const handleConfirmDelete = () => {
     onDelete?.()
     setIsConfirmOpen(false)
+  }
+
+  const handleConfirmImport = () => {
+    if (pendingImport.length === 0 || !onImport) return
+    onImport(pendingImport)
+    setPendingImport([])
+    setIsImportConfirmOpen(false)
   }
 
   return (
@@ -185,6 +233,61 @@ export function AssetFormDialog({
         icon={config.icon}
         sections={sections}
         onDelete={mode === "edit" ? handleDeleteClick : undefined}
+        formActions={
+          mode === "create" && onImport ? (
+            <>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="sr-only"
+                aria-label="Seleccionar archivo CSV de activos"
+                onChange={(event) => void handleImportFile(event)}
+              />
+              <div className="flex flex-col gap-3 border-b border-border/70 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Importar activos</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Completa la plantilla CSV; después selecciona el archivo para revisar el lote antes de registrarlo.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9 rounded-xl px-3 text-xs font-semibold"
+                    onClick={downloadAssetCsvTemplate}
+                  >
+                    <Download aria-hidden="true" />
+                    Descargar plantilla de registro
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9 rounded-xl px-3 text-xs font-semibold"
+                    onClick={handleImportClick}
+                  >
+                    <Upload aria-hidden="true" />
+                    Importar
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : undefined
+        }
+      />
+
+      <ImportConfirmDialog
+        open={isImportConfirmOpen}
+        count={pendingImport.length}
+        recordLabel="activo"
+        recordsLabel="activos"
+        emptyMessage="El archivo contiene 0 activos. Completa la plantilla CSV con al menos un registro para continuar."
+        onOpenChange={(nextOpen) => {
+          setIsImportConfirmOpen(nextOpen)
+          if (!nextOpen) setPendingImport([])
+        }}
+        onConfirm={handleConfirmImport}
       />
 
       <ConfirmDeleteDialog

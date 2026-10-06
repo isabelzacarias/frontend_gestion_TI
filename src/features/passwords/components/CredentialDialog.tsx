@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from "react"
-import { ExternalLink, Eye, EyeOff } from "lucide-react"
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react"
+import { Download, ExternalLink, Eye, EyeOff, Upload } from "lucide-react"
+import { toast } from "sonner"
 
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
+import { ImportConfirmDialog } from "@/components/ui/import-confirm-dialog"
+import { Button } from "@/components/ui/button"
 import {
   FormDialog,
   type FormSection,
@@ -10,6 +13,10 @@ import {
 import { Input } from "@/components/ui/input"
 import PasswordStrengthIndicator from "@/features/passwords/components/PasswordStrengthIndicator"
 import type { CredentialDraft } from "@/features/passwords/types/credential"
+import {
+  downloadCredentialCsvTemplate,
+  parseCredentialCsv,
+} from "@/features/passwords/utils/credential-import"
 import { evaluatePasswordStrength } from "@/features/passwords/utils/password-strength"
 
 export type CredentialFormMode = "create" | "edit" | "view"
@@ -22,6 +29,7 @@ interface CredentialDialogProps {
   onChange: <K extends keyof CredentialDraft>(field: K, value: CredentialDraft[K]) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onEdit: () => void
+  onImport?: (records: CredentialDraft[]) => void
   onDelete?: () => void
 }
 
@@ -194,10 +202,14 @@ function CredentialDialog({
   onChange,
   onSubmit,
   onEdit,
+  onImport,
   onDelete,
 }: CredentialDialogProps) {
   const config = mode === "edit" ? modeConfig.edit : modeConfig.create
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false)
+  const [pendingImport, setPendingImport] = useState<CredentialDraft[]>([])
+  const importInputRef = useRef<HTMLInputElement>(null)
   const passwordIsStrong = evaluatePasswordStrength(draft.password).isStrong
   const websiteUrl = getSafeWebsiteUrl(draft.website)
   const detailSections: DetailSection[] = [
@@ -277,6 +289,36 @@ function CredentialDialog({
     setIsConfirmOpen(false)
   }
 
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      if (!file.name.toLocaleLowerCase().endsWith(".csv")) {
+        throw new Error("Selecciona un archivo CSV compatible con Excel.")
+      }
+
+      const importedCredentials = parseCredentialCsv(await file.text())
+      setPendingImport(importedCredentials)
+      setIsImportConfirmOpen(true)
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo leer el archivo. Descarga la plantilla e inténtalo de nuevo.",
+      )
+    } finally {
+      event.target.value = ""
+    }
+  }
+
+  const handleConfirmImport = () => {
+    if (pendingImport.length === 0 || !onImport) return
+    onImport(pendingImport)
+    setPendingImport([])
+    setIsImportConfirmOpen(false)
+  }
+
   return (
     <>
       {mode === "view" ? (
@@ -302,8 +344,66 @@ function CredentialDialog({
           sections={sections}
           onDelete={mode === "edit" ? handleDeleteClick : undefined}
           submitDisabled={!passwordIsStrong}
+          formActions={
+            mode === "create" && onImport ? (
+              <>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="sr-only"
+                  aria-label="Seleccionar archivo CSV de credenciales"
+                  onChange={(event) => void handleImportFile(event)}
+                />
+                <div className="flex flex-col gap-3 border-b border-border/70 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">Importar credenciales</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Completa la plantilla CSV y selecciónala para revisar el lote antes de registrarlo.
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                      El archivo contiene contraseñas sin cifrar. Protégelo y elimínalo después de importarlo.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 rounded-xl px-3 text-xs font-semibold"
+                      onClick={downloadCredentialCsvTemplate}
+                    >
+                      <Download aria-hidden="true" />
+                      Descargar plantilla de registro
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 rounded-xl px-3 text-xs font-semibold"
+                      onClick={() => importInputRef.current?.click()}
+                    >
+                      <Upload aria-hidden="true" />
+                      Importar
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : undefined
+          }
         />
       )}
+
+      <ImportConfirmDialog
+        open={isImportConfirmOpen}
+        count={pendingImport.length}
+        recordLabel="credencial"
+        recordsLabel="credenciales"
+        emptyMessage="El archivo contiene 0 credenciales. Completa la plantilla CSV con al menos un registro para continuar."
+        onOpenChange={(nextOpen) => {
+          setIsImportConfirmOpen(nextOpen)
+          if (!nextOpen) setPendingImport([])
+        }}
+        onConfirm={handleConfirmImport}
+      />
 
       <ConfirmDeleteDialog
         open={isConfirmOpen}

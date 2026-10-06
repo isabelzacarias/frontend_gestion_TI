@@ -7,6 +7,7 @@ import {
   Search,
   UserRound,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
@@ -68,6 +69,25 @@ const toAssetDraft = (item: InventoryItem): AssetFormDraft => ({
   nombreRed: item.nombreRed,
   responsableNombre: item.responsable.nombre,
   responsableEmail: item.responsable.email,
+})
+
+const createInventoryItem = (draft: AssetFormDraft, id: number): InventoryItem => ({
+  id,
+  claveActivo: null,
+  cb23: draft.cb23.trim() || `CB-${id.toString().slice(-6)}`,
+  tipo: draft.tipo,
+  marca: draft.marca.trim() || "Sin marca",
+  modelo: draft.modelo.trim() || "Sin modelo",
+  numeroSerie: draft.numeroSerie.trim() || "N/A",
+  sucursal: draft.sucursal,
+  estado: draft.estado,
+  estadoGeneral: draft.estadoGeneral,
+  nombreRed: draft.nombreRed.trim() || "SIN_RED",
+  responsable: {
+    id: `USR-${id.toString().slice(-4)}`,
+    nombre: draft.responsableNombre.trim() || "Sin responsable",
+    email: draft.responsableEmail.trim() || "sin.responsable@empresa.com",
+  },
 })
 
 /* ──────────────────────────────────────────────
@@ -222,27 +242,23 @@ function InventoryPage() {
     setDraft((current) => ({ ...current, [field]: value }))
   }
 
+  const handleImportAssets = (records: AssetFormDraft[]) => {
+    const idBase = Date.now()
+    const importedAssets = records.map((record, index) =>
+      createInventoryItem(record, idBase + index),
+    )
+
+    setInventory((current) => [...importedAssets, ...current])
+    setDraft(createEmptyAssetDraft())
+    setIsAddDialogOpen(false)
+    setCurrentPage(1)
+    toast.success(`${importedAssets.length} activos registrados correctamente.`)
+  }
+
   const handleCreateAsset = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const nextItem: InventoryItem = {
-      id: Date.now(),
-      claveActivo: null,
-      cb23: draft.cb23.trim() || `CB-${Date.now().toString().slice(-6)}`,
-      tipo: draft.tipo,
-      marca: draft.marca.trim() || "Sin marca",
-      modelo: draft.modelo.trim() || "Sin modelo",
-      numeroSerie: draft.numeroSerie.trim() || "N/A",
-      sucursal: draft.sucursal,
-      estado: draft.estado,
-      estadoGeneral: draft.estadoGeneral,
-      nombreRed: draft.nombreRed.trim() || "SIN_RED",
-      responsable: {
-        id: `USR-${Date.now().toString().slice(-4)}`,
-        nombre: draft.responsableNombre.trim() || "Sin responsable",
-        email: draft.responsableEmail.trim() || "sin.responsable@empresa.com",
-      },
-    }
+    const nextItem = createInventoryItem(draft, Date.now())
 
     setInventory((current) => [nextItem, ...current])
     setDraft(createEmptyAssetDraft())
@@ -409,6 +425,7 @@ function InventoryPage() {
         onOpenChange={setIsAddDialogOpen}
         onChange={handleDraftChange}
         onSubmit={handleCreateAsset}
+        onImport={handleImportAssets}
       />
 
       <AssetFormDialog
