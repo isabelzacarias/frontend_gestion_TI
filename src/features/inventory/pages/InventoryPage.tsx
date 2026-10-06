@@ -12,6 +12,7 @@ import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
 import {
   AssetFormDialog,
   type AssetFormDraft,
@@ -30,6 +31,13 @@ const generalClasses: Record<InventoryItem["estadoGeneral"], string> = {
   Bueno: "border border-violet-500/30 bg-violet-500/10 text-violet-600",
   Regular: "border border-amber-500/30 bg-amber-500/10 text-amber-600",
   Crítico: "border border-rose-500/30 bg-rose-500/10 text-rose-600",
+}
+
+const stateLabels: Record<InventoryItem["estado"], string> = {
+  EN_USO: "En uso",
+  DISPONIBLE: "Disponible",
+  MANTENIMIENTO: "Mantenimiento",
+  BAJA: "Baja",
 }
 
 const ITEMS_PER_PAGE = 10
@@ -125,8 +133,65 @@ function InventoryPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null)
   const [draft, setDraft] = useState(createEmptyAssetDraft())
+  const selectedAsset = inventory.find((item) => item.id === selectedAssetId)
+  const detailSections: DetailSection[] = selectedAsset
+    ? [
+        {
+          title: "Identificación",
+          color: "primary",
+          fields: [
+            { key: "id", label: "ID", value: selectedAsset.id },
+            { key: "cb23", label: "CB23", value: selectedAsset.cb23 },
+           
+            { key: "tipo", label: "Tipo", value: selectedAsset.tipo },
+            { key: "marca", label: "Marca", value: selectedAsset.marca },
+            { key: "modelo", label: "Modelo", value: selectedAsset.modelo },
+            {
+              key: "numeroSerie",
+              label: "Número de serie",
+              value: selectedAsset.numeroSerie,
+            },
+          ],
+        },
+        {
+          title: "Ubicación y estado",
+          color: "cyan",
+          fields: [
+            { key: "sucursal", label: "Sucursal", value: selectedAsset.sucursal },
+            {
+              key: "estado",
+              label: "Estado",
+              value: stateLabels[selectedAsset.estado],
+            },
+            {
+              key: "estadoGeneral",
+              label: "Estado general",
+              value: selectedAsset.estadoGeneral,
+            },
+            { key: "nombreRed", label: "Red", value: selectedAsset.nombreRed },
+          ],
+        },
+        {
+          title: "Responsable",
+          color: "violet",
+          fields: [
+            {
+              key: "responsableNombre",
+              label: "Nombre completo",
+              value: selectedAsset.responsable.nombre,
+            },
+            {
+              key: "responsableEmail",
+              label: "Correo electrónico",
+              value: selectedAsset.responsable.email,
+            },
+          ],
+        },
+      ]
+    : []
 
   const filteredInventory = useMemo(() => {
     const term = search.toLowerCase().trim()
@@ -192,7 +257,13 @@ function InventoryPage() {
   const handleOpenEditDialog = (item: InventoryItem) => {
     setSelectedAssetId(item.id)
     setDraft(toAssetDraft(item))
+    setIsDetailDialogOpen(false)
     setIsEditDialogOpen(true)
+  }
+
+  const handleOpenDetails = (item: InventoryItem) => {
+    setSelectedAssetId(item.id)
+    setIsDetailDialogOpen(true)
   }
 
   const handleUpdateAsset = (event: FormEvent<HTMLFormElement>) => {
@@ -320,6 +391,18 @@ function InventoryPage() {
         }
       />
 
+      <DetailDialog
+        open={isDetailDialogOpen && selectedAsset !== undefined}
+        title={selectedAsset ? `${selectedAsset.tipo} - ${selectedAsset.cb23}` : "Detalle del activo"}
+        description="Información del equipo registrado en el inventario TI."
+        icon={<UserRound aria-hidden="true" className="size-5" />}
+        sections={detailSections}
+        onOpenChange={setIsDetailDialogOpen}
+        onEdit={() => {
+          if (selectedAsset) handleOpenEditDialog(selectedAsset)
+        }}
+      />
+
       <AssetFormDialog
         open={isAddDialogOpen}
         draft={draft}
@@ -354,7 +437,7 @@ function InventoryPage() {
         itemsPerPage={ITEMS_PER_PAGE}
         onPageChange={handlePageChange}
         onRowClick={handleSelectAsset}
-        onRowDoubleClick={handleOpenEditDialog}
+        onRowDoubleClick={handleOpenDetails}
         selectedRowKey={selectedAssetId}
       />
     </div>

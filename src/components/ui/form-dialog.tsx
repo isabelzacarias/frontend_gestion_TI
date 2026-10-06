@@ -1,5 +1,4 @@
 import type { FormEvent, ReactNode } from "react"
-import { Pencil } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -72,10 +71,7 @@ export interface FormField<T> {
   render?: (
     value: T[keyof T],
     onChange: (value: T[keyof T]) => void,
-    readOnly: boolean,
   ) => ReactNode
-  /** Presentación del valor en modo consulta */
-  renderReadOnly?: (value: T[keyof T]) => ReactNode
 }
 
 /** Sección agrupadora de campos */
@@ -120,9 +116,6 @@ export interface FormDialogProps<T extends Record<string, unknown>> {
   deleteLabel?: string
   /** Deshabilita el envío cuando el formulario aún no es válido */
   submitDisabled?: boolean
-  /** Muestra los campos en modo consulta y permite pasar a edición */
-  readOnly?: boolean
-  onEdit?: () => void
 }
 
 /* ──────────────────────────────────────────────
@@ -143,8 +136,6 @@ export function FormDialog<T extends Record<string, unknown>>({
   onDelete,
   deleteLabel = "Eliminar",
   submitDisabled = false,
-  readOnly = false,
-  onEdit,
 }: FormDialogProps<T>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -187,27 +178,14 @@ export function FormDialog<T extends Record<string, unknown>>({
                       key={field.key}
                       className={`${fieldClass} ${field.colSpan ?? ""}`}
                     >
-                      {readOnly ? (
-                        <div className={`${labelClass} block`}>{field.label}</div>
-                      ) : (
-                        <label htmlFor={field.key} className={labelClass}>
-                          {field.label}
-                        </label>
-                      )}
+                      <label htmlFor={field.key} className={labelClass}>
+                        {field.label}
+                      </label>
 
-                      {readOnly ? (
-                        field.renderReadOnly ? (
-                          field.renderReadOnly(draft[field.key])
-                        ) : (
-                          <div className="min-h-8 whitespace-pre-wrap break-words py-1 text-sm leading-5 text-foreground">
-                            {String(draft[field.key] ?? "") || "—"}
-                          </div>
-                        )
-                      ) : field.render ? (
+                      {field.render ? (
                         field.render(
                           draft[field.key],
                           (value) => onChange(field.key, value),
-                          false,
                         )
                       ) : field.type === "select" ? (
                         <select
@@ -217,7 +195,6 @@ export function FormDialog<T extends Record<string, unknown>>({
                             onChange(field.key, e.target.value as T[keyof T])
                           }
                           required={field.required}
-                          disabled={readOnly}
                           className={selectClass}
                         >
                           {field.options?.map((opt) => (
@@ -235,7 +212,6 @@ export function FormDialog<T extends Record<string, unknown>>({
                           }
                           placeholder={field.placeholder}
                           required={field.required}
-                          readOnly={readOnly}
                           rows={field.rows ?? 3}
                           className={textareaClass}
                         />
@@ -249,7 +225,6 @@ export function FormDialog<T extends Record<string, unknown>>({
                           }
                           placeholder={field.placeholder}
                           required={field.required}
-                          readOnly={readOnly}
                           className={inputClass}
                         />
                       )}
@@ -264,7 +239,7 @@ export function FormDialog<T extends Record<string, unknown>>({
           <DialogFooter className="m-0 shrink-0 rounded-none border-t border-border/80 bg-transparent p-0">
             <div className="flex w-full items-center px-5 py-4 sm:px-6">
               {/* Botón de eliminar (lado izquierdo, solo si onDelete existe) */}
-              {onDelete && !readOnly ? (
+              {onDelete ? (
                 <Button
                   type="button"
                   onClick={onDelete}
@@ -302,29 +277,13 @@ export function FormDialog<T extends Record<string, unknown>>({
                 >
                   {cancelLabel}
                 </Button>
-                {readOnly ? (
-                  <Button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      onEdit?.()
-                    }}
-                    disabled={!onEdit}
-                    className="h-9 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-3 text-xs font-semibold text-white shadow-[0_12px_24px_rgba(109,40,217,0.28)] hover:brightness-110"
-                  >
-                    <Pencil aria-hidden="true" />
-                    Editar
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    disabled={submitDisabled}
-                    className="h-9 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-3 text-xs font-semibold text-white shadow-[0_12px_24px_rgba(109,40,217,0.28)] hover:brightness-110"
-                  >
-                    {submitLabel}
-                  </Button>
-                )}
+                <Button
+                  type="submit"
+                  disabled={submitDisabled}
+                  className="h-9 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-3 text-xs font-semibold text-white shadow-[0_12px_24px_rgba(109,40,217,0.28)] hover:brightness-110"
+                >
+                  {submitLabel}
+                </Button>
               </div>
             </div>
           </DialogFooter>

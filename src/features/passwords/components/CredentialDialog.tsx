@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react"
 import { ExternalLink, Eye, EyeOff } from "lucide-react"
 
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
+import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
 import {
   FormDialog,
   type FormSection,
@@ -20,7 +21,7 @@ interface CredentialDialogProps {
   onOpenChange: (open: boolean) => void
   onChange: <K extends keyof CredentialDraft>(field: K, value: CredentialDraft[K]) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
-  onEdit?: () => void
+  onEdit: () => void
   onDelete?: () => void
 }
 
@@ -134,9 +135,6 @@ const sections: FormSection<CredentialDraft>[] = [
             onChange={onChange as (value: string) => void}
           />
         ),
-        renderReadOnly: (value) => (
-          <CredentialPasswordDisplay value={String(value ?? "")} />
-        ),
       },
       {
         key: "website",
@@ -154,25 +152,6 @@ const sections: FormSection<CredentialDraft>[] = [
             className="h-9 border-white/70 bg-white/80 text-[13px] shadow-sm dark:border-white/10 dark:bg-slate-900/55"
           />
         ),
-        renderReadOnly: (value) => {
-          const safeUrl = getSafeWebsiteUrl(String(value ?? ""))
-
-          return safeUrl ? (
-            <a
-              href={safeUrl.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-8 max-w-full items-center gap-1.5 break-all py-1 text-sm font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span>{safeUrl.href}</span>
-              <ExternalLink aria-hidden="true" className="size-3.5 shrink-0" />
-            </a>
-          ) : (
-            <span className="inline-flex min-h-8 items-center py-1 text-sm text-muted-foreground">
-              —
-            </span>
-          )
-        },
       },
     ],
   },
@@ -205,12 +184,6 @@ const modeConfig = {
     submitLabel: "Guardar cambios",
     icon: <span className="text-lg font-bold text-white">+</span>,
   },
-  view: {
-    title: "Consultar credencial",
-    description: "Consulta la información guardada de esta credencial.",
-    submitLabel: "",
-    icon: <span className="text-lg font-bold">i</span>,
-  },
 } as const
 
 function CredentialDialog({
@@ -223,9 +196,61 @@ function CredentialDialog({
   onEdit,
   onDelete,
 }: CredentialDialogProps) {
-  const config = modeConfig[mode]
+  const config = mode === "edit" ? modeConfig.edit : modeConfig.create
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const passwordIsStrong = evaluatePasswordStrength(draft.password).isStrong
+  const websiteUrl = getSafeWebsiteUrl(draft.website)
+  const detailSections: DetailSection[] = [
+    {
+      title: "Información general",
+      color: "primary",
+      fields: [
+        { key: "service", label: "Servicio", value: draft.service },
+        { key: "category", label: "Categoría", value: draft.category },
+      ],
+    },
+    {
+      title: "Datos de acceso",
+      color: "cyan",
+      fields: [
+        { key: "account", label: "Cuenta / correo", value: draft.account },
+        { key: "username", label: "Nombre de usuario", value: draft.username },
+        {
+          key: "password",
+          label: "Contraseña",
+          value: <CredentialPasswordDisplay value={draft.password} />,
+        },
+        {
+          key: "website",
+          label: "Sitio web",
+          value: websiteUrl ? (
+            <a
+              href={websiteUrl.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex max-w-full items-center gap-1.5 break-all font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span>{websiteUrl.href}</span>
+              <ExternalLink aria-hidden="true" className="size-3.5 shrink-0" />
+            </a>
+          ) : (
+            "—"
+          ),
+        },
+      ],
+    },
+    {
+      title: "Notas",
+      color: "violet",
+      fields: [
+        {
+          key: "notes",
+          label: "Observaciones",
+          value: draft.notes || "—",
+        },
+      ],
+    },
+  ]
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     if (mode === "view") {
@@ -254,23 +279,31 @@ function CredentialDialog({
 
   return (
     <>
-      <FormDialog<CredentialDraft>
-        open={open}
-        draft={draft}
-        onOpenChange={onOpenChange}
-        onChange={onChange}
-        onSubmit={handleSubmit}
-        title={mode === "view" ? draft.service || config.title : config.title}
-        description={config.description}
-        submitLabel={config.submitLabel}
-        cancelLabel={mode === "view" ? "Cerrar" : "Cancelar"}
-        icon={config.icon}
-        sections={sections}
-        onDelete={mode === "edit" ? handleDeleteClick : undefined}
-        submitDisabled={!passwordIsStrong}
-        readOnly={mode === "view"}
-        onEdit={onEdit}
-      />
+      {mode === "view" ? (
+        <DetailDialog
+          open={open}
+          title={draft.service || "Consultar credencial"}
+          description="Consulta la información guardada de esta credencial."
+          sections={detailSections}
+          onOpenChange={onOpenChange}
+          onEdit={onEdit}
+        />
+      ) : (
+        <FormDialog<CredentialDraft>
+          open={open}
+          draft={draft}
+          onOpenChange={onOpenChange}
+          onChange={onChange}
+          onSubmit={handleSubmit}
+          title={config.title}
+          description={config.description}
+          submitLabel={config.submitLabel}
+          icon={config.icon}
+          sections={sections}
+          onDelete={mode === "edit" ? handleDeleteClick : undefined}
+          submitDisabled={!passwordIsStrong}
+        />
+      )}
 
       <ConfirmDeleteDialog
         open={isConfirmOpen}
