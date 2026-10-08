@@ -19,6 +19,20 @@ interface NotificationListResponse {
   meta: NotificationsMeta
 }
 
+export class NotificationsApiError extends Error {
+  readonly status?: number
+
+  constructor(
+    message: string,
+    status?: number,
+    options?: ErrorOptions,
+  ) {
+    super(message, options)
+    this.name = "NotificationsApiError"
+    this.status = status
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
@@ -31,12 +45,27 @@ function isValidDate(value: unknown): value is string {
   )
 }
 
+function isValidCalendarDate(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(value) &&
+    Number.isFinite(Date.parse(value))
+  )
+}
+
+function isId(value: unknown): value is string | number {
+  return (
+    (typeof value === "string" && value.trim().length > 0) ||
+    (typeof value === "number" && Number.isFinite(value))
+  )
+}
+
 function parseIncidentSummary(
   value: unknown,
 ): PersistedNotification["incidencia"] | null {
   if (
     isRecord(value) &&
-    (typeof value.id === "string" || typeof value.id === "number") &&
+    isId(value.id) &&
     typeof value.titulo === "string" &&
     typeof value.estado === "string" &&
     typeof value.prioridad === "string" &&
@@ -53,39 +82,115 @@ function parseIncidentSummary(
   return null
 }
 
+function parseLicenseSummary(
+  value: unknown,
+): PersistedNotification["licencia"] | null {
+  if (
+    isRecord(value) &&
+    isId(value.id) &&
+    typeof value.software === "string" &&
+    typeof value.proveedor === "string" &&
+    isValidCalendarDate(value.fechaVencimiento)
+  ) {
+    return {
+      id: String(value.id),
+      software: value.software,
+      proveedor: value.proveedor,
+      fechaVencimiento: value.fechaVencimiento,
+    }
+  }
+  return null
+}
+
 function parsePersistedNotification(
   value: unknown,
 ): PersistedNotification | null {
   if (
     !isRecord(value) ||
+    !isId(value.id) ||
     !(
-      (typeof value.id === "string" && value.id.trim().length > 0) ||
-      (typeof value.id === "number" && Number.isFinite(value.id))
+      value.incidenciaId === null ||
+      value.incidenciaId === undefined ||
+      isId(value.incidenciaId)
     ) ||
     !(
-      (typeof value.incidenciaId === "string" &&
-        value.incidenciaId.trim().length > 0) ||
-      (typeof value.incidenciaId === "number" &&
-        Number.isFinite(value.incidenciaId))
+      value.licenciaId === null ||
+      value.licenciaId === undefined ||
+      isId(value.licenciaId)
     ) ||
     !isValidDate(value.creadaEn) ||
     (value.leidaEn !== null && !isValidDate(value.leidaEn)) ||
-    typeof value.leida !== "boolean"
+    typeof value.leida !== "boolean" ||
+    (value.hitoDias !== null &&
+      value.hitoDias !== undefined &&
+      !isNonnegativeInteger(value.hitoDias))
   ) {
     return null
   }
 
-  const incidencia = parseIncidentSummary(value.incidencia)
-  if (!incidencia) return null
+  const tipo = value.tipo
+  if (tipo !== "INCIDENCIA_NUEVA" && tipo !== "LICENCIA_POR_VENCER") {
+    return null
+  }
 
-  return {
+  const incidencia =
+    value.incidencia === null || value.incidencia === undefined
+      ? null
+      : parseIncidentSummary(value.incidencia)
+  const licencia =
+    value.licencia === null || value.licencia === undefined
+      ? null
+      : parseLicenseSummary(value.licencia)
+
+  if (
+    (tipo === "INCIDENCIA_NUEVA" && (!incidencia || licencia !== null)) ||
+    (tipo === "LICENCIA_POR_VENCER" && (!licencia || incidencia !== null)) ||
+    (tipo === "INCIDENCIA_NUEVA" &&
+      (!isId(value.incidenciaId) ||
+        value.licenciaId !== null ||
+        (value.hitoDias !== null && value.hitoDias !== undefined))) ||
+    (tipo === "LICENCIA_POR_VENCER" &&
+      (!isId(value.licenciaId) ||
+        value.incidenciaId !== null ||
+        !isNonnegativeInteger(value.hitoDias)))
+  ) {
+    return null
+  }
+
+  const base = {
     id: String(value.id),
-    incidenciaId: String(value.incidenciaId),
     creadaEn: value.creadaEn,
     leidaEn: value.leidaEn,
     leida: value.leida,
-    incidencia,
   }
+  if (tipo === "INCIDENCIA_NUEVA" && incidencia && isId(value.incidenciaId)) {
+    return {
+      ...base,
+      tipo,
+      incidenciaId: String(value.incidenciaId),
+      licenciaId: null,
+      hitoDias: null,
+      incidencia,
+      licencia: null,
+    }
+  }
+  if (
+    tipo === "LICENCIA_POR_VENCER" &&
+    licencia &&
+    isId(value.licenciaId) &&
+    isNonnegativeInteger(value.hitoDias)
+  ) {
+    return {
+      ...base,
+      tipo,
+      incidenciaId: null,
+      licenciaId: String(value.licenciaId),
+      hitoDias: value.hitoDias,
+      incidencia: null,
+      licencia,
+    }
+  }
+  return null
 }
 
 function parseNotificationsMeta(value: unknown): NotificationsMeta | null {
@@ -126,6 +231,14 @@ function getApiErrorMessage(error: unknown): string {
   return "No se pudo completar la solicitud de notificaciones."
 }
 
+function toNotificationsApiError(error: unknown): NotificationsApiError {
+  if (error instanceof NotificationsApiError) return error
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined
+  return new NotificationsApiError(getApiErrorMessage(error), status, {
+    cause: error,
+  })
+}
+
 export async function listUnreadNotifications(
   page = 1,
   limit = 20,
@@ -154,7 +267,7 @@ export async function listUnreadNotifications(
       meta,
     }
   } catch (error) {
-    throw new Error(getApiErrorMessage(error), { cause: error })
+    throw toNotificationsApiError(error)
   }
 }
 
@@ -173,7 +286,7 @@ export async function markNotificationRead(id: string): Promise<void> {
       )
     }
   } catch (error) {
-    throw new Error(getApiErrorMessage(error), { cause: error })
+    throw toNotificationsApiError(error)
   }
 }
 
@@ -195,6 +308,6 @@ export async function markAllNotificationsRead(): Promise<number> {
 
     return data.marcadasComoLeidas
   } catch (error) {
-    throw new Error(getApiErrorMessage(error), { cause: error })
+    throw toNotificationsApiError(error)
   }
 }

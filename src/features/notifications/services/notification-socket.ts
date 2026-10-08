@@ -1,13 +1,17 @@
 import { io } from "socket.io-client"
 import type { Socket } from "socket.io-client"
 
-import type { IncidentNotification } from "@/features/notifications/types/notification"
+import type {
+  IncidentNotification,
+  LicenseNotification,
+} from "@/features/notifications/types/notification"
 
 interface NotificationSocketHandlers {
   onConnect: () => void
   onDisconnect: (reason: string, willReconnect: boolean) => void
   onConnectError: (message: string) => void
   onNewIncident: (notification: IncidentNotification) => void
+  onLicenseExpiring: (notification: LicenseNotification) => void
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -55,6 +59,51 @@ function parseIncidentNotification(
   }
 }
 
+function parseLicenseNotification(
+  value: unknown,
+): LicenseNotification | null {
+  if (
+    !isRecord(value) ||
+    !(
+      (typeof value.notificacionId === "string" &&
+        value.notificacionId.trim().length > 0) ||
+      (typeof value.notificacionId === "number" &&
+        Number.isFinite(value.notificacionId))
+    ) ||
+    !(
+      (typeof value.licenciaId === "string" &&
+        value.licenciaId.trim().length > 0) ||
+      (typeof value.licenciaId === "number" &&
+        Number.isFinite(value.licenciaId))
+    ) ||
+    typeof value.software !== "string" ||
+    value.software.trim().length === 0 ||
+    typeof value.fechaVencimiento !== "string" ||
+    !Number.isFinite(Date.parse(value.fechaVencimiento)) ||
+    typeof value.diasRestantes !== "number" ||
+    !Number.isInteger(value.diasRestantes) ||
+    typeof value.hitoDias !== "number" ||
+    !Number.isInteger(value.hitoDias) ||
+    typeof value.creadaEn !== "string" ||
+    !Number.isFinite(Date.parse(value.creadaEn))
+  ) {
+    console.error(
+      "Se recibió un recordatorio de licencia con un formato inválido.",
+    )
+    return null
+  }
+
+  return {
+    notificacionId: String(value.notificacionId),
+    licenciaId: String(value.licenciaId),
+    software: value.software,
+    fechaVencimiento: value.fechaVencimiento,
+    diasRestantes: value.diasRestantes,
+    hitoDias: value.hitoDias,
+    creadaEn: value.creadaEn,
+  }
+}
+
 function getSocketUrl(): string {
   if (import.meta.env.VITE_SOCKET_URL) {
     return import.meta.env.VITE_SOCKET_URL
@@ -92,12 +141,20 @@ export function connectNotificationSocket(
     }
   }
 
+  function handleLicenseExpiring(value: unknown) {
+    const notification = parseLicenseNotification(value)
+    if (notification) {
+      handlers.onLicenseExpiring(notification)
+    }
+  }
+
   socket.on("connect", handlers.onConnect)
   socket.on("disconnect", handleDisconnect)
   socket.on("connect_error", (error) => {
     handlers.onConnectError(error.message)
   })
   socket.on("incidencias:nueva", handleNewIncident)
+  socket.on("licencias:por-vencer", handleLicenseExpiring)
   socket.connect()
 
   return () => {
@@ -105,6 +162,7 @@ export function connectNotificationSocket(
     socket.off("disconnect", handleDisconnect)
     socket.off("connect_error")
     socket.off("incidencias:nueva", handleNewIncident)
+    socket.off("licencias:por-vencer", handleLicenseExpiring)
     socket.disconnect()
   }
 }
