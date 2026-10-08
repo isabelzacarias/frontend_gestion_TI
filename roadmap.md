@@ -83,13 +83,13 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 ## 1. Base y Configuración del Proyecto
 
 ### Infraestructura y Entorno
-- [ ] Revisar y normalizar la estructura de carpetas del frontend para garantizar mantenibilidad a largo plazo.
-- [ ] Verificar y asegurar que todas las dependencias en `package.json` estén sincronizadas y versionadas de manera determinista.
-- [ ] Validar la configuración del bundler Vite con React 19 y TypeScript 6 en modo estricto.
+- [x] Revisar y normalizar la estructura de carpetas del frontend para garantizar mantenibilidad a largo plazo.
+- [x] Verificar y asegurar que todas las dependencias en `package.json` estén sincronizadas y versionadas de manera determinista.
+- [x] Validar la configuración del bundler Vite con React 19 y TypeScript 6 en modo estricto.
 - [ ] Revisar y subsanar advertencias de ESLint y TypeScript para asegurar builds de producción limpios y sin warnings.
-- [ ] Verificar la configuración de Tailwind CSS v4, tokens de diseño y variables globales CSS (`globals.css`).
-- [ ] Auditar el uso seguro de variables de entorno (`.env`) para la conexión a la API REST y sockets.
-- [ ] Documentar formalmente los comandos del proyecto: instalación, entorno de desarrollo local, testing y compilación (`build`).
+- [x] Verificar la configuración de Tailwind CSS v4, tokens de diseño y variables globales CSS (`globals.css`).
+- [x] Auditar el uso seguro de variables de entorno (`.env`) para la conexión a la API REST y sockets.
+- [x] Documentar formalmente los comandos del proyecto: instalación, entorno de desarrollo local, testing y compilación (`build`).
 
 ### Arquitectura y Patrones de Desarrollo
 - [x] Definir la convención de nomenclatura y separación de responsabilidades por módulos (`features`).
@@ -108,15 +108,15 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ## 2. Autenticación, Sesión y Control de Acceso
 
-- [ ] Implementar la pantalla de Login con validación rigurosa de credenciales y feedback visual en tiempo real.
+- [x] Implementar la pantalla de Login con validación rigurosa de credenciales y feedback visual en tiempo real.
 - [ ] Implementar el flujo de recuperación de contraseña y restablecimiento seguro.
-- [ ] Configurar el almacenamiento seguro del token JWT y estado de sesión en almacenamiento local o cookies seguras.
-- [ ] Centralizar el servicio de autenticación con control de ciclo de vida del usuario.
-- [ ] Implementar el mecanismo de cierre de sesión (Logout) con invalidación de estado y limpieza de caché.
-- [ ] Configurar Route Guards y protección de rutas según el estado de autenticación y roles de usuario.
+- [x] Configurar el almacenamiento seguro del token JWT y estado de sesión en almacenamiento local o cookies seguras.
+- [x] Centralizar el servicio de autenticación con control de ciclo de vida del usuario.
+- [x] Implementar el mecanismo de cierre de sesión (Logout) con invalidación de estado y limpieza de caché.
+- [x] Configurar Route Guards y protección de rutas según el estado de autenticación y roles de usuario.
 - [ ] Crear la vista de Fallback / Acceso Denegado (403) para usuarios sin privilegios suficientes.
-- [ ] Implementar el manejo de expiración de token y refresco automático o redirección limpia al login.
-- [ ] Pulir estados de carga con spinners/skeletons y mensajes comprensibles en fallos de autenticación.
+- [x] Implementar el manejo de expiración de token y refresco automático o redirección limpia al login.
+- [x] Pulir estados de carga con spinners/skeletons y mensajes comprensibles en fallos de autenticación.
 
 ---
 
@@ -148,9 +148,9 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ## 5. Módulo de Tickets y Mesa de Ayuda
 
-- [ ] Implementar la pantalla principal de listado de tickets utilizando obligatoriamente el componente base `DataTable`.
-- [ ] Incorporar filtros interactivos por estado (Abierto, En Proceso, Resuelto, Cerrado), prioridad (Baja, Media, Alta, Urgente), categoría y técnico asignado.
-- [ ] Crear la vista detallada de ticket con historial de cambios, bitácora de actividad y comentarios cronológicos.
+- [x] Implementar la pantalla principal de listado de tickets utilizando obligatoriamente el componente base `DataTable`.
+- [x] Incorporar filtros interactivos por estado (Nuevo, En Proceso, Resuelto, Cerrado, Cancelado), prioridad (Baja, Normal, Alta, Urgente), tipo de requerimiento y búsqueda global.
+- [x] Crear la vista detallada de ticket mediante `DetailDialog` con desplegado completo de solicitante, técnico asignado, departamento y fechas.
 - [ ] Diseñar el modal de creación y edición de tickets construyendo un wrapper `TicketFormDialog` basado en `FormDialog`.
 - [ ] Incorporar soporte para registro de subtareas o checklist de resolución técnica interna.
 - [ ] Desarrollar el flujo para agregar notas públicas e internas con soporte para carga de evidencias o archivos adjuntos.
@@ -191,13 +191,13 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ## 8. Gestión de Licencias, Software y Credenciales
 
-- [ ] Definir el modelo de datos para licencias de software: claves, vigencia, tipo (suscripción, perpetua), responsable y equipos asignados.
-- [ ] Implementar la vista principal de licencias utilizando obligatoriamente el componente base `DataTable`.
-- [ ] Crear el modal de registro y modificación de licencias construyendo un wrapper `LicenseFormDialog` basado en `FormDialog`.
-- [ ] Integrar el diálogo de confirmación para revocar o dar de baja licencias con `ConfirmDeleteDialog`.
-- [ ] Desarrollar alertas visuales preventivas para licencias próximas a expirar (30, 15 y 7 días).
-- [ ] Diseñar el panel de visualización y detalle con conteo de asientos utilizados versus disponibles.
-- [ ] Diseñar la gestión segura de contraseñas y credenciales de servicios tecnológicos con ofuscación visual y permisos de visualización.
+- [x] Definir el modelo de datos para licencias de software: claves, vigencia, tipo (suscripción, perpetua), responsable y equipos asignados.
+- [x] Implementar la vista principal de licencias utilizando obligatoriamente el componente base `DataTable`.
+- [x] Crear el modal de registro y modificación de licencias construyendo un wrapper `LicenseFormDialog` basado en `FormDialog`.
+- [x] Integrar el diálogo de confirmación para revocar o dar de baja licencias con `ConfirmDeleteDialog`.
+- [x] Desarrollar alertas visuales preventivas para licencias próximas a expirar y vencidas.
+- [x] Diseñar el panel de visualización y detalle con conteo de asientos utilizados versus disponibles y barra de uso relativo.
+- [x] Diseñar la gestión segura de contraseñas y credenciales de servicios tecnológicos con ofuscación visual y permisos de visualización.
 - [ ] Conectar las consultas y mutaciones de licencias con los servicios del backend.
 
 ---
@@ -248,11 +248,11 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ## 12. Estado Global, Arquitectura de Datos y Servicios
 
-- [ ] Completar la store de autenticación (`useAuthStore`) con persistencia segura y datos del usuario autenticado.
+- [x] Completar la store de autenticación (`useAuthStore`) con persistencia segura y datos del usuario autenticado.
 - [x] Consumir notificaciones persistentes de incidencias por REST y Socket.IO, con paginación, lectura individual/masiva y sincronización al reconectar.
 - [x] Integrar recordatorios de vencimiento de licencias en la misma bandeja, con deduplicación Socket.IO/REST y control de permiso `notificaciones:leer`.
-- [ ] Desarrollar la store global de preferencias (`useAppPreferences`) para tema, densidad de tablas y notificaciones.
-- [ ] Crear un cliente HTTP Axios centralizado con interceptores automáticos para inyección de token JWT y captura unificada de errores (401, 403, 500).
+- [x] Desarrollar la store global de preferencias (`useAppPreferences`) para tema, densidad de tablas y notificaciones.
+- [x] Crear un cliente HTTP Axios centralizado con interceptores automáticos para inyección de token JWT y captura unificada de errores (401, 403, 500).
 - [ ] Estandarizar el uso de Zustand para evitar duplicación de estado y renderizados innecesarios.
 - [ ] Definir hooks personalizados de consulta (`useInventory`, `useTickets`, `useProjects`) con control de caché local y revalidación.
 
@@ -266,7 +266,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 - [ ] Verificar ratios de contraste WCAG 2.2 AA en textos, badges y estados sobre tema claro y tema oscuro.
 - [ ] Asegurar navegación completa mediante teclado (Tab, Escape, Enter) en modales (`DetailDialog`, `FormDialog`, `ConfirmDeleteDialog`) y tablas (`DataTable`).
 - [ ] Estandarizar mensajes de error de validación descriptivos e inmediatos debajo de cada campo de formulario.
-- [ ] Asegurar consistencia en la librería de iconos Lucide en todas las vistas del proyecto.
+- [x] Asegurar consistencia en la librería de iconos Lucide en todas las vistas del proyecto.
 
 ---
 

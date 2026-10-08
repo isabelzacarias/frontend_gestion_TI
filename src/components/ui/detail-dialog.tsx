@@ -40,7 +40,7 @@ interface DetailDialogProps {
   icon?: ReactNode
   sections: DetailSection[]
   onOpenChange: (open: boolean) => void
-  onEdit: () => void
+  onEdit?: () => void
 }
 
 const sectionColorMap: Record<DetailSectionColor, string> = {
@@ -127,14 +127,16 @@ export function DetailDialog({
             >
               Cerrar
             </Button>
-            <Button
-              type="button"
-              onClick={onEdit}
-              className="h-9 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-3 text-xs font-semibold text-white shadow-[0_12px_24px_rgba(109,40,217,0.28)] hover:brightness-110"
-            >
-              <Pencil aria-hidden="true" />
-              Editar
-            </Button>
+            {onEdit && (
+              <Button
+                type="button"
+                onClick={onEdit}
+                className="h-9 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-3 text-xs font-semibold text-white shadow-[0_12px_24px_rgba(109,40,217,0.28)] hover:brightness-110"
+              >
+                <Pencil aria-hidden="true" />
+                Editar
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

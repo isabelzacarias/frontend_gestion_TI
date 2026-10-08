@@ -133,7 +133,7 @@ export function parseCredentialCsv(content: string): CredentialDraft[] {
       return draft
     } catch (error) {
       const message = error instanceof Error ? error.message : "Registro no válido."
-      throw new Error(`Fila ${index + 2}: ${message}`)
+      throw new Error(`Fila ${index + 2}: ${message}`, { cause: error })
     }
   })
 }

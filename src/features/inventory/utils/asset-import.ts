@@ -47,13 +47,13 @@ function parseType(value: string): AssetFormDraft["tipo"] {
     switch: "Switch",
     router: "Router",
   }
-  const result = types[normalize(value)]
+  const result = types[normalizeCsvHeader(value)]
   if (!result) throw new Error(`Tipo de equipo no válido: ${value}.`)
   return result
 }
 
 function parseBranch(value: string): AssetFormDraft["sucursal"] {
-  const branch = normalize(value).toUpperCase()
+  const branch = normalizeCsvHeader(value).toUpperCase()
   if (branch === "PLAYA" || branch === "MERIDA" || branch === "CANCUN") {
     return branch
   }
@@ -67,7 +67,7 @@ function parseState(value: string): AssetFormDraft["estado"] {
     mantenimiento: "MANTENIMIENTO",
     baja: "BAJA",
   }
-  const result = states[normalize(value)]
+  const result = states[normalizeCsvHeader(value)]
   if (!result) {
     throw new Error(`Estado no válido: ${value}. Usa En uso, Disponible, Mantenimiento o Baja.`)
   }
@@ -81,7 +81,7 @@ function parseGeneralState(value: string): AssetFormDraft["estadoGeneral"] {
     regular: "Regular",
     critico: "Crítico",
   }
-  const result = states[normalize(value)]
+  const result = states[normalizeCsvHeader(value)]
   if (!result) {
     throw new Error(`Estado general no válido: ${value}. Usa Excelente, Bueno, Regular o Crítico.`)
   }
@@ -135,7 +135,7 @@ export function parseAssetCsv(content: string): AssetFormDraft[] {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Registro no válido."
-      throw new Error(`Fila ${index + 2}: ${message}`)
+      throw new Error(`Fila ${index + 2}: ${message}`, { cause: error })
     }
   })
 }
