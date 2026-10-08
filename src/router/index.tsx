@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router"
 
+import DashboardPage from "@/features/dashboard/pages/DashboardPage"
 import NotFoundPage from "@/components/common/NotFoundPage"
 import AppLayout from "@/components/layout/AppLayout"
 import { LoginRoute, RequireAuth } from "@/features/auth/components/AuthGuards"
@@ -28,6 +29,7 @@ const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { index: true, element: <HomeRedirect /> },
+          { path: "home", element: <DashboardPage /> },
           { path: "tickets", element: <TicketsPage /> },
           { path: "kanban", element: <KanbanPage /> },
           { path: "inventory", element: <InventoryPage /> },

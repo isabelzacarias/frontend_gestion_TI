@@ -392,7 +392,6 @@ function InventoryPage() {
               >
                 <option value="ALL">Todas las sucursales</option>
                 <option value="PLAYA">PLAYA</option>
-                <option value="MERIDA">MERIDA</option>
                 <option value="CANCUN">CANCUN</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 size-4 text-muted-foreground" />

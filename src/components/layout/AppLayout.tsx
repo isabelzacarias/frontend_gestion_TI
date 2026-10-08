@@ -40,7 +40,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { to: "/", label: "Home", icon: Home },
+  { to: "/home", label: "Home", icon: Home },
   { to: "/tickets", label: "Tickets", icon: Ticket },
   { to: "/kanban", label: "Tablero Kanban", icon: SquareKanban },
   { to: "/inventory", label: "Inventario", icon: Boxes },

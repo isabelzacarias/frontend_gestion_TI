@@ -2,6 +2,7 @@ import { createContext } from "react"
 
 export type TextSize = "normal" | "large"
 export type HomeRoute =
+  | "/home"
   | "/tickets"
   | "/kanban"
   | "/inventory"
@@ -45,6 +46,7 @@ function getDefaultPreferences(
 }
 
 const validHomeRoutes: ReadonlySet<string> = new Set([
+  "/home",
   "/tickets",
   "/kanban",
   "/inventory",
