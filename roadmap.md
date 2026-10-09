@@ -16,17 +16,80 @@ Este documento centraliza la planificación, el estado de avance y los lineamien
 
 ---
 
-## Importaciones masivas
+## Importaciones masivas (patrón reutilizable)
 
-El frontend debe analizar la plantilla de importacion de datos masivos y transformarlos en formato JSON.
-El backend puede procesar un maximo de 500 registros como maximo.
-Inventario: **`CB23` -> `cb23`; `Tipo` -> `tipo`; `Marca` -> `marca`; `Modelo` -> `modelo`; `Número de serie` -> `numeroSerie`; `Sucursal` -> `sucursal`; `Estado` -> `estado`; `Estado general` -> `estadoGeneral`; `Red` -> `nombreRed`**
+El frontend parsea la plantilla localmente (CSV) y envía las filas como JSON. El archivo **nunca** se sube ni se almacena en el backend. El backend procesa un máximo de **500 filas por lote**.
+
+Esta sección define el patrón **obligatorio** para cualquier módulo que cargue registros de forma masiva (Activos, Licencias, Usuarios, etc.). Referencia de implementación completa: módulo **Inventario/Activos**.
+
+### Flujo obligatorio en dos fases
+
+1. `POST /api/<recurso>/importaciones/validar` — **vista previa, NO escribe nada**.
+2. `POST /api/<recurso>/importaciones/confirmar` — **inserta**; revalida antes de crear.
+
+La confirmación es **parcial**: crea las filas válidas y rechaza las demás **sin abortar** el lote. Ambos endpoints requieren `Bearer token` + permiso `<recurso>:crear`.
+
+### Contrato del body
+
+```json
+{ "filas": [ { "fila": 2, "CB23": "200032", "Tipo": "Laptop", "...": "..." } ] }
+```
+
+Las claves de cada fila son los **encabezados de la plantilla en español**; `fila` es el número de línea del CSV (ver correlación más abajo).
+
+### Dos niveles de error (no confundir)
+
+| Nivel | HTTP | `success` | Dónde viene el error | Significado |
+|-------|------|-----------|----------------------|-------------|
+| **Petición** | 400 / 401 / 403 | `false` | `errors[]` (objetos `{campo, valor, ...}`) | No se procesó ninguna fila |
+| **Fila** | 200 | `true` | `data.filas[].errores[]` (strings) | Lote procesado; unas filas válidas y otras rechazadas |
+
+- Un error de fila **nunca** cambia el status HTTP: si el body es válido, responde `200`.
+- El `401` lo maneja `src/services/api.ts` (limpia sesión y redirige a login).
+
+### Datos guardados vs NO guardados
+
+- **GUARDADO:** en `confirmar` la fila trae `creado: true` (+ `activoId`); en `validar`, `valido: true`.
+- **NO GUARDADO:** la fila trae `creado: false` con `errores[]` (tipo vacío, estado inválido, CB23/N.º de serie duplicado en BD o dentro del lote, etc.).
+- Tras confirmar: **refrescar el listado desde el backend**. Si se hace actualización optimista, agregar **solo** las filas con `creado: true` (cruzar por `fila` ↔ `filaOrigen`).
+- Las **advertencias** (`advertencias[]`) **no bloquean**: la fila se guarda igual (p. ej. correo de responsable sin match ⇒ se importa con `responsableId: null`).
+
+### Correlación fila ↔ registro
+
+El parser conserva el número de línea del CSV (`filaOrigen`) y se envía como `fila`. Los resultados vuelven con ese `fila`, permitiendo cruzar cada resultado con su fila de origen para reportar errores.
+
+### Descarga de NO guardados (obligatoria)
+
+El diálogo de resultados debe ofrecer **"Descargar rechazadas"**: genera un CSV con las filas no guardadas (las que tienen `errores`) y sus mensajes, para corregir y re-subir.
+
+- Utilidades: `downloadCsv(headers, rows, fileName)` (BOM UTF-8, delimitador `;`, escaping de `;`/comillas/saltos) y `downloadAssetImportErrors(records, filas, fileName?)` en el módulo.
+- Columnas: `Fila` + columnas mínimas obligatorias + `Correo responsable` + `Errores` + `Advertencias`.
+- El **estado se escribe en su valor de enum** (`EN_USO`, ...) para que el parser lo vuelva a aceptar; las columnas extra (`Errores`, `Advertencias`, `Fila`) son ignoradas al re-importar, por lo que el archivo es **re-importable tal cual** tras corregirlo.
+- Nombre sugerido: `<recurso>_rechazados_<YYYYMMDD_HHmmss>.csv`.
+
+### Componentes y utilidades a reutilizar
+
+- `src/lib/csv.ts`: `parseCsvRowsWithLines`, `detectCsvDelimiter`, `normalizeCsvHeader`, `downloadCsv`.
+- `ImportConfirmDialog` (conteo previo) e `ImportResultDialog` (resultado por fila: correcta / advertencia / rechazada + descarga).
+- Servicio del módulo con `validarImportacion<X>` / `confirmarImportacion<X>` apoyado en `src/services/api.ts`.
+
+### Reglas
+
+- Los valores de estado/opciones deben coincidir **exactamente** con el enum del backend (ej. activos: `EN_USO | EN_ALMACEN | EN_MANTENIMIENTO | DE_BAJA`).
+- `confirmar` revalida: repetir un lote produce rechazos por duplicado (idempotencia **por datos**, no por request).
+- Prohibido usar `window.confirm()` o patrones ad-hoc de importación: seguir este flujo y sus componentes.
+
+### Ejemplo de mapeo de columnas (Módulo Activos / Inventario)
+
+`CB23` → `cb23`; `Tipo` → `tipo`; `Marca` → `marca`; `Modelo` → `modelo`; `Número de serie` → `numeroSerie`; `Sucursal` → `sucursal`; `Estado` → `estado`; `Estado general` → `estadoGeneral`; `Red` → `nombreRed`; `Correo responsable` → `responsableId` (resuelto en el backend).
+
+Cada módulo debe documentar aquí su propio mapeo de columnas.
 
 ---
 
 ## ⭐️ Regla de Oro: Consistencia Visual y Componentes Base Obligatorios
 
-Para garantizar una experiencia de usuario (UX) homogénea, profesional y predecible en todo el sistema, **queda estrictamente prohibido crear tablas HTML ad-hoc, formularios modales dispersos o cuadros de diálogo de eliminación no estandarizados**.
+Para garantizar una experiencia de usuario (UX) homogénea, profesional y predecible en todo el sistema, **queda estrictamente prohibido crear tablas HTML ad-hoc, formularios modales dispersos, cuadros de diálogo de eliminación no estandarizados, ni flujos de importación masiva fuera del patrón base**.
 
 Todo nuevo módulo (Tickets, Licencias, Proyectos, Usuarios, etc.) debe construirse obligatoriamente sobre los siguientes componentes base ubicados en `src/components/ui/`:
 
@@ -89,6 +152,21 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
   - **Iconografía de advertencia:** Contenedor central con icono `AlertTriangle` en fondo suave (`bg-rose-100` / `dark:bg-rose-500/10`), texto explicativo que interpola claramente el nombre del elemento a eliminar (`itemName`) y advierte que la operación es irreversible.
   - **Botones con jerarquía estricta:** Botón Cancelar neutro y botón de confirmación con variante `destructive` (rojo intenso con sombra de elevación).
 - **Regla de uso:** **Prohibido terminantemente el uso de `window.confirm()` o alerts del navegador**. Cualquier flujo de borrado en tablas (`DataTable`), formularios (`FormDialog`) o vistas de detalle debe disparar este componente.
+
+---
+
+### 5. `ImportResultDialog` (`src/features/inventory/components/ImportResultDialog.tsx`)
+
+Es el diálogo obligatorio para mostrar el resultado de cualquier **importación masiva** (fases `validar` y `confirmar`).
+
+- **Objetivo:** Informar de forma clara cuántas filas se guardaron y cuáles no, con el detalle por fila y la opción de descargar las rechazadas.
+- **Características de diseño y comportamiento:**
+  - **Cabecera de resumen:** Conteos destacados de guardadas y rechazadas (y total), en badges semánticos (verde/rojo/neutro).
+  - **Detalle por fila:** Lista con el número de `fila` y estado visual: correcta (verde), con **advertencias** (ámbar, no bloquean) o **rechazada** (rojo, con sus `errores`).
+  - **Acción de descarga:** Botón "Descargar rechazadas" que exporta las filas no guardadas a CSV (con sus mensajes) para corrección y re-importación. Ver la sección "Importaciones masivas".
+  - **Acción primaria opcional:** Atajo para confirmar solo las filas válidas cuando la validación previa detecta inválidas.
+- **Regla de uso:** Toda importación masiva debe usar el flujo `validar` → (`ImportResultDialog` de revisión) → `confirmar` → `ImportResultDialog` de resultado. Prohibido mostrar el resultado con `alert`, `toast` únicamente o tablas ad-hoc.
+- **Nota:** Si el patrón se reutiliza en varios módulos, promover este componente a `src/components/ui/` y referenciarlo desde ahí.
 
 ---
 
@@ -254,7 +332,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Implementar badges cromáticos para estados operativos (Activo, Mantenimiento, Baja) y condiciones físicas (Excelente, Bueno, Regular, Malo).
 - [ ] Conectar las operaciones CRUD del inventario con la API REST del backend de gestión de TI.
 - [x] Integrar validaciones de datos requeridos y notificaciones toast de éxito o error al guardar/eliminar.
-- [x] Importacion masiva: el frontend lee y parsea localmente la plantilla `plantilla_registro_activos.csv` y envía las filas como JSON; el archivo no se sube ni se almacena en el backend. El parser del frontend soporta BOM UTF-8, delimitador `;`, encabezados acentuados, campos entre comillas, límite de 500 registros y conserva la fila de origen para reportar resultados.
+- [x] Importacion masiva de activos: flujo en dos fases (`validar` -> `confirmar`) contra `/api/activos/importaciones/*`, con importacion **parcial** (crea las filas validas y rechaza el resto sin abortar). El frontend parsea localmente la plantilla `plantilla_registro_activos.csv` (BOM UTF-8, delimitador `;`, encabezados acentuados, campos entre comillas, limite de 500 registros) y conserva la fila de origen. Los datos **no guardados** (filas con `errores`) se muestran por fila en `ImportResultDialog` y se pueden **descargar como CSV** (`activos_rechazados_<timestamp>.csv`, re-importable); las **advertencias** no bloquean. Ver el patron completo en la seccion "Importaciones masivas".
 
 ---
 
