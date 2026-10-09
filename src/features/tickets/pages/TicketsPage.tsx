@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router"
 import {
   ArrowUpDown,
   ChevronDown,
@@ -15,7 +16,10 @@ import { Badge } from "@/components/ui/badge"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
 import { sampleTickets } from "@/features/tickets/data/sampleTickets"
-import { actualizarEstadoTicket } from "@/features/tickets/services/ticket.service"
+import {
+  actualizarEstadoTicket,
+  obtenerIncidencias,
+} from "@/features/tickets/services/ticket.service"
 import type {
   Ticket,
   TicketEstado,
@@ -78,13 +82,43 @@ const ITEMS_PER_PAGE = 10
 const cellBase = "border-b border-border/70 px-4 py-3 text-foreground/90"
 
 function TicketsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const estadoParam = searchParams.get("estado") as TicketEstado | null
+
   const [tickets, setTickets] = useState<Ticket[]>(sampleTickets)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [search, setSearch] = useState("")
-  const [selectedEstado, setSelectedEstado] = useState<"ALL" | TicketEstado>("ALL")
+  const [internalEstado, setInternalEstado] = useState<"ALL" | TicketEstado>("ALL")
+  const selectedEstado: "ALL" | TicketEstado = useMemo(() => {
+    if (
+      estadoParam &&
+      ["NUEVO", "EN_PROCESO", "RESUELTO", "CERRADO", "CANCELADO"].includes(estadoParam)
+    ) {
+      return estadoParam
+    }
+    return internalEstado
+  }, [estadoParam, internalEstado])
+
   const [selectedPrioridad, setSelectedPrioridad] = useState<"ALL" | TicketPrioridad>("ALL")
   const [selectedTipo, setSelectedTipo] = useState<"ALL" | TipoRequerimiento>("ALL")
   const [currentPage, setCurrentPage] = useState(1)
+
+  // Cargar tickets reales desde la API
+  useEffect(() => {
+    let isMounted = true
+    obtenerIncidencias({ page: 1, limit: 100 })
+      .then((res) => {
+        if (isMounted && res.data && res.data.length > 0) {
+          setTickets(res.data)
+        }
+      })
+      .catch((err) => {
+        console.warn("No se pudieron cargar tickets de la API, usando datos locales:", err)
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   // Estado del Modal de Detalle
   const [isDetailOpen, setIsDetailOpen] = useState(false)
@@ -425,8 +459,16 @@ function TicketsPage() {
               <select
                 value={selectedEstado}
                 onChange={(e) => {
-                  setSelectedEstado(e.target.value as "ALL" | TicketEstado)
+                  const val = e.target.value as "ALL" | TicketEstado
+                  setInternalEstado(val)
                   setCurrentPage(1)
+                  if (estadoParam) {
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev)
+                      next.delete("estado")
+                      return next
+                    })
+                  }
                 }}
                 className="h-10 appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors shadow-sm cursor-pointer"
               >
