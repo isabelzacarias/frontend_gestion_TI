@@ -3,6 +3,7 @@ import type { InventoryItem } from "@/features/inventory/data/inventoryData"
 import type { ActivoImportRow, EstadoActivo } from "@/types/activo"
 import {
   detectCsvDelimiter,
+  downloadCsv,
   downloadCsvTemplate,
   normalizeCsvHeader,
   parseCsvRowsWithLines,
@@ -134,6 +135,89 @@ function parseGeneralState(value: string): InventoryItem["estadoGeneral"] {
  */
 export function downloadAssetCsvTemplate() {
   downloadCsvTemplate(ASSET_CSV_TEMPLATE_HEADERS, "plantilla_registro_activos.csv")
+}
+
+/**
+ * Fila con error devuelta por los endpoints de importación (validar/confirmar).
+ * Estructura compatible con `FilaValidacionImportacion` y `FilaConfirmacionImportacion`.
+ */
+export interface AssetImportErrorRow {
+  fila: number
+  errores: string[]
+  advertencias: string[]
+}
+
+/**
+ * Encabezados del CSV de filas rechazadas. Conserva las columnas mínimas
+ * obligatorias para que el archivo pueda re-importarse tras corregirlo.
+ */
+const IMPORT_ERROR_HEADERS = [
+  "Fila",
+  "CB23",
+  "Tipo",
+  "Marca",
+  "Modelo",
+  "Número de serie",
+  "Sucursal",
+  "Estado",
+  "Estado general",
+  "Red",
+  "Correo responsable",
+  "Errores",
+  "Advertencias",
+]
+
+function timestampForFileName(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0")
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("") + `_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+}
+
+/**
+ * Genera y descarga un CSV con las filas que no se pudieron guardar
+ * (aquellas con errores), incluyendo sus mensajes, para su corrección
+ * y posterior re-importación.
+ *
+ * @returns el número de filas escritas (0 si no había errores).
+ */
+export function downloadAssetImportErrors(
+  records: AssetFormDraft[],
+  filas: AssetImportErrorRow[],
+  fileName = `activos_rechazados_${timestampForFileName(new Date())}.csv`,
+): number {
+  const recordsByFila = new Map<number, AssetFormDraft>()
+  records.forEach((record, index) => {
+    recordsByFila.set(record.filaOrigen ?? index + 2, record)
+  })
+
+  const rows = filas
+    .filter((fila) => fila.errores.length > 0)
+    .map((fila) => {
+      const record = recordsByFila.get(fila.fila)
+      return [
+        String(fila.fila),
+        record?.cb23 ?? "",
+        record?.tipo ?? "",
+        record?.marca ?? "",
+        record?.modelo ?? "",
+        record?.numeroSerie ?? "",
+        record?.sucursal ?? "",
+        record?.estado ?? "",
+        record?.estadoGeneral ?? "",
+        record?.nombreRed ?? "",
+        record?.responsableEmail ?? "",
+        fila.errores.join(" | "),
+        fila.advertencias.join(" | "),
+      ]
+    })
+
+  if (rows.length === 0) return 0
+
+  downloadCsv(IMPORT_ERROR_HEADERS, rows, fileName)
+  return rows.length
 }
 
 /**

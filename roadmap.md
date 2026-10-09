@@ -43,7 +43,7 @@ Es el componente mandatorio para cualquier listado o vista tabular del sistema.
     - Efecto hover suave (`hover:bg-primary/[0.06]`).
     - Selección visual de fila activa mediante `selectedRowKey` con anillo de enfoque sutil.
     - Soporte para clic simple (`onRowClick`) y doble clic (`onRowDoubleClick`); el doble clic abre el `DetailDialog` y desde allí se inicia la edición con el formulario del módulo.
-  - **Paginación integrada:** Barra inferior con conteo descriptivo de registros (`Mostrando X-Y de Z`), controles de página anterior/siguiente deshabilitables y visualización de página actual.
+  - **Paginación integrada:** Barra inferior con conteo descriptivo de registros (`Mostrando X-Y de Z`), controles de página anterior/siguiente y **primera/última** deshabilitables, visualización de página actual y **salto directo a una página específica** (campo numérico + botón `Ir`, con *clamp* entre `1` y la última página). Estos controles son **obligatorios y compartidos**: toda tabla existente o futura que use `DataTable<T>` los hereda automáticamente, por lo que **no debe implementarse paginación ad-hoc por módulo**.
 - **Regla de uso:** Definir columnas tipadas mediante la interfaz `DataTableColumn<T>[]`, especificando la función `render(item, index)` para badges, fechas o acciones personalizadas.
 
 ---

@@ -24,6 +24,52 @@ export interface ErrorPeticion {
   [clave: string]: unknown
 }
 
+export interface UsuarioResumenActivo {
+  id: string
+  nombre: string
+  email: string | null
+}
+
+export interface ActivoResumen {
+  id: number
+  claveActivo: string | null
+  cb23: string | null
+  tipo: string
+  marca: string | null
+  modelo: string | null
+  numeroSerie: string | null
+  sucursal: string | null
+  estado: EstadoActivo
+  estadoGeneral: string | null
+  nombreRed: string | null
+  responsable: UsuarioResumenActivo | null
+}
+
+export interface MetadatosPaginacion {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+export interface RespuestaPaginada<T> {
+  success: boolean
+  message: string
+  errors: ErrorPeticion[]
+  data: T[]
+  meta: MetadatosPaginacion
+}
+
+export interface ParametrosListadoActivos {
+  page?: number
+  limit?: number
+  estado?: EstadoActivo
+  tipo?: string
+  sucursal?: string
+  responsableId?: string
+  q?: string
+}
+
 export interface DatosFilaImportada {
   tipo: string
   cb23: string | null

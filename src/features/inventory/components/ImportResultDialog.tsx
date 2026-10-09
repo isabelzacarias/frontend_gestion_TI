@@ -1,4 +1,10 @@
-import { CircleAlert, CircleCheck, CircleX, FileSpreadsheet } from "lucide-react"
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Download,
+  FileSpreadsheet,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -29,6 +35,8 @@ interface ImportResultDialogProps {
   errorLabel: string
   rows: ImportResultRow[]
   primaryAction?: { label: string; onClick: () => void }
+  onDownloadErrors?: () => void
+  downloadErrorsLabel?: string
   onOpenChange: (open: boolean) => void
 }
 
@@ -58,6 +66,8 @@ export function ImportResultDialog({
   errorLabel,
   rows,
   primaryAction,
+  onDownloadErrors,
+  downloadErrorsLabel,
   onOpenChange,
 }: ImportResultDialogProps) {
   return (
@@ -131,6 +141,17 @@ export function ImportResultDialog({
           </div>
 
           <DialogFooter className="mt-5 flex-row justify-end gap-2 border-t border-border/70 pt-4 sm:gap-2.5">
+            {onDownloadErrors && errorCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onDownloadErrors}
+                className="mr-auto h-9 rounded-xl border border-border/80 bg-background px-3 text-xs font-semibold shadow-sm"
+              >
+                <Download className="size-4" />
+                {downloadErrorsLabel ?? "Descargar rechazadas"}
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"

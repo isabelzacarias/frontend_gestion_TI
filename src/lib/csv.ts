@@ -74,8 +74,22 @@ export function detectCsvDelimiter(content: string) {
   }, ";")
 }
 
-export function downloadCsvTemplate(headers: string[], fileName: string) {
-  const content = `\uFEFF${headers.join(";")}\r\n`
+function escapeCsvField(value: string): string {
+  if (/[";\r\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return value
+}
+
+export function downloadCsv(
+  headers: string[],
+  rows: string[][],
+  fileName: string,
+) {
+  const lines = [headers, ...rows].map((row) =>
+    row.map(escapeCsvField).join(";"),
+  )
+  const content = `\uFEFF${lines.join("\r\n")}\r\n`
   const file = new Blob([content], { type: "text/csv;charset=utf-8" })
   const url = URL.createObjectURL(file)
   const link = document.createElement("a")
@@ -83,4 +97,8 @@ export function downloadCsvTemplate(headers: string[], fileName: string) {
   link.download = fileName
   link.click()
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+export function downloadCsvTemplate(headers: string[], fileName: string) {
+  downloadCsv(headers, [], fileName)
 }

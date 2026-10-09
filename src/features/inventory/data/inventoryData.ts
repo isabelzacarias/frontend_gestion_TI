@@ -16,7 +16,7 @@ export interface InventoryItem {
   numeroSerie: string
   sucursal: string
   estado: EstadoActivo
-  estadoGeneral: "Excelente" | "Bueno" | "Regular" | "Crítico"
+  estadoGeneral: string
   nombreRed: string
   responsable: Responsable
 }

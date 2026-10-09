@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import {
   ArrowUpDown,
   ChevronDown,
@@ -22,18 +22,24 @@ import {
   ImportResultDialog,
   type ImportResultRow,
 } from "@/features/inventory/components/ImportResultDialog"
-import { inventoryData, type InventoryItem } from "@/features/inventory/data/inventoryData"
-import { transformDraftsToImportRows } from "@/features/inventory/utils/asset-import"
+import { type InventoryItem } from "@/features/inventory/data/inventoryData"
+import {
+  downloadAssetImportErrors,
+  transformDraftsToImportRows,
+} from "@/features/inventory/utils/asset-import"
 import {
   ActivoApiError,
   confirmarImportacionActivos,
+  listarActivos,
   validarImportacionActivos,
 } from "@/services/activo.service"
 import type {
   ActivoImportRow,
+  ActivoResumen,
   ErrorPeticion,
   FilaConfirmacionImportacion,
   FilaValidacionImportacion,
+  MetadatosPaginacion,
 } from "@/types/activo"
 
 interface ImportDialogState {
@@ -46,6 +52,7 @@ interface ImportDialogState {
   errorLabel: string
   rows: ImportResultRow[]
   primaryAction?: { label: string; onClick: () => void }
+  onDownloadErrors?: () => void
 }
 
 function toValidationRows(
@@ -171,6 +178,29 @@ const createInventoryItem = (draft: AssetFormDraft, id: number): InventoryItem =
  * Definición declarativa de las columnas
  * ────────────────────────────────────────────── */
 const cellBase = "border-b border-border/70 px-4 py-3 text-foreground/90"
+const generalFallbackClass =
+  "border border-border/60 bg-muted text-muted-foreground"
+
+function toInventoryItem(activo: ActivoResumen): InventoryItem {
+  return {
+    id: activo.id,
+    claveActivo: activo.claveActivo,
+    cb23: activo.cb23 ?? "—",
+    tipo: activo.tipo,
+    marca: activo.marca ?? "—",
+    modelo: activo.modelo ?? "—",
+    numeroSerie: activo.numeroSerie ?? "—",
+    sucursal: activo.sucursal ?? "—",
+    estado: activo.estado,
+    estadoGeneral: activo.estadoGeneral ?? "—",
+    nombreRed: activo.nombreRed ?? "—",
+    responsable: {
+      id: activo.responsable?.id ?? "",
+      nombre: activo.responsable?.nombre ?? "Sin responsable",
+      email: activo.responsable?.email ?? "",
+    },
+  }
+}
 
 const columns: DataTableColumn<InventoryItem>[] = [
   {
@@ -196,7 +226,11 @@ const columns: DataTableColumn<InventoryItem>[] = [
     header: "General",
     cellClassName: "border-b border-border/70 px-4 py-3",
     render: (item) => (
-      <Badge className={generalClasses[item.estadoGeneral]}>{item.estadoGeneral}</Badge>
+      <Badge
+        className={generalClasses[item.estadoGeneral] ?? generalFallbackClass}
+      >
+        {item.estadoGeneral}
+      </Badge>
     ),
   },
   { key: "nombreRed", header: "Red", cellClassName: cellBase, render: (item) => item.nombreRed },
@@ -223,18 +257,28 @@ const columns: DataTableColumn<InventoryItem>[] = [
 ]
 
 function InventoryPage() {
-  const [inventory, setInventory] = useState(inventoryData)
+  const [activos, setActivos] = useState<InventoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [meta, setMeta] = useState<MetadatosPaginacion>({
+    page: 1,
+    limit: ITEMS_PER_PAGE,
+    total: 0,
+    totalPages: 1,
+  })
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [selectedState, setSelectedState] = useState<"ALL" | InventoryItem["estado"]>("ALL")
   const [selectedBranch, setSelectedBranch] = useState<"ALL" | string>("ALL")
   const [currentPage, setCurrentPage] = useState(1)
+  const [reloadKey, setReloadKey] = useState(0)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null)
   const [draft, setDraft] = useState(createEmptyAssetDraft())
   const [importDialog, setImportDialog] = useState<ImportDialogState | null>(null)
-  const selectedAsset = inventory.find((item) => item.id === selectedAssetId)
+  const selectedAsset = activos.find((item) => item.id === selectedAssetId)
   const detailSections: DetailSection[] = selectedAsset
     ? [
         {
@@ -291,29 +335,53 @@ function InventoryPage() {
       ]
     : []
 
-  const filteredInventory = useMemo(() => {
-    const term = search.toLowerCase().trim()
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+      setCurrentPage(1)
+    }, 300)
+    return () => window.clearTimeout(id)
+  }, [search])
 
-    return inventory.filter((item) => {
-      const matchesState = selectedState === "ALL" || item.estado === selectedState
-      const matchesBranch = selectedBranch === "ALL" || item.sucursal === selectedBranch
+  useEffect(() => {
+    let cancelado = false
 
-      if (!matchesState || !matchesBranch) return false
+    async function cargarActivos() {
+      setLoading(true)
+      setLoadError(null)
 
-      if (!term) return true
+      try {
+        const { activos: lista, meta: metaRespuesta } = await listarActivos({
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+          ...(selectedState !== "ALL" ? { estado: selectedState } : {}),
+          ...(selectedBranch !== "ALL" ? { sucursal: selectedBranch } : {}),
+          ...(debouncedSearch ? { q: debouncedSearch } : {}),
+        })
 
-      const searchableText = [item.tipo, item.responsable.nombre, item.marca, item.modelo].join(" ").toLowerCase()
+        if (cancelado) return
+        setActivos(lista.map(toInventoryItem))
+        setMeta(metaRespuesta)
+      } catch (error) {
+        if (cancelado) return
+        setLoadError(getImportErrorMessage(error))
+        setActivos([])
+      } finally {
+        if (!cancelado) setLoading(false)
+      }
+    }
 
-      return searchableText.includes(term)
-    })
-  }, [inventory, search, selectedState, selectedBranch])
+    void cargarActivos()
 
-  const totalPages = Math.max(1, Math.ceil(filteredInventory.length / ITEMS_PER_PAGE))
-  const page = Math.min(currentPage, totalPages)
-  const paginatedInventory = filteredInventory.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
+    return () => {
+      cancelado = true
+    }
+  }, [currentPage, selectedState, selectedBranch, debouncedSearch, reloadKey])
+
+  const recargar = () => setReloadKey((key) => key + 1)
 
   const handlePageChange = (nextPage: number) => {
-    setCurrentPage(Math.min(Math.max(nextPage, 1), totalPages))
+    setCurrentPage(Math.min(Math.max(nextPage, 1), meta.totalPages))
   }
 
   const handleDraftChange = <K extends keyof AssetFormDraft>(field: K, value: AssetFormDraft[K]) => {
@@ -329,24 +397,10 @@ function InventoryPage() {
     try {
       const confirmacion = await confirmarImportacionActivos(filas)
 
-      const filasCreadas = new Set(
-        confirmacion.filas
-          .filter((fila) => fila.creado)
-          .map((fila) => fila.fila),
-      )
-      const idBase = Date.now()
-      const importedAssets = records
-        .filter((record, index) =>
-          filasCreadas.has(record.filaOrigen ?? index + 2),
-        )
-        .map((record, index) => createInventoryItem(record, idBase + index))
-
-      if (importedAssets.length > 0) {
-        setInventory((current) => [...importedAssets, ...current])
-        setCurrentPage(1)
-      }
       setDraft(createEmptyAssetDraft())
       setIsAddDialogOpen(false)
+      setCurrentPage(1)
+      recargar()
 
       if (confirmacion.resumen.creadas > 0) {
         toast.success(
@@ -373,6 +427,10 @@ function InventoryPage() {
         okLabel: "registradas",
         errorLabel: "rechazadas",
         rows: toConfirmationRows(confirmacion.filas),
+        onDownloadErrors:
+          confirmacion.resumen.rechazadas > 0
+            ? () => downloadAssetImportErrors(records, confirmacion.filas)
+            : undefined,
       })
     } catch (error) {
       toast.error(getImportErrorMessage(error), { id: toastId })
@@ -400,6 +458,8 @@ function InventoryPage() {
           okLabel: "válidas",
           errorLabel: "con errores",
           rows: toValidationRows(validacion.filas),
+          onDownloadErrors: () =>
+            downloadAssetImportErrors(records, validacion.filas),
           primaryAction: {
             label: `Importar ${validacion.resumen.validas} válida(s)`,
             onClick: () => {
@@ -422,7 +482,7 @@ function InventoryPage() {
 
     const nextItem = createInventoryItem(draft, Date.now())
 
-    setInventory((current) => [nextItem, ...current])
+    setActivos((current) => [nextItem, ...current])
     setDraft(createEmptyAssetDraft())
     setIsAddDialogOpen(false)
     setCurrentPage(1)
@@ -449,7 +509,7 @@ function InventoryPage() {
 
     if (selectedAssetId === null) return
 
-    setInventory((current) =>
+    setActivos((current) =>
       current.map((item) =>
         item.id === selectedAssetId
           ? {
@@ -481,7 +541,7 @@ function InventoryPage() {
   const handleDeleteAsset = () => {
     if (selectedAssetId === null) return
 
-    setInventory((current) => current.filter((item) => item.id !== selectedAssetId))
+    setActivos((current) => current.filter((item) => item.id !== selectedAssetId))
     setDraft(createEmptyAssetDraft())
     setSelectedAssetId(null)
     setIsEditDialogOpen(false)
@@ -521,7 +581,7 @@ function InventoryPage() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar activo o responsable..."
+                placeholder="Buscar por CB23, serie, marca, modelo o red..."
                 className="w-full border-0 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none"
                 aria-label="Buscar inventario"
               />
@@ -530,9 +590,12 @@ function InventoryPage() {
             <div className="relative inline-flex min-w-[180px] items-center">
               <select
                 value={selectedState}
-                onChange={(event) =>
-                  setSelectedState(event.target.value as "ALL" | InventoryItem["estado"])
-                }
+                onChange={(event) => {
+                  setSelectedState(
+                    event.target.value as "ALL" | InventoryItem["estado"],
+                  )
+                  setCurrentPage(1)
+                }}
                 className="w-full appearance-none rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 pr-9 text-sm font-medium text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.05)] outline-none backdrop-blur-md transition focus:border-primary dark:border-white/10 dark:bg-slate-900/55"
                 aria-label="Filtrar por estado"
               >
@@ -548,7 +611,10 @@ function InventoryPage() {
             <div className="relative inline-flex min-w-[180px] items-center">
               <select
                 value={selectedBranch}
-                onChange={(event) => setSelectedBranch(event.target.value as "ALL" | string)}
+                onChange={(event) => {
+                  setSelectedBranch(event.target.value as "ALL" | string)
+                  setCurrentPage(1)
+                }}
                 className="w-full appearance-none rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 pr-9 text-sm font-medium text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.05)] outline-none backdrop-blur-md transition focus:border-primary dark:border-white/10 dark:bg-slate-900/55"
                 aria-label="Filtrar por sucursal"
               >
@@ -563,7 +629,7 @@ function InventoryPage() {
         summary={
           <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
             <ArrowUpDown className="size-3.5 text-violet-700 dark:text-violet-200" />
-            {filteredInventory.length} registros
+            {loading ? "Cargando..." : `${meta.total} registros`}
           </span>
         }
       />
@@ -617,6 +683,7 @@ function InventoryPage() {
           errorLabel={importDialog.errorLabel}
           rows={importDialog.rows}
           primaryAction={importDialog.primaryAction}
+          onDownloadErrors={importDialog.onDownloadErrors}
           onOpenChange={(nextOpen) => {
             if (!nextOpen) setImportDialog(null)
           }}
@@ -625,16 +692,19 @@ function InventoryPage() {
 
       <DataTable<InventoryItem>
         columns={columns}
-        data={paginatedInventory}
+        data={activos}
         rowKey={(item) => item.id}
-        page={page}
-        totalPages={totalPages}
-        totalFiltered={filteredInventory.length}
+        page={meta.page}
+        totalPages={meta.totalPages}
+        totalFiltered={meta.total}
         itemsPerPage={ITEMS_PER_PAGE}
         onPageChange={handlePageChange}
         onRowClick={handleSelectAsset}
         onRowDoubleClick={handleOpenDetails}
         selectedRowKey={selectedAssetId}
+        emptyMessage={
+          loading ? "Cargando activos..." : (loadError ?? "Sin resultados")
+        }
       />
     </div>
   )

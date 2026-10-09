@@ -4,8 +4,12 @@ import { api } from "@/services/api"
 import type { RespuestaApi } from "@/types/auth"
 import type {
   ActivoImportRow,
+  ActivoResumen,
+  MetadatosPaginacion,
+  ParametrosListadoActivos,
   ResultadoConfirmacionImportacion,
   ResultadoValidacionImportacion,
+  RespuestaPaginada,
 } from "@/types/activo"
 
 export class ActivoApiError extends Error {
@@ -58,6 +62,34 @@ function toActivoApiError(error: unknown): ActivoApiError {
   }
 
   return new ActivoApiError("No se pudo completar la solicitud.", [])
+}
+
+export interface ListadoActivos {
+  activos: ActivoResumen[]
+  meta: MetadatosPaginacion
+}
+
+export async function listarActivos(
+  parametros: ParametrosListadoActivos = {},
+): Promise<ListadoActivos> {
+  try {
+    const response = await api.get<RespuestaPaginada<ActivoResumen>>(
+      "/activos",
+      { params: parametros },
+    )
+
+    if (!response.data.success || !Array.isArray(response.data.data)) {
+      throw new ActivoApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return { activos: response.data.data, meta: response.data.meta }
+  } catch (error) {
+    throw toActivoApiError(error)
+  }
 }
 
 export async function validarImportacionActivos(
