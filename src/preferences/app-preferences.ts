@@ -14,6 +14,7 @@ export type HomeRoute =
   | "/maintenance"
   | "/audit"
   | "/reminder"
+  | "/user"
 
 
 
@@ -63,7 +64,8 @@ const validHomeRoutes: ReadonlySet<string> = new Set([
   "/assignments",
   "/maintenance",
   "/audit",
-  "/reminder"
+  "/reminder",
+  "/user",
 ])
 
 export function isTextSize(value: string): value is TextSize {

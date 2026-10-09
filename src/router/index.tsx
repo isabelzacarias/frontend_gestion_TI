@@ -15,6 +15,7 @@ import TicketsPage from "@/features/tickets/pages/TicketsPage"
 import ChangePasswordPage from "@/features/user/pages/ChangePasswordPage"
 import AuditPage from "@/features/audit/pages/AuditPage"
 import ReminderPage from "@/features/reminder/pages/ReminderPage"
+import UsersPage from "@/features/user/pages/UsersPage"
 import ProfilePage from "@/features/user/pages/ProfilePage"
 import SettingsPage from "@/features/user/pages/SettingsPage"
 import HomeRedirect from "@/router/HomeRedirect"
@@ -45,6 +46,7 @@ const router = createBrowserRouter([
           { path: "maintenance", element: <MaintenancePage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "reminder", element: <ReminderPage /> },
+          { path: "user", element: <UsersPage /> },
           { path: "perfil", element: <ProfilePage /> },
           { path: "configuracion", element: <SettingsPage /> },
           { path: "cambiar-password", element: <ChangePasswordPage /> },

@@ -56,6 +56,7 @@ const navItems: NavItem[] = [
   { to: "/maintenance", label: "Mantenimiento", icon: Wrench },
   { to: "/audit", label: "Auditoría", icon: BookText },
   { to: "/reminder", label: "Recordatorio", icon: ClipboardClock},
+  { to: "/user", label: "Usuarios", icon: BookText },
 ]
 
 function navLinkClassName({
