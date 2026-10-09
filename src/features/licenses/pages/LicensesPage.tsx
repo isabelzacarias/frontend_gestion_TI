@@ -23,6 +23,7 @@ import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
 import { LicenseFormDialog } from "@/features/licenses/components/LicenseFormDialog"
 import { sampleLicenses } from "@/features/licenses/data/licensesData"
 import type {
+  AsignadaA,
   License,
   LicenseFormDraft,
 } from "@/features/licenses/types/license"
@@ -64,6 +65,35 @@ const toLicenseDraft = (item: License): LicenseFormDraft => ({
 const ITEMS_PER_PAGE = 10
 const cellBase = "border-b border-border/70 px-4 py-3 text-foreground/90"
 
+const resolveAssignee = (id: string): AsignadaA | null => {
+  if (id === "ADMIN") {
+    return { id: "ADMIN", nombre: "Administrador", email: "admin@horbismex.com" }
+  }
+  if (id === "TECH-01") {
+    return { id: "TECH-01", nombre: "Carlos Ramírez", email: "carlos.ramirez@horbismex.com" }
+  }
+  if (id === "TECH-02") {
+    return { id: "TECH-02", nombre: "Daniel Valdés", email: "daniel.valdes@horbismex.com" }
+  }
+  return null
+}
+
+const createLicenseFromDraft = (draft: LicenseFormDraft, id: number): License => {
+  const tieneClave = Boolean(draft.clave && draft.clave.trim().length > 0)
+
+  return {
+    id,
+    software: draft.software.trim() || `Licencia #${id}`,
+    tieneClave,
+    clave: tieneClave ? draft.clave.trim() : null,
+    proveedor: draft.proveedor.trim() || null,
+    fechaCompra: draft.fechaCompra ? `${draft.fechaCompra}T00:00:00.000Z` : null,
+    fechaVencimiento: draft.fechaVencimiento ? `${draft.fechaVencimiento}T00:00:00.000Z` : null,
+    activa: String(draft.activa) === "true",
+    asignadaA: resolveAssignee(draft.asignadaAId),
+  }
+}
+
 function LicensesPage() {
   const [licenses, setLicenses] = useState<License[]>(sampleLicenses)
   const [search, setSearch] = useState("")
@@ -71,15 +101,13 @@ function LicensesPage() {
   const [selectedTieneClave, setSelectedTieneClave] = useState<"ALL" | "true" | "false">("ALL")
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Visibilidad de claves secretas
-  const [visibleKeys, setVisibleKeys] = useState<Record<number, boolean>>({})
-
   // Modales
   const [selectedLicenseId, setSelectedLicenseId] = useState<number | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
+  const [isDetailKeyVisible, setIsDetailKeyVisible] = useState(false)
   const [draft, setDraft] = useState<LicenseFormDraft>(createEmptyLicenseDraft())
 
   const selectedLicense = useMemo(
@@ -90,14 +118,20 @@ function LicensesPage() {
   // Filtrado de licencias
   const filteredLicenses = useMemo(() => {
     const term = search.trim().toLowerCase()
+    const hasTerm = term.length > 0
+    const idTerm = term.replace(/^#/, "")
+    // "#4" o "4" => búsqueda por ID; texto => nombre/proveedor/usuario
+    const isIdSearch = term.startsWith("#") || /^\d+$/.test(term)
+
     return licenses.filter((item) => {
       const matchSearch =
-        !term ||
-        item.id.toString().includes(term) ||
-        item.software.toLowerCase().includes(term) ||
-        (item.proveedor && item.proveedor.toLowerCase().includes(term)) ||
-        (item.asignadaA && item.asignadaA.nombre.toLowerCase().includes(term)) ||
-        (item.asignadaA && item.asignadaA.email.toLowerCase().includes(term))
+        !hasTerm ||
+        (isIdSearch
+          ? idTerm === "" || item.id.toString().includes(idTerm)
+          : item.software.toLowerCase().includes(term) ||
+            (item.proveedor?.toLowerCase().includes(term) ?? false) ||
+            (item.asignadaA?.nombre.toLowerCase().includes(term) ?? false) ||
+            (item.asignadaA?.email.toLowerCase().includes(term) ?? false))
 
       const matchActiva =
         selectedActiva === "ALL" || String(item.activa) === selectedActiva
@@ -115,11 +149,6 @@ function LicensesPage() {
     const start = (activePage - 1) * ITEMS_PER_PAGE
     return filteredLicenses.slice(start, start + ITEMS_PER_PAGE)
   }, [filteredLicenses, activePage])
-
-  const toggleKeyVisibility = (id: number, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setVisibleKeys((prev) => ({ ...prev, [id]: !prev[id] }))
-  }
 
   const copyToClipboard = (text: string, label: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -150,32 +179,25 @@ function LicensesPage() {
   const handleCreateLicense = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const nextId = Math.max(...licenses.map((l) => l.id), 0) + 1
-    const tieneClave = Boolean(draft.clave && draft.clave.trim().length > 0)
-    
-    let asignadaAObj = null
-    if (draft.asignadaAId === "ADMIN") {
-      asignadaAObj = { id: "ADMIN", nombre: "Administrador", email: "admin@horbismex.com" }
-    } else if (draft.asignadaAId === "TECH-01") {
-      asignadaAObj = { id: "TECH-01", nombre: "Carlos Ramírez", email: "carlos.ramirez@horbismex.com" }
-    } else if (draft.asignadaAId === "TECH-02") {
-      asignadaAObj = { id: "TECH-02", nombre: "Daniel Valdés", email: "daniel.valdes@horbismex.com" }
-    }
-
-    const newLicense: License = {
-      id: nextId,
-      software: draft.software.trim() || `Licencia #${nextId}`,
-      tieneClave,
-      clave: tieneClave ? draft.clave.trim() : null,
-      proveedor: draft.proveedor.trim() || null,
-      fechaCompra: draft.fechaCompra ? `${draft.fechaCompra}T00:00:00.000Z` : null,
-      fechaVencimiento: draft.fechaVencimiento ? `${draft.fechaVencimiento}T00:00:00.000Z` : null,
-      activa: String(draft.activa) === "true",
-      asignadaA: asignadaAObj,
-    }
+    const newLicense = createLicenseFromDraft(draft, nextId)
 
     setLicenses((prev) => [newLicense, ...prev])
     setIsAddDialogOpen(false)
     toast.success(`Licencia "${newLicense.software}" creada exitosamente.`)
+  }
+
+  const handleImportLicenses = (records: LicenseFormDraft[]) => {
+    const idBase = Math.max(...licenses.map((l) => l.id), 0)
+    const importedLicenses = records.map((record, index) =>
+      createLicenseFromDraft(record, idBase + index + 1),
+    )
+
+    setLicenses((prev) => [...importedLicenses, ...prev])
+    setIsAddDialogOpen(false)
+    setCurrentPage(1)
+    toast.success(
+      `${importedLicenses.length} ${importedLicenses.length === 1 ? "licencia registrada" : "licencias registradas"} correctamente.`,
+    )
   }
 
   const handleUpdateLicense = (e: FormEvent<HTMLFormElement>) => {
@@ -183,15 +205,7 @@ function LicensesPage() {
     if (selectedLicenseId === null) return
 
     const tieneClave = Boolean(draft.clave && draft.clave.trim().length > 0)
-
-    let asignadaAObj = null
-    if (draft.asignadaAId === "ADMIN") {
-      asignadaAObj = { id: "ADMIN", nombre: "Administrador", email: "admin@horbismex.com" }
-    } else if (draft.asignadaAId === "TECH-01") {
-      asignadaAObj = { id: "TECH-01", nombre: "Carlos Ramírez", email: "carlos.ramirez@horbismex.com" }
-    } else if (draft.asignadaAId === "TECH-02") {
-      asignadaAObj = { id: "TECH-02", nombre: "Daniel Valdés", email: "daniel.valdes@horbismex.com" }
-    }
+    const asignadaAObj = resolveAssignee(draft.asignadaAId)
 
     setLicenses((prev) =>
       prev.map((item) =>
@@ -249,44 +263,21 @@ function LicensesPage() {
     {
       key: "tieneClave",
       header: "Clave Secret",
-      cellClassName: "border-b border-border/70 px-4 py-3 font-mono text-xs",
-      render: (item) => {
-        if (!item.tieneClave) {
-          return (
-            <Badge variant="outline" className="border-slate-400/30 bg-slate-400/10 text-slate-500 font-medium">
-              Sin Clave
-            </Badge>
-          )
-        }
-
-        const isVisible = visibleKeys[item.id]
-        const displayClave = item.clave ?? "BRUNO-SECRET-KEY-123"
-
-        return (
-          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold gap-1">
-              <KeyRound className="size-3" />
-              {isVisible ? displayClave : "••••-••••-••••"}
-            </Badge>
-            <button
-              type="button"
-              onClick={(e) => toggleKeyVisibility(item.id, e)}
-              className="p-1 text-muted-foreground hover:text-foreground rounded"
-              title={isVisible ? "Ocultar clave" : "Mostrar clave"}
-            >
-              {isVisible ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => copyToClipboard(displayClave, "Clave de licencia", e)}
-              className="p-1 text-muted-foreground hover:text-foreground rounded"
-              title="Copiar clave"
-            >
-              <Copy className="size-3.5" />
-            </button>
-          </div>
-        )
-      },
+      cellClassName: "border-b border-border/70 px-4 py-3",
+      render: (item) =>
+        item.tieneClave ? (
+          <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold gap-1">
+            <KeyRound className="size-3" />
+            Con clave
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="border-slate-400/30 bg-slate-400/10 text-slate-500 font-medium"
+          >
+            Sin clave
+          </Badge>
+        ),
     },
     {
       key: "proveedor",
@@ -358,27 +349,45 @@ function LicensesPage() {
             { key: "proveedor", label: "Proveedor", value: selectedLicense.proveedor ?? "No especificado" },
             {
               key: "tieneClave",
-              label: "Tiene Clave Secreta",
-              value: selectedLicense.tieneClave ? (
-                <div className="flex items-center gap-2">
-                  <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 font-semibold">
-                    Sí (Tiene Clave)
-                  </Badge>
-                  {selectedLicense.clave && (
+              label: "Clave Secreta",
+              value:
+                selectedLicense.tieneClave && selectedLicense.clave ? (
+                  <div className="flex min-h-8 items-center gap-2">
+                    <span className="break-all py-1 font-mono text-sm text-foreground">
+                      {isDetailKeyVisible ? selectedLicense.clave : "••••-••••-••••"}
+                    </span>
                     <button
                       type="button"
-                      onClick={(e) => copyToClipboard(selectedLicense.clave!, "Clave de licencia", e)}
-                      className="p-1 text-primary hover:underline text-xs flex items-center gap-1"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={isDetailKeyVisible ? "Ocultar clave" : "Mostrar clave"}
+                      aria-pressed={isDetailKeyVisible}
+                      onClick={() => setIsDetailKeyVisible((current) => !current)}
                     >
-                      <Copy className="size-3" /> Copiar Clave
+                      {isDetailKeyVisible ? (
+                        <EyeOff aria-hidden="true" className="size-4" />
+                      ) : (
+                        <Eye aria-hidden="true" className="size-4" />
+                      )}
                     </button>
-                  )}
-                </div>
-              ) : (
-                <Badge variant="outline" className="border-slate-400/30 bg-slate-400/10 text-slate-500">
-                  No (Sin Clave)
-                </Badge>
-              ),
+                    <button
+                      type="button"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="Copiar clave"
+                      onClick={(e) =>
+                        copyToClipboard(selectedLicense.clave!, "Clave de licencia", e)
+                      }
+                    >
+                      <Copy aria-hidden="true" className="size-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="border-slate-400/30 bg-slate-400/10 text-slate-500"
+                  >
+                    Sin clave
+                  </Badge>
+                ),
             },
           ],
         },
@@ -423,7 +432,7 @@ function LicensesPage() {
     : []
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <ModuleHeader
         eyebrow="Inventario de Software"
         title="Gestión de Licencias"
@@ -444,7 +453,7 @@ function LicensesPage() {
               <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar por software, proveedor, usuario o ID..."
+                placeholder="Buscar por software, proveedor, usuario o ID (ej. 4 o #4)..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value)
@@ -520,7 +529,10 @@ function LicensesPage() {
       {selectedLicense && (
         <DetailDialog
           open={isDetailDialogOpen}
-          onOpenChange={setIsDetailDialogOpen}
+          onOpenChange={(open) => {
+            setIsDetailDialogOpen(open)
+            if (!open) setIsDetailKeyVisible(false)
+          }}
           title={selectedLicense.software}
           description={`Detalle de la licencia #${selectedLicense.id}`}
           icon={<KeyRound className="size-6 text-white" />}
@@ -537,6 +549,7 @@ function LicensesPage() {
         onOpenChange={setIsAddDialogOpen}
         onChange={handleDraftChange}
         onSubmit={handleCreateLicense}
+        onImport={handleImportLicenses}
       />
 
       {/* Modal de Edición */}

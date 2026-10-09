@@ -241,6 +241,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [ ] Conectar las operaciones CRUD del inventario con la API REST del backend de gestión de TI.
 - [x] Integrar validaciones de datos requeridos y notificaciones toast de éxito o error al guardar/eliminar.
 - [x] Validar la persistencia de datos y el refresco reactivo de la tabla tras cada mutación.
+- [x] Integrar registro masivo de activos por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`AssetFormDialog` + `asset-import.ts`).
 
 ---
 
@@ -253,6 +254,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Desarrollar alertas visuales preventivas para licencias próximas a expirar y vencidas.
 - [x] Diseñar el panel de visualización y detalle con conteo de asientos utilizados versus disponibles y barra de uso relativo.
 - [x] Diseñar la gestión segura de contraseñas y credenciales de servicios tecnológicos con ofuscación visual y permisos de visualización.
+- [x] Incorporar registro masivo de licencias por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`LicenseFormDialog` + `license-import.ts`).
 - [ ] Conectar las consultas y mutaciones de licencias con los servicios del backend.
 
 ---
@@ -267,6 +269,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Añadir indicador visual de fortaleza de contraseña con criterios de longitud, mayúsculas, minúsculas, números y caracteres especiales.
 - [x] Agregar alternancia de visibilidad de contraseña y mensajes de contexto para entorno demo sin conexión a API.
 - [x] Diseñar la experiencia con datos ficticios para validar la interacción del módulo antes de conectarlo al backend.
+- [x] Integrar registro masivo de credenciales por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`CredentialDialog` + `credential-import.ts`).
 - [ ] Conectar el módulo de contraseñas con la API real y persistencia del backend.
 - [ ] Implementar almacenamiento seguro de secretos con enmascarado, control de permisos y trazabilidad de acceso.
 - [ ] Añadir filtros avanzados por categoría, servicio, responsable y estado de uso.
@@ -346,7 +349,92 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 
 ---
 
-## 16. Backlog de Mejoras Futuras
+## 16. Registro Masivo de Datos mediante Plantillas CSV/Excel
+
+Estandariza la carga masiva de registros en los módulos del sistema. La plantilla se genera y descarga en formato CSV codificado en UTF-8 con BOM y separador `;`, de modo que Excel la abra correctamente en español.
+
+### Componentes y utilidades base
+
+- `ImportConfirmDialog` (`src/components/ui/import-confirm-dialog.tsx`): diálogo obligatorio de confirmación que muestra el conteo de registros detectados y el mensaje correspondiente cuando el archivo llega vacío.
+- `src/lib/csv.ts`: utilidades compartidas `normalizeCsvHeader`, `parseCsvRows`, `detectCsvDelimiter` y `downloadCsvTemplate`.
+- **Convención por módulo:** una utilidad `{modulo}-import.ts` en `features/{modulo}/utils/` que define los encabezados de la plantilla, valida cada fila (con mensajes del tipo `Fila N: ...`) y expone `downloadXxxCsvTemplate()` y `parseXxxCsv(content)`.
+- **Patrón UI:** en el formulario de creación (`FormDialog`), el bloque superior (`formActions`) incluye los botones **Descargar plantilla de registro** e **Importar**; al elegir un `.csv` se previsualiza el lote y se confirma con `ImportConfirmDialog` antes de registrarlo.
+
+### Tareas y estado
+
+- [x] Definir utilidades CSV compartidas (`src/lib/csv.ts`) y el componente `ImportConfirmDialog`.
+- [x] Implementar registro masivo en Inventario (`AssetFormDialog` + `asset-import.ts`).
+- [x] Implementar registro masivo en Contraseñas (`CredentialDialog` + `credential-import.ts`).
+- [x] Implementar registro masivo en Licencias (`LicenseFormDialog` + `license-import.ts`).
+- [x] Implementar registro masivo en Asignaciones (`AssignmentFormDialog` + `assignment-import.ts`).
+- [ ] Extender el registro masivo a Tickets y Proyectos cuando se construyan sus formularios.
+- [ ] Añadir detección de duplicados y resumen de errores por fila antes de confirmar el lote.
+- [ ] Evaluar soporte nativo de archivos `.xlsx` (además del CSV compatible con Excel).
+
+---
+
+## 17. Módulo de Asignaciones de Equipo
+
+Módulo responsable de registrar la entrega y devolución de activos tecnológicos a colaboradores.
+
+- [x] Definir el modelo de datos de asignaciones y los catálogos de activos/usuarios.
+- [x] Implementar el listado con `DataTable`, búsqueda por ID, equipo o usuario y filtro Activas/Devueltas.
+- [x] Consultar el detalle con `DetailDialog` y editar con `AssignmentFormDialog`.
+- [x] Implementar el alta de asignaciones con selección de activo y usuario.
+- [x] Implementar la devolución (cambio de estado Activa → Devuelta) con confirmación.
+- [x] Integrar eliminación con `ConfirmDeleteDialog`.
+- [x] Añadir registro masivo por plantilla CSV/Excel.
+- [ ] Conectar el módulo con la API REST (`GET /api/asignaciones`, devoluciones y asignación por activo).
+- [ ] Sincronizar el estado del activo (En uso / En almacén) con Inventario al asignar o devolver.
+- [ ] Registrar trazabilidad de entrega/devolución con evidencias y firmas.
+
+---
+
+## 18. Módulo de Reportes e Indicadores Analíticos
+
+- [ ] Diseñar la pantalla de reportes con filtros por rango de fechas, sucursal, tipo de activo y estado.
+- [ ] Implementar exportación a PDF y CSV/Excel respetando los filtros aplicados.
+- [ ] Desarrollar reportes de inventario, asignaciones, licencias por vencer y tickets por periodo.
+- [ ] Incorporar gráficas comparativas (histórico mensual) reutilizando la integración de Chart.js.
+- [ ] Definir plantillas de reporte programables y envío automático por correo.
+- [ ] Conectar los reportes con los endpoints del backend.
+
+---
+
+## 19. Módulo de Auditoría y Trazabilidad
+
+- [ ] Diseñar la bitácora de eventos (quién, qué, cuándo, desde qué IP) con `DataTable`.
+- [ ] Implementar filtros por usuario, módulo, tipo de acción y rango de fechas.
+- [ ] Registrar automáticamente altas, ediciones, eliminaciones e importaciones masivas.
+- [ ] Consultar el detalle de cada evento con `DetailDialog` (valores anteriores y nuevos).
+- [ ] Definir políticas de retención y exportación de la bitácora.
+- [ ] Conectar la auditoría con el backend y validar permisos de solo lectura.
+
+---
+
+## 20. Módulo de Recordatorios de TI
+
+- [ ] Diseñar la vista de recordatorios y notas operativas con prioridad, fecha y estado.
+- [ ] Implementar el CRUD completo con `DataTable`, `FormDialog` y `ConfirmDeleteDialog`.
+- [ ] Integrar los recordatorios en el widget del Dashboard y en la bandeja de notificaciones.
+- [ ] Añadir recordatorios automáticos (mantenimiento preventivo y renovación de licencias).
+- [ ] Conectar el módulo con la API REST y Socket.IO para sincronización en vivo.
+
+---
+
+## 21. Módulo de Mantenimiento Preventivo y Correctivo
+
+- [ ] Definir el modelo de órdenes de mantenimiento (activo, tipo, técnico, fechas, costos y evidencias).
+- [ ] Implementar el listado y los filtros con `DataTable`.
+- [ ] Construir el `MaintenanceFormDialog` para el alta y edición de órdenes.
+- [ ] Consultar el historial por activo con `DetailDialog`.
+- [ ] Vincular las órdenes con el estado del activo en Inventario (En mantenimiento / Baja).
+- [ ] Añadir confirmación de cancelación o eliminación con `ConfirmDeleteDialog`.
+- [ ] Conectar el módulo con la API REST.
+
+---
+
+## 22. Backlog de Mejoras Futuras
 
 - [ ] Implementar exportación nativa de reportes a formatos PDF y hojas de cálculo Excel/CSV con filtros aplicados.
 - [ ] Desarrollar búsqueda global unificada (Command Palette tipo `Ctrl + K`) para saltar a cualquier activo, ticket o proyecto.
@@ -356,7 +444,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 
 ---
 
-## 17. Checklist de Cierre de Sprint
+## 23. Checklist de Cierre de Sprint
 
 - [ ] Verificar las tareas marcadas como completadas (`[x]`) contra las evidencias reales en el código.
 - [ ] Confirmar que cada pantalla desarrollada use estrictamente los componentes base (`DataTable`, `DetailDialog`, `FormDialog`, `ConfirmDeleteDialog`) y el flujo común de consulta/edición.
