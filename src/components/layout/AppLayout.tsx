@@ -9,7 +9,6 @@ import {
   KeyRound,
   Laptop,
   Lock,
-  LogOut,
   Menu,
   SquareKanban,
   Ticket,
@@ -68,7 +67,7 @@ function navLinkClassName({
 }) {
   if (collapsed) {
     return cn(
-      "relative flex h-12 w-full items-center justify-center text-sm transition-colors",
+      "relative flex h-10 w-full items-center justify-center text-sm transition-colors",
       isActive
         ? "bg-[#2a124b] text-white before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--accent-500)]"
         : "text-white/70 hover:bg-white/5 hover:text-white"
@@ -76,7 +75,7 @@ function navLinkClassName({
   }
 
   return cn(
-    "relative flex w-full items-center gap-3 px-6 py-3 text-sm font-medium transition-colors",
+    "relative flex w-full items-center gap-3 px-6 py-2.5 text-sm font-medium transition-colors",
     isActive
       ? "bg-[#2a124b] text-white before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--accent-500)]"
       : "text-white/70 hover:bg-white/5 hover:text-white",
@@ -163,25 +162,8 @@ function AppLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-[#2a124b] p-3">
-          <div className="mb-2 flex justify-center">
-            <ProfileMenu collapsed={colapsado} />
-          </div>
-          <div className="mb-1">
-            <ThemeToggle compact={colapsado} />
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
-            aria-label={colapsado ? "Cerrar sesión" : undefined}
-            title={colapsado ? "Cerrar sesión" : undefined}
-            onClick={requestLogout}
-          >
-            <LogOut className="size-4" />
-            {!colapsado && "Cerrar sesión"}
-          </Button>
+        <div className="border-t border-[#2a124b] p-1.5">
+          <ProfileMenu collapsed={colapsado} onLogout={requestLogout} />
         </div>
       </aside>
 
