@@ -6,11 +6,18 @@ export function normalizeCsvHeader(value: string) {
     .replace(/[^a-z0-9]/g, "")
 }
 
-export function parseCsvRows(content: string, delimiter: string): string[][] {
-  const rows: string[][] = []
+export interface CsvRowWithLine {
+  lineNumber: number
+  values: string[]
+}
+
+export function parseCsvRowsWithLines(content: string, delimiter: string): CsvRowWithLine[] {
+  const rows: CsvRowWithLine[] = []
   let row: string[] = []
   let field = ""
   let inQuotes = false
+  let currentLine = 1
+  let rowStartLine = 1
 
   for (let index = 0; index < content.length; index += 1) {
     const character = content[index]
@@ -28,10 +35,17 @@ export function parseCsvRows(content: string, delimiter: string): string[][] {
     } else if (!inQuotes && (character === "\n" || character === "\r")) {
       if (character === "\r" && content[index + 1] === "\n") index += 1
       row.push(field.trim())
-      if (row.some((value) => value.length > 0)) rows.push(row)
+      if (row.some((value) => value.length > 0)) {
+        rows.push({ lineNumber: rowStartLine, values: row })
+      }
       row = []
       field = ""
+      currentLine += 1
+      rowStartLine = currentLine
     } else {
+      if (character === "\n") {
+        currentLine += 1
+      }
       field += character
     }
   }
@@ -41,8 +55,14 @@ export function parseCsvRows(content: string, delimiter: string): string[][] {
   }
 
   row.push(field.trim())
-  if (row.some((value) => value.length > 0)) rows.push(row)
+  if (row.some((value) => value.length > 0)) {
+    rows.push({ lineNumber: rowStartLine, values: row })
+  }
   return rows
+}
+
+export function parseCsvRows(content: string, delimiter: string): string[][] {
+  return parseCsvRowsWithLines(content, delimiter).map((r) => r.values)
 }
 
 export function detectCsvDelimiter(content: string) {

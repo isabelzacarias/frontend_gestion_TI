@@ -16,6 +16,14 @@ Este documento centraliza la planificación, el estado de avance y los lineamien
 
 ---
 
+## Importaciones masivas
+
+El frontend debe analizar la plantilla de importacion de datos masivos y transformarlos en formato JSON.
+El backend puede procesar un maximo de 500 registros como maximo.
+Inventario: **`CB23` -> `cb23`; `Tipo` -> `tipo`; `Marca` -> `marca`; `Modelo` -> `modelo`; `Número de serie` -> `numeroSerie`; `Sucursal` -> `sucursal`; `Estado` -> `estado`; `Estado general` -> `estadoGeneral`; `Red` -> `nombreRed`**
+
+---
+
 ## ⭐️ Regla de Oro: Consistencia Visual y Componentes Base Obligatorios
 
 Para garantizar una experiencia de usuario (UX) homogénea, profesional y predecible en todo el sistema, **queda estrictamente prohibido crear tablas HTML ad-hoc, formularios modales dispersos o cuadros de diálogo de eliminación no estandarizados**.
@@ -23,10 +31,11 @@ Para garantizar una experiencia de usuario (UX) homogénea, profesional y predec
 Todo nuevo módulo (Tickets, Licencias, Proyectos, Usuarios, etc.) debe construirse obligatoriamente sobre los siguientes componentes base ubicados en `src/components/ui/`:
 
 ### 1. `DataTable<T>` (`src/components/ui/data-table.tsx`)
+
 Es el componente mandatorio para cualquier listado o vista tabular del sistema.
 
-* **Objetivo:** Estandarizar la visualización de datos densos con paginación integrada, accesibilidad y soporte de interacción rápida.
-* **Características de diseño y comportamiento:**
+- **Objetivo:** Estandarizar la visualización de datos densos con paginación integrada, accesibilidad y soporte de interacción rápida.
+- **Características de diseño y comportamiento:**
   - **Encabezado Sticky:** Fondo con gradiente primario de la marca (`linear-gradient(135deg, var(--primary-600), var(--primary-500))`) con texto blanco y tracking tipográfico refinado que permanece visible durante el scroll vertical.
   - **Contenedor Glass/Card:** Bordes redondeados de gran curvatura (`rounded-[28px]`), sombra sutil (`shadow-[0_12px_35px_rgba(17,24,39,0.06)]`) y scroll horizontal/vertical controlado con `overscroll-behavior: none`.
   - **Filas Striped (Cebra):** Alternancia de fondos entre `bg-background/80` y un tinte violeta suave `bg-[rgba(91,36,128,0.04)]` para facilitar la lectura de múltiples registros.
@@ -35,15 +44,16 @@ Es el componente mandatorio para cualquier listado o vista tabular del sistema.
     - Selección visual de fila activa mediante `selectedRowKey` con anillo de enfoque sutil.
     - Soporte para clic simple (`onRowClick`) y doble clic (`onRowDoubleClick`); el doble clic abre el `DetailDialog` y desde allí se inicia la edición con el formulario del módulo.
   - **Paginación integrada:** Barra inferior con conteo descriptivo de registros (`Mostrando X-Y de Z`), controles de página anterior/siguiente deshabilitables y visualización de página actual.
-* **Regla de uso:** Definir columnas tipadas mediante la interfaz `DataTableColumn<T>[]`, especificando la función `render(item, index)` para badges, fechas o acciones personalizadas.
+- **Regla de uso:** Definir columnas tipadas mediante la interfaz `DataTableColumn<T>[]`, especificando la función `render(item, index)` para badges, fechas o acciones personalizadas.
 
 ---
 
 ### 2. `FormDialog<T>` (`src/components/ui/form-dialog.tsx`)
+
 Es el componente base mandatorio para formularios modales de creación y edición de registros.
 
-* **Objetivo:** Eliminar la inconsistencia de layouts en formularios modales, asegurando una distribución balanceada de campos editables por secciones temáticas.
-* **Características de diseño y comportamiento:**
+- **Objetivo:** Eliminar la inconsistencia de layouts en formularios modales, asegurando una distribución balanceada de campos editables por secciones temáticas.
+- **Características de diseño y comportamiento:**
   - **Estética Glassmorphism Premium:** Ventana modal amplia (`max-w-[980px]`, `rounded-[28px]`) con fondos radiales translúcidos, desenfoque de fondo (`backdrop-blur-xl`) y borde sutil adaptado tanto a tema claro como oscuro.
   - **Cabecera destacada:** Barra superior de acento con gradiente, badge distintivo con contenedor de icono (`size-12`, gradiente primario y sombra de elevación), título nítido y descripción de contexto.
   - **Estructura por secciones agrupadas (`FormSection<T>`):** Cada grupo de campos se aloja en tarjetas translúcidas con bullet de color temático (`primary`, `cyan`, `violet`, `emerald`, `amber`, `rose`), título en mayúsculas pequeñas con tracking espaciado y rejilla configurable (`gridCols`, por ejemplo `sm:grid-cols-2` o `sm:grid-cols-3`).
@@ -51,38 +61,41 @@ Es el componente base mandatorio para formularios modales de creación y edició
   - **Footer ergonómico:**
     - Botón destructivo opcional (`onDelete`) situado a la izquierda en tonalidad `rose`, para eliminar el registro si el modal está en modo edición.
     - Botones de acción a la derecha: Cancelar con contorno neutro y botón de guardar con gradiente primario y hover reactivo.
-* **Regla de uso / Patrón Wrapper:** Cada módulo debe crear un componente contenedor (wrapper) de dominio (por ejemplo, `AssetFormDialog` para activos, `TicketFormDialog` para tickets, `LicenseFormDialog` para licencias) que declare sus secciones tipadas y maneje el estado de borrador (`draft`).
+- **Regla de uso / Patrón Wrapper:** Cada módulo debe crear un componente contenedor (wrapper) de dominio (por ejemplo, `AssetFormDialog` para activos, `TicketFormDialog` para tickets, `LicenseFormDialog` para licencias) que declare sus secciones tipadas y maneje el estado de borrador (`draft`).
 
 ---
 
 ### 3. `DetailDialog` (`src/components/ui/detail-dialog.tsx`)
+
 Es el componente base mandatorio para consultar registros sin permitir su modificación directa.
 
-* **Objetivo:** Mostrar la información de un registro en secciones reutilizables de etiquetas y valores, sin presentar inputs de solo lectura.
-* **Características de diseño y comportamiento:**
+- **Objetivo:** Mostrar la información de un registro en secciones reutilizables de etiquetas y valores, sin presentar inputs de solo lectura.
+- **Características de diseño y comportamiento:**
   - Comparte la cabecera, el tratamiento visual de secciones y el layout modal de los formularios.
   - Distribuye los datos automáticamente en una rejilla responsiva; usar `colSpan` solo cuando un dato realmente necesite ocupar varias columnas.
   - Incluye las acciones **Cerrar** y **Editar**. La consulta no contiene controles de guardado ni de eliminación.
   - Permite valores personalizados como enlaces, badges o contraseñas enmascaradas con alternancia de visibilidad.
-* **Regla de uso / Flujo común:** El doble clic sobre una fila de `DataTable` abre el detalle. Al elegir **Editar**, se cierra la consulta y se abre el wrapper `FormDialog` del módulo con los datos del mismo registro.
+- **Regla de uso / Flujo común:** El doble clic sobre una fila de `DataTable` abre el detalle. Al elegir **Editar**, se cierra la consulta y se abre el wrapper `FormDialog` del módulo con los datos del mismo registro.
 
 ---
 
 ### 4. `ConfirmDeleteDialog` (`src/components/ui/confirm-delete-dialog.tsx`)
+
 Es el diálogo modal obligatorio para cualquier confirmación de eliminación o acción destructiva.
 
-* **Objetivo:** Proteger al usuario contra pérdidas accidentales de datos mediante un diálogo claro, seguro y estéticamente coordinado con el sistema de diseño.
-* **Características de diseño y comportamiento:**
+- **Objetivo:** Proteger al usuario contra pérdidas accidentales de datos mediante un diálogo claro, seguro y estéticamente coordinado con el sistema de diseño.
+- **Características de diseño y comportamiento:**
   - **Dimensiones y foco:** Modal compacto (`w-[min(92vw,420px)]`, `rounded-[24px]`) con borde y sombra con tonalidad de advertencia en color rose (`border-rose-200/80` y sombras difuminadas).
   - **Iconografía de advertencia:** Contenedor central con icono `AlertTriangle` en fondo suave (`bg-rose-100` / `dark:bg-rose-500/10`), texto explicativo que interpola claramente el nombre del elemento a eliminar (`itemName`) y advierte que la operación es irreversible.
   - **Botones con jerarquía estricta:** Botón Cancelar neutro y botón de confirmación con variante `destructive` (rojo intenso con sombra de elevación).
-* **Regla de uso:** **Prohibido terminantemente el uso de `window.confirm()` o alerts del navegador**. Cualquier flujo de borrado en tablas (`DataTable`), formularios (`FormDialog`) o vistas de detalle debe disparar este componente.
+- **Regla de uso:** **Prohibido terminantemente el uso de `window.confirm()` o alerts del navegador**. Cualquier flujo de borrado en tablas (`DataTable`), formularios (`FormDialog`) o vistas de detalle debe disparar este componente.
 
 ---
 
 ## 1. Base y Configuración del Proyecto
 
 ### Infraestructura y Entorno
+
 - [x] Revisar y normalizar la estructura de carpetas del frontend para garantizar mantenibilidad a largo plazo.
 - [x] Verificar y asegurar que todas las dependencias en `package.json` estén sincronizadas y versionadas de manera determinista.
 - [x] Validar la configuración del bundler Vite con React 19 y TypeScript 6 en modo estricto.
@@ -92,6 +105,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 - [x] Documentar formalmente los comandos del proyecto: instalación, entorno de desarrollo local, testing y compilación (`build`).
 
 ### Arquitectura y Patrones de Desarrollo
+
 - [x] Definir la convención de nomenclatura y separación de responsabilidades por módulos (`features`).
 - [x] Consolidar la arquitectura modular en las carpetas `src/features`, `src/components`, `src/services` y `src/store`.
 - [x] Establecer la política de tipado estricto para modelos de dominio, parámetros y respuestas del backend.
@@ -240,7 +254,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Implementar badges cromáticos para estados operativos (Activo, Mantenimiento, Baja) y condiciones físicas (Excelente, Bueno, Regular, Malo).
 - [ ] Conectar las operaciones CRUD del inventario con la API REST del backend de gestión de TI.
 - [x] Integrar validaciones de datos requeridos y notificaciones toast de éxito o error al guardar/eliminar.
-- [x] Validar la persistencia de datos y el refresco reactivo de la tabla tras cada mutación.
+- [x] Importacion masiva: el frontend lee y parsea localmente la plantilla `plantilla_registro_activos.csv` y envía las filas como JSON; el archivo no se sube ni se almacena en el backend. El parser del frontend soporta BOM UTF-8, delimitador `;`, encabezados acentuados, campos entre comillas, límite de 500 registros y conserva la fila de origen para reportar resultados.
 
 ---
 

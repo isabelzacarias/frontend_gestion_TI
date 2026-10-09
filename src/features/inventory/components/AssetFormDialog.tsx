@@ -16,6 +16,7 @@ import {
 } from "@/features/inventory/utils/asset-import"
 
 export type AssetFormDraft = {
+  filaOrigen?: number
   cb23: string
   tipo: InventoryItem["tipo"]
   marca: string
