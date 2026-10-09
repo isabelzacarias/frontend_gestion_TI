@@ -13,6 +13,8 @@ import ProjectsPage from "@/features/projects/pages/ProjectsPage"
 import ReportsPage from "@/features/reports/pages/ReportsPage"
 import TicketsPage from "@/features/tickets/pages/TicketsPage"
 import ChangePasswordPage from "@/features/user/pages/ChangePasswordPage"
+import AuditPage from "@/features/audit/pages/AuditPage"
+import ReminderPage from "@/features/reminder/pages/ReminderPage"
 import ProfilePage from "@/features/user/pages/ProfilePage"
 import SettingsPage from "@/features/user/pages/SettingsPage"
 import HomeRedirect from "@/router/HomeRedirect"
@@ -41,6 +43,8 @@ const router = createBrowserRouter([
           { path: "passwords", element: <PasswordsPage /> },
           { path: "assignments", element: <AssignmentsPage /> },
           { path: "maintenance", element: <MaintenancePage /> },
+          { path: "audit", element: <AuditPage /> },
+          { path: "reminder", element: <ReminderPage /> },
           { path: "perfil", element: <ProfilePage /> },
           { path: "configuracion", element: <SettingsPage /> },
           { path: "cambiar-password", element: <ChangePasswordPage /> },

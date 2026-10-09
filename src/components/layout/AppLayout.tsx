@@ -1,7 +1,9 @@
 import { useState } from "react"
 import {
+  BookText,
   Boxes,
   ChartBar,
+  ClipboardClock,
   FolderKanban,
   Home,
   KeyRound,
@@ -52,6 +54,8 @@ const navItems: NavItem[] = [
   { to: "/passwords", label: "Contraseñas", icon: Lock },
   { to: "/assignments", label: "Asignacion de Equipo", icon: Laptop },
   { to: "/maintenance", label: "Mantenimiento", icon: Wrench },
+  { to: "/audit", label: "Auditoría", icon: BookText },
+  { to: "/reminder", label: "Recordatorio", icon: ClipboardClock},
 ]
 
 function navLinkClassName({
