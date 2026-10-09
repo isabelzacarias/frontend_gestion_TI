@@ -136,13 +136,68 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ## 4. Dashboard Ejecutivo y Métricas
 
-- [ ] Definir la arquitectura de KPIs operativos y de gestión para TI (tickets abiertos, tiempo de resolución, activos asignados, licencias críticas).
-- [ ] Desarrollar widgets de métricas rápidas con tarjetas de alto impacto visual y comparativas de tendencia.
-- [ ] Integrar gráficos estadísticos interactivos con `Chart.js` y `react-chartjs-2` (distribución por área, criticidad de tickets, etc.).
-- [ ] Implementar barra de filtros temporales (hoy, semana, mes, rango personalizado) y segmentación por sucursal.
-- [ ] Implementar funcionalidad para exportar métricas o vistas resumidas en formato imprimible o descargable.
-- [ ] Añadir estados de carga con skeleton screens en cada widget durante la consulta de indicadores.
-- [ ] Realizar pruebas de jerarquía visual y contraste para garantizar claridad en pantallas operativas y paneles de mando.
+Esta sección define la arquitectura visual, fuentes de datos y componentes del panel de control principal, siguiendo el wireframe estructurado del sistema:
+
+### Esquema y Distribución del Layout (Wireframe)
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ Header: Dashboard                                [ (5) Ambos | Cancún | Playa ] │
+├─────────────────────────┬─────────────────────────────┬─────────────────────────┤
+│ (1) Total de Tickets    │ (4) Total de Activos        │ (6) Total de Equipos    │
+│     Pendientes          │                           │     Asignados           │
+├─────────────────────────┴───────────────┬─────────────┴─────────────────────────┤
+│ (2) Licencias por Vencer                │ (3) Gráfica de Activos por Tipo       │
+├─────────────────────────────────────────┤     (Chart.js Donut / Bar)            │
+│ (7) Recordatorios                       │                                       │
+└─────────────────────────────────────────┴───────────────────────────────────────┘
+```
+
+### Componentes y Métricas del Dashboard
+
+1. **(1) KPI Total de Tickets Pendientes (Mesa de Ayuda):**
+   - Tarjeta métrica que contabiliza las incidencias en estado `NUEVO`.
+   - Conexión al endpoint `{{baseUrl}}/api/incidencias?page=1&limit=10&estado=NUEVO`.
+   - Interacción interactiva: al hacer clic en la tarjeta se despliega el panel inferior con la lista de tickets nuevos y opción de consulta rápida con `DetailDialog`.
+   - Enlace directo a `/tickets?estado=NUEVO`.
+
+2. **(2) Widget de Licencias por Vencer (Software & Suscripciones):**
+   - Panel de supervisión de software corporativo con vencimiento próximo (umbral preventivo de 30 a 60 días).
+   - Indicador de estado crítico/preventivo con accesos directos al módulo `/licenses`.
+
+3. **(3) Gráfica de Activos por Tipo (Inventario Analítico):**
+   - Gráfico estadístico interactivo con `Chart.js` y `react-chartjs-2` (gráfico tipo dona o barras).
+   - Clasificación por categorías de equipos: Laptops, Desktops, Monitores, Telefonía, Redes, etc.
+   - Reactivo al filtro global por sucursal.
+
+4. **(4) KPI Total de Activos:**
+   - Métrica cuantitativa de todos los activos tecnológicos registrados en la base de datos de inventario.
+   - Desglose rápido entre equipos operativos y en mantenimiento.
+
+5. **(5) Filtro Segmentado por Sucursal (Header):**
+   - Control tipo pill/tabs segmentado en la cabecera del Dashboard con tres opciones: `Ambos` | `Cancún` | `Playa`.
+   - Almacena la selección en el estado de la vista y filtra automáticamente los totales de tickets, activos, asignaciones y gráficos.
+
+6. **(6) KPI Total de Equipos Asignados:**
+   - Métrica de activos que se encuentran actualmente en estado `EN_USO` con responsable asignado.
+   - Comparativa o porcentaje relativo respecto al total de activos disponibles.
+
+7. **(7) Widget de Recordatorios de TI:**
+   - Panel de notas operativas, pendientes de mantenimiento preventivo, renovaciones y tareas programadas del área de TI.
+   - Indicador de fecha, prioridad y estado completado/pendiente.
+
+### Tareas y Estado de Implementación
+
+- [x] Diseñar la arquitectura del wireframe y distribución del Dashboard en cuadrícula responsiva (3 KPIs superiores + layout dividido 2 columnas).
+- [x] Desarrollar la tarjeta interactiva de **Total de Tickets Pendientes** (1) conectada a `GET /incidencias?estado=NUEVO` con despliegue de panel de incidencias nuevas.
+- [ ] Implementar el control segmentado de **Filtro por Sucursal** (5) (`Ambos` / `Cancún` / `Playa`) en la cabecera del Dashboard.
+- [ ] Desarrollar la tarjeta métrica de **Total de Activos** (4) con conteo general de inventario.
+- [ ] Desarrollar la tarjeta métrica de **Total de Equipos Asignados** (6) (equipos en uso / entregados a colaboradores).
+- [ ] Desarrollar el panel de **Licencias por Vencer** (2) con cálculo de fechas límite y alertas preventivas.
+- [ ] Integrar el panel de **Recordatorios de TI** (7) para notas y tareas de soporte técnico.
+- [ ] Integrar la **Gráfica de Activos por Tipo** (3) con `Chart.js` sincronizada con el inventario y el filtro de sucursal.
+- [ ] Añadir estados de carga con skeleton screens adaptados a cada widget y manejo de errores de conexión.
+- [ ] Validar adaptabilidad responsiva en pantallas de escritorio, tablet y móvil.
 
 ---
 
