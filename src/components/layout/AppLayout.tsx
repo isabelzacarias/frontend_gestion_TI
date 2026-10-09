@@ -5,11 +5,13 @@ import {
   FolderKanban,
   Home,
   KeyRound,
+  Laptop,
   Lock,
   LogOut,
   Menu,
   SquareKanban,
   Ticket,
+  Wrench,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "cn"
@@ -48,6 +50,8 @@ const navItems: NavItem[] = [
   { to: "/projects", label: "Proyectos", icon: FolderKanban },
   { to: "/reports", label: "Reportes", icon: ChartBar },
   { to: "/passwords", label: "Contraseñas", icon: Lock },
+  { to: "/assignments", label: "Asignacion de Equipo", icon: Laptop },
+  { to: "/maintenance", label: "Mantenimiento", icon: Wrench },
 ]
 
 function navLinkClassName({

@@ -10,6 +10,8 @@ export type HomeRoute =
   | "/projects"
   | "/reports"
   | "/passwords"
+  | "/assignments"
+  | "/maintenance"
 
 export interface AppPreferences {
   textSize: TextSize
@@ -54,6 +56,8 @@ const validHomeRoutes: ReadonlySet<string> = new Set([
   "/projects",
   "/reports",
   "/passwords",
+  "/assignments",
+  "/maintenance"
 ])
 
 export function isTextSize(value: string): value is TextSize {

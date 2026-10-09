@@ -8,6 +8,7 @@ import InventoryPage from "@/features/inventory/pages/InventoryPage"
 import KanbanPage from "@/features/kanban/pages/KanbanPage"
 import LicensesPage from "@/features/licenses/pages/LicensesPage"
 import PasswordsPage from "@/features/passwords/pages/PasswordsPage"
+import AssignmentsPage from "@/features/assignments/pages/AssignmentsPage"
 import ProjectsPage from "@/features/projects/pages/ProjectsPage"
 import ReportsPage from "@/features/reports/pages/ReportsPage"
 import TicketsPage from "@/features/tickets/pages/TicketsPage"
@@ -15,6 +16,7 @@ import ChangePasswordPage from "@/features/user/pages/ChangePasswordPage"
 import ProfilePage from "@/features/user/pages/ProfilePage"
 import SettingsPage from "@/features/user/pages/SettingsPage"
 import HomeRedirect from "@/router/HomeRedirect"
+import MaintenancePage from "@/features/maintenance/pages/MaintenancePage"
 
 const router = createBrowserRouter([
   {
@@ -37,6 +39,8 @@ const router = createBrowserRouter([
           { path: "projects", element: <ProjectsPage /> },
           { path: "reports", element: <ReportsPage /> },
           { path: "passwords", element: <PasswordsPage /> },
+          { path: "assignments", element: <AssignmentsPage /> },
+          { path: "maintenance", element: <MaintenancePage /> },
           { path: "perfil", element: <ProfilePage /> },
           { path: "configuracion", element: <SettingsPage /> },
           { path: "cambiar-password", element: <ChangePasswordPage /> },
