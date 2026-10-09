@@ -1,5 +1,6 @@
 import type { AssetFormDraft } from "@/features/inventory/components/AssetFormDialog"
 import type { InventoryItem } from "@/features/inventory/data/inventoryData"
+import type { ActivoImportRow } from "@/types/activo"
 import {
   detectCsvDelimiter,
   downloadCsvTemplate,
@@ -131,47 +132,33 @@ export function downloadAssetCsvTemplate() {
 }
 
 /**
- * Representación en formato JSON lista para ser enviada al backend en importación masiva.
+ * Transforma un conjunto de borradores de activos al formato esperado por el
+ * endpoint de importación masiva del backend (claves en español del CSV).
  */
-export interface AssetBulkJsonPayloadItem {
-  filaOrigen: number
-  cb23: string
-  tipo: string
-  marca: string
-  modelo: string
-  numeroSerie: string
-  sucursal: string
-  estado: string
-  estadoGeneral: string
-  nombreRed: string
-  responsableNombre?: string
-  responsableEmail?: string
-}
-
-/**
- * Transforma un conjunto de borradores de activos al formato JSON esperado por el backend.
- */
-export function transformDraftsToBulkJson(
+export function transformDraftsToImportRows(
   records: AssetFormDraft[],
-): AssetBulkJsonPayloadItem[] {
-  return records.map((record, index) => ({
-    filaOrigen: record.filaOrigen ?? index + 2,
-    cb23: record.cb23.trim(),
-    tipo: record.tipo.trim(),
-    marca: record.marca.trim(),
-    modelo: record.modelo.trim(),
-    numeroSerie: record.numeroSerie.trim(),
-    sucursal: record.sucursal.trim(),
-    estado: record.estado,
-    estadoGeneral: record.estadoGeneral,
-    nombreRed: record.nombreRed.trim(),
-    ...(record.responsableNombre?.trim()
-      ? { responsableNombre: record.responsableNombre.trim() }
-      : {}),
-    ...(record.responsableEmail?.trim()
-      ? { responsableEmail: record.responsableEmail.trim() }
-      : {}),
-  }))
+): ActivoImportRow[] {
+  return records.map((record, index) => {
+    const row: ActivoImportRow = {
+      fila: record.filaOrigen ?? index + 2,
+      CB23: record.cb23.trim(),
+      Tipo: record.tipo.trim(),
+      Marca: record.marca.trim(),
+      Modelo: record.modelo.trim(),
+      "Número de serie": record.numeroSerie.trim(),
+      Sucursal: record.sucursal.trim(),
+      Estado: record.estado,
+      "Estado general": record.estadoGeneral,
+      Red: record.nombreRed.trim(),
+    }
+
+    const correo = record.responsableEmail?.trim()
+    if (correo) {
+      row["Correo responsable"] = correo
+    }
+
+    return row
+  })
 }
 
 /**

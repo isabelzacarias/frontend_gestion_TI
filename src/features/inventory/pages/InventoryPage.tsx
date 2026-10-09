@@ -19,6 +19,11 @@ import {
   type AssetFormDraft,
 } from "@/features/inventory/components/AssetFormDialog"
 import { inventoryData, type InventoryItem } from "@/features/inventory/data/inventoryData"
+import { transformDraftsToImportRows } from "@/features/inventory/utils/asset-import"
+import {
+  confirmarImportacionActivos,
+  validarImportacionActivos,
+} from "@/services/activo.service"
 
 const stateClasses: Record<InventoryItem["estado"], string> = {
   EN_USO: "border border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
@@ -242,17 +247,62 @@ function InventoryPage() {
     setDraft((current) => ({ ...current, [field]: value }))
   }
 
-  const handleImportAssets = (records: AssetFormDraft[]) => {
-    const idBase = Date.now()
-    const importedAssets = records.map((record, index) =>
-      createInventoryItem(record, idBase + index),
+  const handleImportAssets = async (records: AssetFormDraft[]) => {
+    if (records.length === 0) return
+
+    const toastId = toast.loading(
+      `Enviando ${records.length} activo(s) al servidor...`,
     )
 
-    setInventory((current) => [...importedAssets, ...current])
-    setDraft(createEmptyAssetDraft())
-    setIsAddDialogOpen(false)
-    setCurrentPage(1)
-    toast.success(`${importedAssets.length} activos registrados correctamente.`)
+    try {
+      const filas = transformDraftsToImportRows(records)
+
+      const validacion = await validarImportacionActivos(filas)
+      if (validacion.resumen.invalidas > 0) {
+        const detalle = validacion.filas
+          .filter((fila) => !fila.valido)
+          .slice(0, 3)
+          .map((fila) => `Fila ${fila.fila}: ${fila.errores.join(", ")}`)
+          .join(" | ")
+        toast.error(
+          `El lote tiene ${validacion.resumen.invalidas} fila(s) inválida(s). ${detalle}`,
+          { id: toastId },
+        )
+        return
+      }
+
+      const confirmacion = await confirmarImportacionActivos(filas)
+
+      if (confirmacion.resumen.creadas === 0) {
+        toast.error("El servidor no registró ningún activo del lote.", {
+          id: toastId,
+        })
+        return
+      }
+
+      const idBase = Date.now()
+      const importedAssets = records.map((record, index) =>
+        createInventoryItem(record, idBase + index),
+      )
+
+      setInventory((current) => [...importedAssets, ...current])
+      setDraft(createEmptyAssetDraft())
+      setIsAddDialogOpen(false)
+      setCurrentPage(1)
+
+      const mensaje =
+        confirmacion.resumen.rechazadas > 0
+          ? `${confirmacion.resumen.creadas} activo(s) registrados; ${confirmacion.resumen.rechazadas} rechazados por el servidor.`
+          : `${confirmacion.resumen.creadas} activos registrados correctamente.`
+      toast.success(mensaje, { id: toastId })
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo completar la importación masiva.",
+        { id: toastId },
+      )
+    }
   }
 
   const handleCreateAsset = (event: FormEvent<HTMLFormElement>) => {
