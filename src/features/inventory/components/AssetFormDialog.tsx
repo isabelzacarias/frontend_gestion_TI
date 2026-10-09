@@ -102,9 +102,9 @@ const sections: FormSection<AssetFormDraft>[] = [
         type: "select",
         options: [
           { value: "EN_USO", label: "En uso" },
-          { value: "DISPONIBLE", label: "Disponible" },
-          { value: "MANTENIMIENTO", label: "Mantenimiento" },
-          { value: "BAJA", label: "Baja" },
+          { value: "EN_ALMACEN", label: "En almacén" },
+          { value: "EN_MANTENIMIENTO", label: "En mantenimiento" },
+          { value: "DE_BAJA", label: "De baja" },
         ],
       },
       {

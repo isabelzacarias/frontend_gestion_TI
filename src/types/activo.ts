@@ -1,8 +1,8 @@
-export type EstadoActivoImport =
+export type EstadoActivo =
   | "EN_USO"
-  | "DISPONIBLE"
-  | "MANTENIMIENTO"
-  | "BAJA"
+  | "EN_ALMACEN"
+  | "EN_MANTENIMIENTO"
+  | "DE_BAJA"
 
 export interface ActivoImportRow {
   fila: number
@@ -18,6 +18,25 @@ export interface ActivoImportRow {
   "Correo responsable"?: string
 }
 
+export interface ErrorPeticion {
+  campo: string
+  valor: unknown
+  [clave: string]: unknown
+}
+
+export interface DatosFilaImportada {
+  tipo: string
+  cb23: string | null
+  marca: string | null
+  modelo: string | null
+  numeroSerie: string | null
+  sucursal: string | null
+  estadoGeneral: string | null
+  nombreRed: string | null
+  estado: EstadoActivo
+  responsableId: string | null
+}
+
 export interface ResumenValidacionImportacion {
   total: number
   validas: number
@@ -29,7 +48,7 @@ export interface FilaValidacionImportacion {
   valido: boolean
   errores: string[]
   advertencias: string[]
-  datos: unknown
+  datos: DatosFilaImportada | null
 }
 
 export interface ResultadoValidacionImportacion {

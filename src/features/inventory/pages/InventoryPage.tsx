@@ -18,18 +18,90 @@ import {
   AssetFormDialog,
   type AssetFormDraft,
 } from "@/features/inventory/components/AssetFormDialog"
+import {
+  ImportResultDialog,
+  type ImportResultRow,
+} from "@/features/inventory/components/ImportResultDialog"
 import { inventoryData, type InventoryItem } from "@/features/inventory/data/inventoryData"
 import { transformDraftsToImportRows } from "@/features/inventory/utils/asset-import"
 import {
+  ActivoApiError,
   confirmarImportacionActivos,
   validarImportacionActivos,
 } from "@/services/activo.service"
+import type {
+  ActivoImportRow,
+  ErrorPeticion,
+  FilaConfirmacionImportacion,
+  FilaValidacionImportacion,
+} from "@/types/activo"
+
+interface ImportDialogState {
+  title: string
+  description: string
+  total: number
+  okCount: number
+  errorCount: number
+  okLabel: string
+  errorLabel: string
+  rows: ImportResultRow[]
+  primaryAction?: { label: string; onClick: () => void }
+}
+
+function toValidationRows(
+  filas: FilaValidacionImportacion[],
+): ImportResultRow[] {
+  return filas
+    .filter((fila) => !fila.valido || fila.advertencias.length > 0)
+    .map((fila) => ({
+      fila: fila.fila,
+      status: fila.valido ? "warning" : "error",
+      mensajes: fila.valido ? fila.advertencias : fila.errores,
+    }))
+}
+
+function toConfirmationRows(
+  filas: FilaConfirmacionImportacion[],
+): ImportResultRow[] {
+  return filas
+    .filter((fila) => !fila.creado || fila.advertencias.length > 0)
+    .map((fila) => ({
+      fila: fila.fila,
+      status: fila.creado ? "warning" : "error",
+      mensajes: fila.creado ? fila.advertencias : fila.errores,
+    }))
+}
+
+function getImportErrorMessage(error: unknown): string {
+  if (error instanceof ActivoApiError) {
+    if (error.status === 403) {
+      return "No tienes permiso para importar activos (activos:crear)."
+    }
+
+    const campos = error.errors
+      .map((detalle) =>
+        typeof detalle === "object" && detalle !== null && "campo" in detalle
+          ? String((detalle as ErrorPeticion).campo)
+          : "",
+      )
+      .filter((campo) => campo.length > 0)
+
+    return campos.length > 0
+      ? `${error.message} (campos: ${campos.join(", ")})`
+      : error.message
+  }
+
+  if (error instanceof Error) return error.message
+
+  return "No se pudo completar la importación masiva."
+}
 
 const stateClasses: Record<InventoryItem["estado"], string> = {
   EN_USO: "border border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
-  DISPONIBLE: "border border-sky-500/30 bg-sky-500/10 text-sky-600",
-  MANTENIMIENTO: "border border-amber-500/30 bg-amber-500/10 text-amber-600",
-  BAJA: "border border-rose-500/30 bg-rose-500/10 text-rose-600",
+  EN_ALMACEN: "border border-sky-500/30 bg-sky-500/10 text-sky-600",
+  EN_MANTENIMIENTO:
+    "border border-amber-500/30 bg-amber-500/10 text-amber-600",
+  DE_BAJA: "border border-rose-500/30 bg-rose-500/10 text-rose-600",
 }
 
 const generalClasses: Record<InventoryItem["estadoGeneral"], string> = {
@@ -41,9 +113,9 @@ const generalClasses: Record<InventoryItem["estadoGeneral"], string> = {
 
 const stateLabels: Record<InventoryItem["estado"], string> = {
   EN_USO: "En uso",
-  DISPONIBLE: "Disponible",
-  MANTENIMIENTO: "Mantenimiento",
-  BAJA: "Baja",
+  EN_ALMACEN: "En almacén",
+  EN_MANTENIMIENTO: "En mantenimiento",
+  DE_BAJA: "De baja",
 }
 
 const ITEMS_PER_PAGE = 10
@@ -55,7 +127,7 @@ const createEmptyAssetDraft = (): AssetFormDraft => ({
   modelo: "",
   numeroSerie: "",
   sucursal: "PLAYA",
-  estado: "DISPONIBLE",
+  estado: "EN_ALMACEN",
   estadoGeneral: "Bueno",
   nombreRed: "",
   responsableNombre: "",
@@ -161,6 +233,7 @@ function InventoryPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null)
   const [draft, setDraft] = useState(createEmptyAssetDraft())
+  const [importDialog, setImportDialog] = useState<ImportDialogState | null>(null)
   const selectedAsset = inventory.find((item) => item.id === selectedAssetId)
   const detailSections: DetailSection[] = selectedAsset
     ? [
@@ -247,61 +320,100 @@ function InventoryPage() {
     setDraft((current) => ({ ...current, [field]: value }))
   }
 
+  const confirmarLote = async (
+    records: AssetFormDraft[],
+    filas: ActivoImportRow[],
+  ) => {
+    const toastId = toast.loading(`Registrando ${filas.length} activo(s)...`)
+
+    try {
+      const confirmacion = await confirmarImportacionActivos(filas)
+
+      const filasCreadas = new Set(
+        confirmacion.filas
+          .filter((fila) => fila.creado)
+          .map((fila) => fila.fila),
+      )
+      const idBase = Date.now()
+      const importedAssets = records
+        .filter((record, index) =>
+          filasCreadas.has(record.filaOrigen ?? index + 2),
+        )
+        .map((record, index) => createInventoryItem(record, idBase + index))
+
+      if (importedAssets.length > 0) {
+        setInventory((current) => [...importedAssets, ...current])
+        setCurrentPage(1)
+      }
+      setDraft(createEmptyAssetDraft())
+      setIsAddDialogOpen(false)
+
+      if (confirmacion.resumen.creadas > 0) {
+        toast.success(
+          `${confirmacion.resumen.creadas} activo(s) registrados${
+            confirmacion.resumen.rechazadas > 0
+              ? `; ${confirmacion.resumen.rechazadas} rechazados`
+              : ""
+          }.`,
+          { id: toastId },
+        )
+      } else {
+        toast.error("No se registró ningún activo del lote.", { id: toastId })
+      }
+
+      setImportDialog({
+        title: "Resultado de la importación",
+        description:
+          confirmacion.resumen.rechazadas > 0
+            ? "Algunas filas no se pudieron registrar. Revisa el detalle por fila."
+            : "Todas las filas se registraron correctamente.",
+        total: confirmacion.resumen.total,
+        okCount: confirmacion.resumen.creadas,
+        errorCount: confirmacion.resumen.rechazadas,
+        okLabel: "registradas",
+        errorLabel: "rechazadas",
+        rows: toConfirmationRows(confirmacion.filas),
+      })
+    } catch (error) {
+      toast.error(getImportErrorMessage(error), { id: toastId })
+    }
+  }
+
   const handleImportAssets = async (records: AssetFormDraft[]) => {
     if (records.length === 0) return
 
-    const toastId = toast.loading(
-      `Enviando ${records.length} activo(s) al servidor...`,
-    )
+    const toastId = toast.loading(`Validando ${records.length} activo(s)...`)
 
     try {
       const filas = transformDraftsToImportRows(records)
-
       const validacion = await validarImportacionActivos(filas)
+      toast.dismiss(toastId)
+
       if (validacion.resumen.invalidas > 0) {
-        const detalle = validacion.filas
-          .filter((fila) => !fila.valido)
-          .slice(0, 3)
-          .map((fila) => `Fila ${fila.fila}: ${fila.errores.join(", ")}`)
-          .join(" | ")
-        toast.error(
-          `El lote tiene ${validacion.resumen.invalidas} fila(s) inválida(s). ${detalle}`,
-          { id: toastId },
-        )
-        return
-      }
-
-      const confirmacion = await confirmarImportacionActivos(filas)
-
-      if (confirmacion.resumen.creadas === 0) {
-        toast.error("El servidor no registró ningún activo del lote.", {
-          id: toastId,
+        setImportDialog({
+          title: "Revisión del lote",
+          description:
+            "Hay filas con errores. Puedes importar solo las válidas o cerrar para corregir el archivo.",
+          total: validacion.resumen.total,
+          okCount: validacion.resumen.validas,
+          errorCount: validacion.resumen.invalidas,
+          okLabel: "válidas",
+          errorLabel: "con errores",
+          rows: toValidationRows(validacion.filas),
+          primaryAction: {
+            label: `Importar ${validacion.resumen.validas} válida(s)`,
+            onClick: () => {
+              setImportDialog(null)
+              void confirmarLote(records, filas)
+            },
+          },
         })
         return
       }
 
-      const idBase = Date.now()
-      const importedAssets = records.map((record, index) =>
-        createInventoryItem(record, idBase + index),
-      )
-
-      setInventory((current) => [...importedAssets, ...current])
-      setDraft(createEmptyAssetDraft())
-      setIsAddDialogOpen(false)
-      setCurrentPage(1)
-
-      const mensaje =
-        confirmacion.resumen.rechazadas > 0
-          ? `${confirmacion.resumen.creadas} activo(s) registrados; ${confirmacion.resumen.rechazadas} rechazados por el servidor.`
-          : `${confirmacion.resumen.creadas} activos registrados correctamente.`
-      toast.success(mensaje, { id: toastId })
+      await confirmarLote(records, filas)
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "No se pudo completar la importación masiva.",
-        { id: toastId },
-      )
+      toast.error(getImportErrorMessage(error), { id: toastId })
     }
   }
 
@@ -426,9 +538,9 @@ function InventoryPage() {
               >
                 <option value="ALL">Todos los estados</option>
                 <option value="EN_USO">En uso</option>
-                <option value="DISPONIBLE">Disponible</option>
-                <option value="MANTENIMIENTO">Mantenimiento</option>
-                <option value="BAJA">Baja</option>
+                <option value="EN_ALMACEN">En almacén</option>
+                <option value="EN_MANTENIMIENTO">En mantenimiento</option>
+                <option value="DE_BAJA">De baja</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 size-4 text-muted-foreground" />
             </div>
@@ -492,6 +604,24 @@ function InventoryPage() {
         onSubmit={handleUpdateAsset}
         onDelete={handleDeleteAsset}
       />
+
+      {importDialog && (
+        <ImportResultDialog
+          open
+          title={importDialog.title}
+          description={importDialog.description}
+          total={importDialog.total}
+          okCount={importDialog.okCount}
+          errorCount={importDialog.errorCount}
+          okLabel={importDialog.okLabel}
+          errorLabel={importDialog.errorLabel}
+          rows={importDialog.rows}
+          primaryAction={importDialog.primaryAction}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setImportDialog(null)
+          }}
+        />
+      )}
 
       <DataTable<InventoryItem>
         columns={columns}

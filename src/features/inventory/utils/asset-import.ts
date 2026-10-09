@@ -1,6 +1,6 @@
 import type { AssetFormDraft } from "@/features/inventory/components/AssetFormDialog"
 import type { InventoryItem } from "@/features/inventory/data/inventoryData"
-import type { ActivoImportRow } from "@/types/activo"
+import type { ActivoImportRow, EstadoActivo } from "@/types/activo"
 import {
   detectCsvDelimiter,
   downloadCsvTemplate,
@@ -15,7 +15,7 @@ export const MAX_IMPORT_RECORDS = 500
 
 /**
  * Encabezados oficiales de la plantilla según el roadmap:
- * CB23;Tipo;Marca;Modelo;Número de serie;Sucursal;Estado;Estado general;Red
+ * CB23;Tipo;Marca;Modelo;Número de serie;Sucursal;Estado;Estado general;Red;Correo responsable
  */
 export const ASSET_CSV_TEMPLATE_HEADERS = [
   "CB23",
@@ -27,6 +27,7 @@ export const ASSET_CSV_TEMPLATE_HEADERS = [
   "Estado",
   "Estado general",
   "Red",
+  "Correo responsable",
 ]
 
 /**
@@ -85,20 +86,24 @@ function parseBranch(value: string): string {
 }
 
 /**
- * Normaliza el estado del activo (EN_USO, DISPONIBLE, MANTENIMIENTO, BAJA).
+ * Normaliza el estado del activo al enum del backend
+ * (EN_USO, EN_ALMACEN, EN_MANTENIMIENTO, DE_BAJA).
  */
-function parseState(value: string): InventoryItem["estado"] {
+function parseState(value: string): EstadoActivo {
   const norm = normalizeCsvHeader(value)
-  const states: Record<string, InventoryItem["estado"]> = {
+  const states: Record<string, EstadoActivo> = {
     enuso: "EN_USO",
-    disponible: "DISPONIBLE",
-    mantenimiento: "MANTENIMIENTO",
-    baja: "BAJA",
+    disponible: "EN_ALMACEN",
+    enalmacen: "EN_ALMACEN",
+    mantenimiento: "EN_MANTENIMIENTO",
+    enmantenimiento: "EN_MANTENIMIENTO",
+    baja: "DE_BAJA",
+    debaja: "DE_BAJA",
   }
   const result = states[norm]
   if (!result) {
     throw new Error(
-      `Estado no válido: "${value}". Usa En uso, Disponible, Mantenimiento o Baja.`,
+      `Estado no válido: "${value}". Usa En uso, En almacén, En mantenimiento o De baja.`,
     )
   }
   return result

@@ -1,3 +1,5 @@
+import type { EstadoActivo } from "@/types/activo"
+
 export interface Responsable {
   id: string
   nombre: string
@@ -13,7 +15,7 @@ export interface InventoryItem {
   modelo: string
   numeroSerie: string
   sucursal: string
-  estado: "EN_USO" | "DISPONIBLE" | "MANTENIMIENTO" | "BAJA"
+  estado: EstadoActivo
   estadoGeneral: "Excelente" | "Bueno" | "Regular" | "Crítico"
   nombreRed: string
   responsable: Responsable
@@ -65,7 +67,7 @@ export const inventoryData: InventoryItem[] = [
     modelo: "LaserJet Pro M404n",
     numeroSerie: "CNBJ4F9R2K",
     sucursal: "PLAYA",
-    estado: "MANTENIMIENTO",
+    estado: "EN_MANTENIMIENTO",
     estadoGeneral: "Regular",
     nombreRed: "PRN-03",
     responsable: {
@@ -83,7 +85,7 @@ export const inventoryData: InventoryItem[] = [
     modelo: "22MP410-B",
     numeroSerie: "4L0W8TQY3M6",
     sucursal: "CANCUN",
-    estado: "DISPONIBLE",
+    estado: "EN_ALMACEN",
     estadoGeneral: "Excelente",
     nombreRed: "MON-08",
     responsable: {
@@ -119,7 +121,7 @@ export const inventoryData: InventoryItem[] = [
     modelo: "ProDesk 600 G5",
     numeroSerie: "5TYQMKL2P8V0",
     sucursal: "CANCUN",
-    estado: "BAJA",
+    estado: "DE_BAJA",
     estadoGeneral: "Crítico",
     nombreRed: "ADMP-19",
     responsable: {
@@ -173,7 +175,7 @@ export const inventoryData: InventoryItem[] = [
     modelo: "EliteBook 840 G9",
     numeroSerie: "Q7H3KJ9W2T8P",
     sucursal: "CANCUN",
-    estado: "DISPONIBLE",
+    estado: "EN_ALMACEN",
     estadoGeneral: "Excelente",
     nombreRed: "LT-12",
     responsable: {
@@ -209,7 +211,7 @@ export const inventoryData: InventoryItem[] = [
     modelo: "ISR 4331",
     numeroSerie: "FQ5MN8T4W2K6",
     sucursal: "PLAYA",
-    estado: "MANTENIMIENTO",
+    estado: "EN_MANTENIMIENTO",
     estadoGeneral: "Regular",
     nombreRed: "RTR-02",
     responsable: {
@@ -245,7 +247,7 @@ export const inventoryData: InventoryItem[] = [
     modelo: "S24F350FH",
     numeroSerie: "L8R7QW3G0K2M",
     sucursal: "CANCUN",
-    estado: "DISPONIBLE",
+    estado: "EN_ALMACEN",
     estadoGeneral: "Excelente",
     nombreRed: "MON-14",
     responsable: {
@@ -281,7 +283,7 @@ export const inventoryData: InventoryItem[] = [
     modelo: "Nitro 5",
     numeroSerie: "P6R9L2X8M4C1",
     sucursal: "PLAYA",
-    estado: "BAJA",
+    estado: "DE_BAJA",
     estadoGeneral: "Crítico",
     nombreRed: "LT-19",
     responsable: {
@@ -317,7 +319,7 @@ export const inventoryData: InventoryItem[] = [
     modelo: "iPad 10th Gen",
     numeroSerie: "Z7P2XD4K9VQ1",
     sucursal: "CANCUN",
-    estado: "DISPONIBLE",
+    estado: "EN_ALMACEN",
     estadoGeneral: "Bueno",
     nombreRed: "TAB-04",
     responsable: {
