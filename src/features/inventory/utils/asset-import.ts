@@ -1,7 +1,9 @@
 import type { AssetFormDraft } from "@/features/inventory/components/AssetFormDialog"
 import type { InventoryItem } from "@/features/inventory/data/inventoryData"
+import type { ActivoImportRow, EstadoActivo } from "@/types/activo"
 import {
   detectCsvDelimiter,
+  downloadCsv,
   downloadCsvTemplate,
   normalizeCsvHeader,
   parseCsvRowsWithLines,
@@ -14,7 +16,7 @@ export const MAX_IMPORT_RECORDS = 500
 
 /**
  * Encabezados oficiales de la plantilla según el roadmap:
- * CB23;Tipo;Marca;Modelo;Número de serie;Sucursal;Estado;Estado general;Red
+ * CB23;Tipo;Marca;Modelo;Número de serie;Sucursal;Estado;Estado general;Red;Correo responsable
  */
 export const ASSET_CSV_TEMPLATE_HEADERS = [
   "CB23",
@@ -26,6 +28,7 @@ export const ASSET_CSV_TEMPLATE_HEADERS = [
   "Estado",
   "Estado general",
   "Red",
+  "Correo responsable",
 ]
 
 /**
@@ -84,20 +87,24 @@ function parseBranch(value: string): string {
 }
 
 /**
- * Normaliza el estado del activo (EN_USO, DISPONIBLE, MANTENIMIENTO, BAJA).
+ * Normaliza el estado del activo al enum del backend
+ * (EN_USO, EN_ALMACEN, EN_MANTENIMIENTO, DE_BAJA).
  */
-function parseState(value: string): InventoryItem["estado"] {
+function parseState(value: string): EstadoActivo {
   const norm = normalizeCsvHeader(value)
-  const states: Record<string, InventoryItem["estado"]> = {
+  const states: Record<string, EstadoActivo> = {
     enuso: "EN_USO",
-    disponible: "DISPONIBLE",
-    mantenimiento: "MANTENIMIENTO",
-    baja: "BAJA",
+    disponible: "EN_ALMACEN",
+    enalmacen: "EN_ALMACEN",
+    mantenimiento: "EN_MANTENIMIENTO",
+    enmantenimiento: "EN_MANTENIMIENTO",
+    baja: "DE_BAJA",
+    debaja: "DE_BAJA",
   }
   const result = states[norm]
   if (!result) {
     throw new Error(
-      `Estado no válido: "${value}". Usa En uso, Disponible, Mantenimiento o Baja.`,
+      `Estado no válido: "${value}". Usa En uso, En almacén, En mantenimiento o De baja.`,
     )
   }
   return result
@@ -131,47 +138,116 @@ export function downloadAssetCsvTemplate() {
 }
 
 /**
- * Representación en formato JSON lista para ser enviada al backend en importación masiva.
+ * Fila con error devuelta por los endpoints de importación (validar/confirmar).
+ * Estructura compatible con `FilaValidacionImportacion` y `FilaConfirmacionImportacion`.
  */
-export interface AssetBulkJsonPayloadItem {
-  filaOrigen: number
-  cb23: string
-  tipo: string
-  marca: string
-  modelo: string
-  numeroSerie: string
-  sucursal: string
-  estado: string
-  estadoGeneral: string
-  nombreRed: string
-  responsableNombre?: string
-  responsableEmail?: string
+export interface AssetImportErrorRow {
+  fila: number
+  errores: string[]
+  advertencias: string[]
 }
 
 /**
- * Transforma un conjunto de borradores de activos al formato JSON esperado por el backend.
+ * Encabezados del CSV de filas rechazadas. Conserva las columnas mínimas
+ * obligatorias para que el archivo pueda re-importarse tras corregirlo.
  */
-export function transformDraftsToBulkJson(
+const IMPORT_ERROR_HEADERS = [
+  "Fila",
+  "CB23",
+  "Tipo",
+  "Marca",
+  "Modelo",
+  "Número de serie",
+  "Sucursal",
+  "Estado",
+  "Estado general",
+  "Red",
+  "Correo responsable",
+  "Errores",
+  "Advertencias",
+]
+
+function timestampForFileName(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0")
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("") + `_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+}
+
+/**
+ * Genera y descarga un CSV con las filas que no se pudieron guardar
+ * (aquellas con errores), incluyendo sus mensajes, para su corrección
+ * y posterior re-importación.
+ *
+ * @returns el número de filas escritas (0 si no había errores).
+ */
+export function downloadAssetImportErrors(
   records: AssetFormDraft[],
-): AssetBulkJsonPayloadItem[] {
-  return records.map((record, index) => ({
-    filaOrigen: record.filaOrigen ?? index + 2,
-    cb23: record.cb23.trim(),
-    tipo: record.tipo.trim(),
-    marca: record.marca.trim(),
-    modelo: record.modelo.trim(),
-    numeroSerie: record.numeroSerie.trim(),
-    sucursal: record.sucursal.trim(),
-    estado: record.estado,
-    estadoGeneral: record.estadoGeneral,
-    nombreRed: record.nombreRed.trim(),
-    ...(record.responsableNombre?.trim()
-      ? { responsableNombre: record.responsableNombre.trim() }
-      : {}),
-    ...(record.responsableEmail?.trim()
-      ? { responsableEmail: record.responsableEmail.trim() }
-      : {}),
-  }))
+  filas: AssetImportErrorRow[],
+  fileName = `activos_rechazados_${timestampForFileName(new Date())}.csv`,
+): number {
+  const recordsByFila = new Map<number, AssetFormDraft>()
+  records.forEach((record, index) => {
+    recordsByFila.set(record.filaOrigen ?? index + 2, record)
+  })
+
+  const rows = filas
+    .filter((fila) => fila.errores.length > 0)
+    .map((fila) => {
+      const record = recordsByFila.get(fila.fila)
+      return [
+        String(fila.fila),
+        record?.cb23 ?? "",
+        record?.tipo ?? "",
+        record?.marca ?? "",
+        record?.modelo ?? "",
+        record?.numeroSerie ?? "",
+        record?.sucursal ?? "",
+        record?.estado ?? "",
+        record?.estadoGeneral ?? "",
+        record?.nombreRed ?? "",
+        record?.responsableEmail ?? "",
+        fila.errores.join(" | "),
+        fila.advertencias.join(" | "),
+      ]
+    })
+
+  if (rows.length === 0) return 0
+
+  downloadCsv(IMPORT_ERROR_HEADERS, rows, fileName)
+  return rows.length
+}
+
+/**
+ * Transforma un conjunto de borradores de activos al formato esperado por el
+ * endpoint de importación masiva del backend (claves en español del CSV).
+ */
+export function transformDraftsToImportRows(
+  records: AssetFormDraft[],
+): ActivoImportRow[] {
+  return records.map((record, index) => {
+    const row: ActivoImportRow = {
+      fila: record.filaOrigen ?? index + 2,
+      CB23: record.cb23.trim(),
+      Tipo: record.tipo.trim(),
+      Marca: record.marca.trim(),
+      Modelo: record.modelo.trim(),
+      "Número de serie": record.numeroSerie.trim(),
+      Sucursal: record.sucursal.trim(),
+      Estado: record.estado,
+      "Estado general": record.estadoGeneral,
+      Red: record.nombreRed.trim(),
+    }
+
+    const correo = record.responsableEmail?.trim()
+    if (correo) {
+      row["Correo responsable"] = correo
+    }
+
+    return row
+  })
 }
 
 /**
