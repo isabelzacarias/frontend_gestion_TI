@@ -1,213 +1,202 @@
-import { useCallback, useEffect, useState } from "react"
-import { useNavigate } from "react-router"
+import { useState } from "react"
 import {
-  Boxes,
+  BarChart3,
+  Bell,
+  Inbox,
   KeyRound,
-  LayoutDashboard,
-  RefreshCw,
-  Ticket as TicketIcon,
+  Monitor,
+  UserCheck,
 } from "lucide-react"
 
 import { ModuleHeader } from "@/components/common/ModuleHeader"
-import { Button } from "@/components/ui/button"
-import { LicensesExpiringCard } from "@/features/dashboard/components/LicensesExpiringCard"
-import { NewTicketsPanel } from "@/features/dashboard/components/NewTicketsPanel"
-import { TicketsPendingCard } from "@/features/dashboard/components/TicketsPendingCard"
-import { obtenerIncidencias } from "@/features/tickets/services/ticket.service"
-import type { Ticket } from "@/features/tickets/types/ticket"
 
+/* ──────────────────────────────────────────────
+ * Tipo para el filtro de sucursal
+ * ────────────────────────────────────────────── */
+type Sucursal = "AMBOS" | "CANCUN" | "PLAYA"
+
+const sucursalLabels: Record<Sucursal, string> = {
+  AMBOS: "Ambos",
+  CANCUN: "Cancún",
+  PLAYA: "Playa",
+}
+
+/* ──────────────────────────────────────────────
+ * Placeholder visual reutilizable para cada sección
+ * ────────────────────────────────────────────── */
+function SectionPlaceholder({
+  number,
+  title,
+  icon,
+  accentColor = "primary",
+  className = "",
+}: {
+  number: number
+  title: string
+  icon: React.ReactNode
+  accentColor?: string
+  className?: string
+}) {
+  const colorMap: Record<string, { bg: string; text: string; border: string; glow: string }> = {
+    primary: {
+      bg: "bg-primary/10",
+      text: "text-primary",
+      border: "border-primary/20",
+      glow: "from-primary to-violet-700",
+    },
+    cyan: {
+      bg: "bg-cyan-500/10",
+      text: "text-cyan-600 dark:text-cyan-400",
+      border: "border-cyan-500/20",
+      glow: "from-cyan-500 to-cyan-700",
+    },
+    emerald: {
+      bg: "bg-emerald-500/10",
+      text: "text-emerald-600 dark:text-emerald-400",
+      border: "border-emerald-500/20",
+      glow: "from-emerald-500 to-emerald-700",
+    },
+    amber: {
+      bg: "bg-amber-500/10",
+      text: "text-amber-600 dark:text-amber-400",
+      border: "border-amber-500/20",
+      glow: "from-amber-500 to-orange-600",
+    },
+    violet: {
+      bg: "bg-violet-500/10",
+      text: "text-violet-600 dark:text-violet-400",
+      border: "border-violet-500/20",
+      glow: "from-violet-500 to-purple-700",
+    },
+    rose: {
+      bg: "bg-rose-500/10",
+      text: "text-rose-600 dark:text-rose-400",
+      border: "border-rose-500/20",
+      glow: "from-rose-500 to-rose-700",
+    },
+  }
+
+  const colors = colorMap[accentColor] ?? colorMap.primary
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[26px] border border-white/50 bg-white/80 p-6 shadow-[0_12px_35px_rgba(17,24,39,0.06)] backdrop-blur-xl dark:border-white/10 dark:bg-card/75 ${className}`.trim()}
+    >
+      {/* Indicador numérico del wireframe */}
+      <span
+        className={`absolute left-3 top-3 z-10 flex size-6 items-center justify-center rounded-lg text-[10px] font-extrabold ${colors.bg} ${colors.text} ${colors.border} border`}
+      >
+        {number}
+      </span>
+
+      {/* Contenido placeholder */}
+      <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+        <div
+          className={`flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br ${colors.glow} text-white shadow-lg`}
+        >
+          {icon}
+        </div>
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+        <p className="text-xs text-muted-foreground">Pendiente de implementación</p>
+      </div>
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────
+ * Dashboard Page — Esqueleto Estructural
+ * ────────────────────────────────────────────── */
 function DashboardPage() {
-  const navigate = useNavigate()
-
-  // Estado para la tarjeta y panel de incidencias nuevas
-  const [newTickets, setNewTickets] = useState<Ticket[]>([])
-  const [totalNewTickets, setTotalNewTickets] = useState<number | null>(null)
-  const [isLoadingTickets, setIsLoadingTickets] = useState(true)
-  const [ticketsError, setTicketsError] = useState<string | null>(null)
-  const [isNewTicketsPanelOpen, setIsNewTicketsPanelOpen] = useState(false)
-
-  const fetchNewTickets = useCallback(async () => {
-    setIsLoadingTickets(true)
-    setTicketsError(null)
-
-    try {
-      const response = await obtenerIncidencias({
-        page: 1,
-        limit: 10,
-        estado: "NUEVO",
-      })
-
-      if (response && response.data) {
-        setNewTickets(response.data)
-        setTotalNewTickets(response.meta?.total ?? response.data.length)
-      } else {
-        setNewTickets([])
-        setTotalNewTickets(0)
-      }
-    } catch (err) {
-      console.error("Error al obtener incidencias con estado NUEVO:", err)
-      setTicketsError(
-        "No se pudo cargar la información de incidencias desde la API.",
-      )
-    } finally {
-      setIsLoadingTickets(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    let isCancelled = false
-
-    obtenerIncidencias({
-      page: 1,
-      limit: 10,
-      estado: "NUEVO",
-    })
-      .then((response) => {
-        if (!isCancelled) {
-          if (response && response.data) {
-            setNewTickets(response.data)
-            setTotalNewTickets(response.meta?.total ?? response.data.length)
-          } else {
-            setNewTickets([])
-            setTotalNewTickets(0)
-          }
-          setIsLoadingTickets(false)
-        }
-      })
-      .catch((err) => {
-        if (!isCancelled) {
-          console.error("Error al obtener incidencias con estado NUEVO:", err)
-          setTicketsError(
-            "No se pudo cargar la información de incidencias desde la API.",
-          )
-          setIsLoadingTickets(false)
-        }
-      })
-
-    return () => {
-      isCancelled = true
-    }
-  }, [])
+  const [sucursal, setSucursal] = useState<Sucursal>("AMBOS")
 
   return (
     <div className="space-y-6">
-      {/* Cabecera del Dashboard */}
+      {/* ═══ HEADER con Filtro por Sucursal (5) ═══ */}
       <ModuleHeader
         eyebrow="PANEL PRINCIPAL"
         title="Dashboard de Control Operativo"
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchNewTickets}
-              disabled={isLoadingTickets}
-              className="rounded-2xl border-white/60 bg-white/70 backdrop-blur-md dark:border-white/10 dark:bg-card/70 gap-1.5 text-xs font-semibold"
-            >
-              <RefreshCw
-                className={`size-3.5 ${isLoadingTickets ? "animate-spin" : ""}`}
-              />
-              Sincronizar
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => navigate("/tickets")}
-              className="rounded-2xl bg-gradient-to-r from-primary to-primary-600 text-white gap-1.5 text-xs font-semibold shadow-[0_8px_20px_rgba(91,36,128,0.24)]"
-            >
-              <TicketIcon className="size-3.5" />
-              Mesa de Ayuda
-            </Button>
+            {/* (5) Filtro Segmentado por Sucursal */}
+            <span className="flex size-6 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-[10px] font-extrabold text-primary">
+              5
+            </span>
+            <div className="flex rounded-2xl border border-white/60 bg-white/70 p-1 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-card/60">
+              {(Object.keys(sucursalLabels) as Sucursal[]).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSucursal(key)}
+                  className={`rounded-xl px-5 py-2 text-xs font-semibold transition-all ${
+                    sucursal === key
+                      ? "bg-gradient-to-r from-primary to-primary-600 text-white shadow-[0_6px_16px_rgba(91,36,128,0.25)]"
+                      : "text-muted-foreground hover:bg-primary/[0.06] hover:text-foreground"
+                  }`}
+                >
+                  {sucursalLabels[key]}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
 
-      {/* Grid de Métricas y Tarjetas Clave */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <LayoutDashboard className="size-4 text-primary" />
-            Métricas de Atención Inmediata
-          </h2>
-          <span className="text-xs text-muted-foreground">
-            Haz clic en una tarjeta para ver sus detalles
-          </span>
-        </div>
+      {/* ═══ FILA DE KPIs: (1) Tickets · (4) Total Activos · (6) Equipos Asignados ═══ */}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        {/* (1) Total de Tickets Pendientes */}
+        <SectionPlaceholder
+          number={1}
+          title="Total de Tickets Pendientes"
+          icon={<Inbox className="size-6" />}
+          accentColor="primary"
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Tarjeta 1: Tickets Pendientes (con estado NUEVO) */}
-          <TicketsPendingCard
-            total={totalNewTickets}
-            isLoading={isLoadingTickets}
-            isActive={isNewTicketsPanelOpen}
-            onClick={() => setIsNewTicketsPanelOpen((prev) => !prev)}
-          />
+        {/* (4) Total de Activos */}
+        <SectionPlaceholder
+          number={4}
+          title="Total de Activos"
+          icon={<Monitor className="size-6" />}
+          accentColor="cyan"
+        />
 
-          {/* Tarjeta 2: Licencias por Vencer */}
-          <LicensesExpiringCard
-            onClick={() => navigate("/licenses")}
-          />
-        </div>
+        {/* (6) Total de Equipos Asignados */}
+        <SectionPlaceholder
+          number={6}
+          title="Total de Equipos Asignados"
+          icon={<UserCheck className="size-6" />}
+          accentColor="emerald"
+        />
       </div>
 
-      {/* Panel de Incidencias Nuevas (se despliega al hacer clic en la tarjeta de Tickets) */}
-      {isNewTicketsPanelOpen && (
-        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-          <NewTicketsPanel
-            tickets={newTickets}
-            total={totalNewTickets}
-            isLoading={isLoadingTickets}
-            error={ticketsError}
-            onRefresh={fetchNewTickets}
-            onClose={() => setIsNewTicketsPanelOpen(false)}
+      {/* ═══ FILA INFERIOR: (2) Licencias + (7) Recordatorios | (3) Gráfica ═══ */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Columna izquierda: (2) y (7) apilados */}
+        <div className="flex flex-col gap-5">
+          {/* (2) Licencias por Vencer */}
+          <SectionPlaceholder
+            number={2}
+            title="Licencias por Vencer"
+            icon={<KeyRound className="size-6" />}
+            accentColor="amber"
+          />
+
+          {/* (7) Recordatorios */}
+          <SectionPlaceholder
+            number={7}
+            title="Recordatorios de TI"
+            icon={<Bell className="size-6" />}
+            accentColor="violet"
           />
         </div>
-      )}
 
-      {/* Accesos directos complementarios */}
-      <div className="rounded-[26px] border border-white/50 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-card/50">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Boxes className="size-5" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-foreground">
-                Acceso rápido a los módulos del sistema
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                Gestiona activos tecnológicos, licencias y flujos kanban en tiempo real.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/kanban")}
-              className="rounded-xl text-xs font-semibold"
-            >
-              Tablero Kanban
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/inventory")}
-              className="rounded-xl text-xs font-semibold"
-            >
-              Inventario de Equipos
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/licenses")}
-              className="rounded-xl text-xs font-semibold gap-1"
-            >
-              <KeyRound className="size-3.5 text-amber-500" />
-              Licencias
-            </Button>
-          </div>
-        </div>
+        {/* Columna derecha: (3) Gráfica de Activos por Tipo (ocupa toda la altura) */}
+        <SectionPlaceholder
+          number={3}
+          title="Gráfica de Activos por Tipo"
+          icon={<BarChart3 className="size-6" />}
+          accentColor="rose"
+          className="lg:row-span-2"
+        />
       </div>
     </div>
   )
