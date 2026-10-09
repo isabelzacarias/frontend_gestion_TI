@@ -118,9 +118,6 @@ function DashboardPage() {
         actions={
           <div className="flex items-center gap-2">
             {/* (5) Filtro Segmentado por Sucursal */}
-            <span className="flex size-6 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-[10px] font-extrabold text-primary">
-              5
-            </span>
             <div className="flex rounded-2xl border border-white/60 bg-white/70 p-1 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-card/60">
               {(Object.keys(sucursalLabels) as Sucursal[]).map((key) => (
                 <button
@@ -129,7 +126,7 @@ function DashboardPage() {
                   onClick={() => setSucursal(key)}
                   className={`rounded-xl px-5 py-2 text-xs font-semibold transition-all ${
                     sucursal === key
-                      ? "bg-gradient-to-r from-primary to-primary-600 text-white shadow-[0_6px_16px_rgba(91,36,128,0.25)]"
+                      ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:bg-primary/[0.06] hover:text-foreground"
                   }`}
                 >
