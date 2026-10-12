@@ -295,15 +295,36 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 
 ## 5. Módulo de Tickets y Mesa de Ayuda
 
-- [x] Implementar la pantalla principal de listado de tickets utilizando obligatoriamente el componente base `DataTable`.
-- [x] Incorporar filtros interactivos por estado (Nuevo, En Proceso, Resuelto, Cerrado, Cancelado), prioridad (Baja, Normal, Alta, Urgente), tipo de requerimiento y búsqueda global.
-- [x] Crear la vista detallada de ticket mediante `DetailDialog` con desplegado completo de solicitante, técnico asignado, departamento y fechas.
+- [x] Implementar la pantalla principal de listado de tickets utilizando obligatoriamente el componente base `DataTable`, **conectada a `GET /api/incidencias`** (paginación server-side y filtros `estado`/`prioridad` + búsqueda `q`).
+- [x] Incorporar filtros interactivos por estado (`NUEVO`, `EN_ANALISIS`, `EN_CURSO`, `COMPLETADO`, `DUPLICADO`), prioridad (`BAJA`, `NORMAL`, `ALTA`, `CRITICA`), tipo de requerimiento y búsqueda por título/solicitante. **Los valores coinciden con los enums del backend.**
+- [x] Crear la vista detallada de ticket mediante `DetailDialog`, cargando el detalle desde `GET /api/incidencias/:id` (descripción, evidencia, seguimiento/actualizaciones).
 - [ ] Diseñar el modal de creación y edición de tickets construyendo un wrapper `TicketFormDialog` basado en `FormDialog`.
 - [ ] Incorporar soporte para registro de subtareas o checklist de resolución técnica interna.
 - [ ] Desarrollar el flujo para agregar notas públicas e internas con soporte para carga de evidencias o archivos adjuntos.
 - [ ] Añadir confirmación de eliminación o cancelación de tickets mediante el componente base `ConfirmDeleteDialog`.
-- [ ] Conectar los formularios y consultas con los endpoints de la API REST del backend.
+- [ ] Reactivar la edición de estado inline (dropdown en la tabla) cuando exista `PATCH /api/incidencias/:id/estado`.
 - [ ] Implementar el flujo de transición de estados y actualización de tiempos de respuesta (SLA).
+
+### Endpoints / cambios pendientes en el backend (Incidencias)
+
+Referencia: **2026-10-12**. Archivos: `backend_gestion_TI/src/{routes,controllers,services,models}/incidencia.*`.
+El frontend ya envía `q` y `tipoRequerimiento`, pero **el backend hoy los ignora** (solo soporta `estado` y `prioridad`).
+
+**A. Requerido — filtros de listado (bloquea la búsqueda y el filtro por tipo):**
+- [ ] `GET /api/incidencias`: agregar query params opcionales **`q`** (texto: buscar en `titulo` y nombre del solicitante) y **`tipoRequerimiento`** (valor de `TIPOS_REQUERIMIENTO_VALIDOS`).
+  - `models/incidencia.model.ts`: añadir `q?: string` y `tipoRequerimiento?: TipoRequerimiento` a `ParametrosListadoIncidencias`.
+  - `controllers/incidencia.controller.ts`: parsear `req.query.q` y validar `req.query.tipoRequerimiento` con `validarOpcion(...)`.
+  - `services/incidencia.service.ts` (`listar`): agregar `tipoRequerimiento` a `filtros` y `q` como `OR: [{ titulo: { contains: q } }, { solicitante: { nombre: { contains: q } } }]`.
+  - Documentar en `src/docs/openapi.yaml` y `bruno/Incidencias/listarFiltrado.bru`.
+
+**B. Requerido para la edición de estado — `PATCH /api/incidencias/:id/estado`:**
+- [ ] Nuevo permiso **`incidencias:editar`** en `models/rol.model.ts` (`PERMISOS_DISPONIBLES`) y en `scripts/seedAdmin.ts`.
+- [ ] Ruta `PATCH /:id/estado` con `verificarPermiso('incidencias:editar')`.
+- [ ] Controller/servicio: validar `estado` contra `ESTADOS_VALIDOS`; actualizar `estado` y `fechaResolucion` (p. ej. al pasar a `COMPLETADO`); definir transiciones permitidas.
+
+**C. Futuro — alta completa y seguimiento:**
+- [ ] `POST /api/incidencias`: aceptar `prioridad` (y opcional `asignadoAId`) para asignar prioridad/responsable desde el formulario.
+- [ ] Endpoint para registrar `ActualizacionIncidencia` (notas/seguimiento) y evidencias.
 
 ---
 

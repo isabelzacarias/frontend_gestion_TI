@@ -1,28 +1,110 @@
-import { api } from "@/services/api"
-import type { Ticket, TicketEstado } from "@/features/tickets/types/ticket"
+import axios from "axios"
 
-/**
- * Actualiza el estado de un ticket en la base de datos a través de la API del backend.
- * @param id ID numérico del ticket
- * @param estado Nuevo estado a asignar (NUEVO, EN_PROCESO, RESUELTO, CERRADO, CANCELADO)
- */
-export async function actualizarEstadoTicket(
-  id: number,
-  estado: TicketEstado,
-): Promise<Partial<Ticket>> {
+import { api } from "@/services/api"
+import type { RespuestaApi } from "@/types/auth"
+import type {
+  MetadatosPaginacion,
+  ParametrosListadoTickets,
+  RespuestaPaginada,
+  Ticket,
+  TicketDetalle,
+} from "@/features/tickets/types/ticket"
+
+export class TicketApiError extends Error {
+  readonly errors: unknown[]
+  readonly status: number | undefined
+
+  constructor(message: string, errors: unknown[], status?: number) {
+    super(message)
+    this.name = "TicketApiError"
+    this.errors = errors
+    this.status = status
+  }
+}
+
+function isApiErrorResponse(value: unknown): value is RespuestaApi<unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "success" in value &&
+    typeof value.success === "boolean" &&
+    "message" in value &&
+    typeof value.message === "string" &&
+    "errors" in value &&
+    Array.isArray(value.errors)
+  )
+}
+
+function toTicketApiError(error: unknown): TicketApiError {
+  if (error instanceof TicketApiError) return error
+
+  if (axios.isAxiosError<unknown>(error)) {
+    const response = error.response?.data
+    if (isApiErrorResponse(response)) {
+      return new TicketApiError(
+        response.message,
+        response.errors,
+        error.response?.status,
+      )
+    }
+
+    return new TicketApiError(
+      error.message || "No se pudo conectar con el servidor.",
+      [],
+      error.response?.status,
+    )
+  }
+
+  if (error instanceof Error) {
+    return new TicketApiError(error.message, [])
+  }
+
+  return new TicketApiError("No se pudo completar la solicitud.", [])
+}
+
+export interface ListadoTickets {
+  tickets: Ticket[]
+  meta: MetadatosPaginacion
+}
+
+export async function listarTickets(
+  parametros: ParametrosListadoTickets = {},
+): Promise<ListadoTickets> {
   try {
-    const response = await api.patch<{ success: boolean; data: Ticket }>(
-      `/tickets/${id}/estado`,
-      { estado },
-    )
-    return response.data?.data ?? { id, estado }
+    const response = await api.get<RespuestaPaginada<Ticket>>("/incidencias", {
+      params: parametros,
+    })
+
+    if (!response.data.success || !Array.isArray(response.data.data)) {
+      throw new TicketApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return { tickets: response.data.data, meta: response.data.meta }
   } catch (error) {
-    // Si la API aún no tiene esa ruta implementada en dev local, relanzar o propagar error para manejarlo limpiamente
-    console.warn(
-      `Conexión API /tickets/${id}/estado no disponible o fallida. Se aplicará actualización en interfaz.`,
-      error,
+    throw toTicketApiError(error)
+  }
+}
+
+export async function obtenerTicket(id: number): Promise<TicketDetalle> {
+  try {
+    const response = await api.get<RespuestaApi<TicketDetalle>>(
+      `/incidencias/${id}`,
     )
-    // Devolvemos la actualización deseada para permitir comportamiento reactivo
-    return { id, estado }
+
+    if (!response.data.success || !response.data.data) {
+      throw new TicketApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toTicketApiError(error)
   }
 }
