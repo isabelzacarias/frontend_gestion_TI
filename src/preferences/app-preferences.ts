@@ -2,6 +2,7 @@ import { createContext } from "react"
 
 export type TextSize = "normal" | "large"
 export type HomeRoute =
+  | "/home"
   | "/tickets"
   | "/kanban"
   | "/inventory"
@@ -9,6 +10,13 @@ export type HomeRoute =
   | "/projects"
   | "/reports"
   | "/passwords"
+  | "/assignments"
+  | "/maintenance"
+  | "/audit"
+  | "/reminder"
+  | "/user"
+
+
 
 export interface AppPreferences {
   textSize: TextSize
@@ -45,6 +53,7 @@ function getDefaultPreferences(
 }
 
 const validHomeRoutes: ReadonlySet<string> = new Set([
+  "/home",
   "/tickets",
   "/kanban",
   "/inventory",
@@ -52,6 +61,11 @@ const validHomeRoutes: ReadonlySet<string> = new Set([
   "/projects",
   "/reports",
   "/passwords",
+  "/assignments",
+  "/maintenance",
+  "/audit",
+  "/reminder",
+  "/user",
 ])
 
 export function isTextSize(value: string): value is TextSize {

@@ -27,4 +27,6 @@ dist-ssr
 .claude/
 .opencode/
 .skills/
+.github
 agent/skills/
+.venv
