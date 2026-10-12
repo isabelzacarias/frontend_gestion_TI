@@ -1,8 +1,6 @@
 import type { AssignmentFormDraft } from "@/features/assignments/components/AssignmentFormDialog"
-import {
-  assignmentAssetOptions,
-  assignmentUserOptions,
-} from "@/features/assignments/data/assignmentsData"
+import type { ActivoResumen } from "@/types/activo"
+import type { UsuarioLista } from "@/services/usuario.service"
 import {
   detectCsvDelimiter,
   downloadCsvTemplate,
@@ -16,9 +14,6 @@ const headers = [
   "ID de usuario",
   "Número de activo",
   "Año de compra",
-  "Fecha de asignación",
-  "Fecha de devolución",
-  "Estado",
   "Observación",
 ]
 
@@ -28,81 +23,49 @@ const headerFields: Record<string, keyof AssignmentFormDraft> = {
   iddeusuario: "usuarioId",
   numerodeactivo: "numeroActivo",
   anodecompra: "anioCompra",
-  fechadeasignacion: "fechaAsignacion",
-  fechadedevolucion: "fechaDevolucion",
-  estado: "activa",
   observacion: "observacion",
 }
 
-const requiredHeaders = Object.keys(headerFields)
-const datePattern = /^\d{4}-\d{2}-\d{2}$/
+const requiredHeaders = ["iddeactivo", "iddeusuario"]
 
-function resolveAssetId(value: string): string {
+export interface ReferenciasImportacionAsignacion {
+  activos: ActivoResumen[]
+  usuarios: UsuarioLista[]
+}
+
+function resolveAssetId(value: string, activos: ActivoResumen[]): string {
   const raw = value.trim()
   if (!raw) throw new Error("El ID del activo es obligatorio.")
 
-  const byId = assignmentAssetOptions.find((asset) => String(asset.id) === raw)
-  if (byId) return String(byId.id)
-
   const target = raw.toLowerCase()
-  const byClave = assignmentAssetOptions.find(
-    (asset) => (asset.claveActivo ?? "").toLowerCase() === target,
+  const activo = activos.find(
+    (item) =>
+      String(item.id) === raw ||
+      (item.claveActivo ?? "").toLowerCase() === target,
   )
-  if (byClave) return String(byClave.id)
+  if (!activo) {
+    throw new Error(`No existe un activo con ID o clave "${value}".`)
+  }
 
-  throw new Error(`No existe un activo con ID o clave "${value}".`)
+  return String(activo.id)
 }
 
-function resolveUserId(value: string): string {
+function resolveUserId(value: string, usuarios: UsuarioLista[]): string {
   const raw = value.trim()
   if (!raw) throw new Error("El ID del usuario es obligatorio.")
 
-  const byId = assignmentUserOptions.find((user) => user.id === raw)
-  if (byId) return byId.id
-
   const target = raw.toLowerCase()
-  const byEmail = assignmentUserOptions.find(
-    (user) => (user.email ?? "").toLowerCase() === target,
+  const usuario = usuarios.find(
+    (item) =>
+      item.id === raw ||
+      (item.email ?? "").toLowerCase() === target ||
+      item.nombre.toLowerCase() === target,
   )
-  if (byEmail) return byEmail.id
-
-  throw new Error(`No existe un usuario con ID o correo "${value}".`)
-}
-
-function parseActive(value: string): "true" | "false" {
-  const normalized = normalizeCsvHeader(value)
-
-  if (
-    normalized === "" ||
-    normalized === "activa" ||
-    normalized === "activo" ||
-    normalized === "si" ||
-    normalized === "true" ||
-    normalized === "1"
-  ) {
-    return "true"
-  }
-  if (
-    normalized === "devuelta" ||
-    normalized === "devuelto" ||
-    normalized === "inactiva" ||
-    normalized === "no" ||
-    normalized === "false" ||
-    normalized === "0"
-  ) {
-    return "false"
+  if (!usuario) {
+    throw new Error(`No existe un usuario con ID, correo o nombre "${value}".`)
   }
 
-  throw new Error(`Estado no válido: ${value}. Usa Activa o Devuelta.`)
-}
-
-function parseDate(value: string, label: string): string {
-  const trimmed = value.trim()
-  if (trimmed === "") return ""
-  if (!datePattern.test(trimmed)) {
-    throw new Error(`${label} no válida: ${value}. Usa el formato AAAA-MM-DD.`)
-  }
-  return trimmed
+  return usuario.id
 }
 
 function parseYear(value: string): string {
@@ -118,7 +81,10 @@ export function downloadAssignmentCsvTemplate() {
   downloadCsvTemplate(headers, "plantilla_registro_asignaciones.csv")
 }
 
-export function parseAssignmentCsv(content: string): AssignmentFormDraft[] {
+export function parseAssignmentCsv(
+  content: string,
+  referencias: ReferenciasImportacionAsignacion,
+): AssignmentFormDraft[] {
   const csv = content.replace(/^\uFEFF/, "").trim()
   if (!csv) throw new Error("El archivo está vacío.")
 
@@ -135,7 +101,9 @@ export function parseAssignmentCsv(content: string): AssignmentFormDraft[] {
     )
   }
 
-  const records = dataRows.filter((record) => record.some((value) => value.length > 0))
+  const records = dataRows.filter((record) =>
+    record.some((value) => value.length > 0),
+  )
 
   return records.map((record, index) => {
     try {
@@ -145,17 +113,15 @@ export function parseAssignmentCsv(content: string): AssignmentFormDraft[] {
         if (field) fields.set(field, record[columnIndex] ?? "")
       })
 
-      const value = (field: keyof AssignmentFormDraft) => fields.get(field)?.trim() ?? ""
+      const value = (field: keyof AssignmentFormDraft) =>
+        fields.get(field)?.trim() ?? ""
 
       return {
-        usuarioId: resolveUserId(value("usuarioId")),
-        activoId: resolveAssetId(value("activoId")),
+        usuarioId: resolveUserId(value("usuarioId"), referencias.usuarios),
+        activoId: resolveAssetId(value("activoId"), referencias.activos),
         nombreEquipo: value("nombreEquipo"),
         numeroActivo: value("numeroActivo"),
         anioCompra: parseYear(value("anioCompra")),
-        fechaAsignacion: parseDate(value("fechaAsignacion"), "Fecha de asignación"),
-        fechaDevolucion: parseDate(value("fechaDevolucion"), "Fecha de devolución"),
-        activa: parseActive(value("activa")),
         observacion: value("observacion"),
       }
     } catch (error) {
