@@ -32,3 +32,27 @@ export interface Assignment {
   usuario: AssignmentUser
   activo: AssignmentAsset
 }
+
+export interface ParametrosListadoAsignaciones {
+  page?: number
+  limit?: number
+  activa?: boolean
+  usuarioId?: string
+  activoId?: number
+  q?: string
+}
+
+export interface DatosCreacionAsignacion {
+  usuarioId: string
+  anioCompra?: number | null
+  numeroActivo?: string | null
+  nombreEquipo?: string | null
+  observacion?: string | null
+}
+
+export interface DatosEdicionAsignacion {
+  anioCompra?: number | null
+  numeroActivo?: string | null
+  nombreEquipo?: string | null
+  observacion?: string | null
+}

@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react"
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
 import { Download, Laptop, Upload } from "lucide-react"
 import { toast } from "sonner"
 
@@ -6,10 +6,8 @@ import { Button } from "@/components/ui/button"
 import { ImportConfirmDialog } from "@/components/ui/import-confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { FormDialog, type FormSection } from "@/components/ui/form-dialog"
-import {
-  assignmentAssetOptions,
-  assignmentUserOptions,
-} from "@/features/assignments/data/assignmentsData"
+import type { UsuarioLista } from "@/services/usuario.service"
+import type { ActivoResumen } from "@/types/activo"
 import {
   downloadAssignmentCsvTemplate,
   parseAssignmentCsv,
@@ -22,9 +20,6 @@ export type AssignmentFormDraft = {
   nombreEquipo: string
   numeroActivo: string
   anioCompra: string
-  fechaAsignacion: string
-  fechaDevolucion: string
-  activa: "true" | "false"
   observacion: string
 }
 
@@ -34,6 +29,8 @@ interface AssignmentFormDialogProps {
   open: boolean
   draft: AssignmentFormDraft
   mode?: AssignmentFormMode
+  usuarios: UsuarioLista[]
+  activos: ActivoResumen[]
   onOpenChange: (open: boolean) => void
   onChange: <K extends keyof AssignmentFormDraft>(
     field: K,
@@ -41,145 +38,143 @@ interface AssignmentFormDialogProps {
   ) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onImport?: (records: AssignmentFormDraft[]) => void
-  /** Callback para eliminar — solo se usa en modo "edit" */
-  onDelete?: () => void
 }
 
-function DateField({
-  value,
-  onChange,
-}: {
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <Input
-      type="date"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-8 border-white/70 bg-white/80 text-[13px] text-foreground shadow-sm dark:border-white/10 dark:bg-slate-900/55"
-    />
-  )
-}
+function buildSections(
+  usuarios: UsuarioLista[],
+  activos: ActivoResumen[],
+  isEdit: boolean,
+): FormSection<AssignmentFormDraft>[] {
+  const assetOptions = activos.map((activo) => ({
+    value: String(activo.id),
+    label: [activo.claveActivo ?? `#${activo.id}`, activo.tipo, activo.marca]
+      .filter(Boolean)
+      .join(" · "),
+  }))
 
-const assetOptions = assignmentAssetOptions.map((asset) => ({
-  value: String(asset.id),
-  label: [`#${asset.id}`, asset.tipo, asset.marca]
-    .filter(Boolean)
-    .join(" · "),
-}))
+  const userOptions = usuarios.map((usuario) => ({
+    value: usuario.id,
+    label: `${usuario.id} · ${usuario.nombre}`,
+  }))
 
-const userOptions = assignmentUserOptions.map((user) => ({
-  value: user.id,
-  label: `${user.id} · ${user.nombre}`,
-}))
-
-const sections: FormSection<AssignmentFormDraft>[] = [
-  {
-    title: "Equipo y Activo",
-    color: "primary",
-    gridCols: "sm:grid-cols-2",
-    fields: [
-      {
-        key: "activoId",
+  const assetField = isEdit
+    ? {
+        key: "activoId" as const,
         label: "Activo del inventario",
-        type: "select",
+        colSpan: "sm:col-span-2",
+        render: (value: AssignmentFormDraft[keyof AssignmentFormDraft]) => {
+          const option = assetOptions.find((item) => item.value === value)
+          return (
+            <Input
+              readOnly
+              value={option?.label ?? "—"}
+              className="h-8 border-white/70 bg-muted/60 text-[13px] text-muted-foreground shadow-sm dark:border-white/10 dark:bg-slate-900/55"
+            />
+          )
+        },
+      }
+    : {
+        key: "activoId" as const,
+        label: "Activo del inventario",
+        type: "select" as const,
         options: assetOptions,
         colSpan: "sm:col-span-2",
         required: true,
-      },
-      {
-        key: "nombreEquipo",
-        label: "Nombre del equipo",
-        placeholder: "Ej. PC-TEST-01",
-      },
-      {
-        key: "numeroActivo",
-        label: "Número de activo",
-        placeholder: "Ej. ACT-0588",
-      },
-      {
-        key: "anioCompra",
-        label: "Año de compra",
-        type: "number",
-        placeholder: "Ej. 2024",
-      },
-    ],
-  },
-  {
-    title: "Usuario y Vigencia",
-    color: "cyan",
-    gridCols: "sm:grid-cols-2",
-    fields: [
-      {
-        key: "usuarioId",
+      }
+
+  const userField = isEdit
+    ? {
+        key: "usuarioId" as const,
         label: "Usuario asignado",
-        type: "select",
+        colSpan: "sm:col-span-2",
+        render: (value: AssignmentFormDraft[keyof AssignmentFormDraft]) => {
+          const option = userOptions.find((item) => item.value === value)
+          return (
+            <Input
+              readOnly
+              value={option?.label ?? "—"}
+              className="h-8 border-white/70 bg-muted/60 text-[13px] text-muted-foreground shadow-sm dark:border-white/10 dark:bg-slate-900/55"
+            />
+          )
+        },
+      }
+    : {
+        key: "usuarioId" as const,
+        label: "Usuario asignado",
+        type: "select" as const,
         options: userOptions,
         colSpan: "sm:col-span-2",
         required: true,
-      },
-      {
-        key: "activa",
-        label: "Estado de la asignación",
-        type: "select",
-        options: [
-          { value: "true", label: "Activa" },
-          { value: "false", label: "Devuelta" },
-        ],
-      },
-      {
-        key: "fechaAsignacion",
-        label: "Fecha de asignación",
-        render: (value, onChange) => (
-          <DateField
-            value={value as string}
-            onChange={onChange as (value: string) => void}
-          />
-        ),
-      },
-      {
-        key: "fechaDevolucion",
-        label: "Fecha de devolución",
-        render: (value, onChange) => (
-          <DateField
-            value={value as string}
-            onChange={onChange as (value: string) => void}
-          />
-        ),
-      },
-    ],
-  },
-  {
-    title: "Observaciones",
-    color: "amber",
-    gridCols: "sm:grid-cols-1",
-    fields: [
-      {
-        key: "observacion",
-        label: "Observación",
-        type: "textarea",
-        rows: 3,
-        placeholder: "Motivo o notas de la asignación...",
-      },
-    ],
-  },
-]
+      }
+
+  return [
+    {
+      title: "Equipo y Activo",
+      color: "primary",
+      gridCols: "sm:grid-cols-2",
+      fields: [
+        assetField,
+        {
+          key: "nombreEquipo",
+          label: "Nombre del equipo",
+          placeholder: "Ej. PC-TEST-01",
+        },
+        {
+          key: "numeroActivo",
+          label: "Número de activo",
+          placeholder: "Ej. ACT-0588",
+        },
+        {
+          key: "anioCompra",
+          label: "Año de compra",
+          type: "number",
+          placeholder: "Ej. 2024",
+        },
+      ],
+    },
+    {
+      title: "Usuario Asignado",
+      color: "cyan",
+      gridCols: "sm:grid-cols-2",
+      fields: [userField],
+    },
+    {
+      title: "Observaciones",
+      color: "amber",
+      gridCols: "sm:grid-cols-1",
+      fields: [
+        {
+          key: "observacion",
+          label: "Observación",
+          type: "textarea",
+          rows: 3,
+          placeholder: "Motivo o notas de la asignación...",
+        },
+      ],
+    },
+  ]
+}
 
 export function AssignmentFormDialog({
   open,
   draft,
   mode = "create",
+  usuarios,
+  activos,
   onOpenChange,
   onChange,
   onSubmit,
   onImport,
-  onDelete,
 }: AssignmentFormDialogProps) {
   const isEdit = mode === "edit"
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false)
   const [pendingImport, setPendingImport] = useState<AssignmentFormDraft[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
+
+  const sections = useMemo(
+    () => buildSections(usuarios, activos, isEdit),
+    [usuarios, activos, isEdit],
+  )
 
   const handleImportClick = () => {
     importInputRef.current?.click()
@@ -194,7 +189,10 @@ export function AssignmentFormDialog({
         throw new Error("Selecciona un archivo CSV compatible con Excel.")
       }
 
-      const importedDrafts = parseAssignmentCsv(await file.text())
+      const importedDrafts = parseAssignmentCsv(await file.text(), {
+        activos,
+        usuarios,
+      })
       setPendingImport(importedDrafts)
       setIsImportConfirmOpen(true)
     } catch (error) {
@@ -232,8 +230,6 @@ export function AssignmentFormDialog({
         onOpenChange={onOpenChange}
         onChange={onChange}
         onSubmit={onSubmit}
-        onDelete={onDelete}
-        deleteLabel="Eliminar"
         formActions={
           mode === "create" && onImport ? (
             <>

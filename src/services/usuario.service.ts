@@ -1,17 +1,21 @@
 import axios from "axios"
 
 import { api } from "@/services/api"
+import type { MetadatosPaginacion } from "@/types/activo"
 import type { RespuestaApi } from "@/types/auth"
-import type {
-  MetadatosPaginacion,
-  RespuestaPaginada,
-} from "@/types/activo"
 
 export interface UsuarioLista {
   id: string
   nombre: string
   email: string | null
   activo: boolean
+}
+
+export interface ParametrosListadoUsuarios {
+  page?: number
+  limit?: number
+  q?: string
+  activo?: boolean
 }
 
 export class UsuarioApiError extends Error {
@@ -66,11 +70,12 @@ function toUsuarioApiError(error: unknown): UsuarioApiError {
   return new UsuarioApiError("No se pudo completar la solicitud.", [])
 }
 
-export interface ParametrosListadoUsuarios {
-  page?: number
-  limit?: number
-  activo?: boolean
-  q?: string
+interface RespuestaPaginadaUsuarios {
+  success: boolean
+  message: string
+  errors: unknown[]
+  data: UsuarioLista[]
+  meta: MetadatosPaginacion
 }
 
 export interface ListadoUsuarios {
@@ -82,10 +87,9 @@ export async function listarUsuarios(
   parametros: ParametrosListadoUsuarios = {},
 ): Promise<ListadoUsuarios> {
   try {
-    const response = await api.get<RespuestaPaginada<UsuarioLista>>(
-      "/usuarios",
-      { params: parametros },
-    )
+    const response = await api.get<RespuestaPaginadaUsuarios>("/usuarios", {
+      params: parametros,
+    })
 
     if (!response.data.success || !Array.isArray(response.data.data)) {
       throw new UsuarioApiError(
@@ -101,8 +105,8 @@ export async function listarUsuarios(
   }
 }
 
-const LIMITE_LISTADO = 100
-const MAX_PAGINAS_LISTADO = 100
+const LIMITE_USUARIOS = 100
+const MAX_PAGINAS_USUARIOS = 100
 
 export async function listarTodosLosUsuarios(
   filtros: Omit<ParametrosListadoUsuarios, "page" | "limit"> = {},
@@ -110,20 +114,20 @@ export async function listarTodosLosUsuarios(
   const primera = await listarUsuarios({
     ...filtros,
     page: 1,
-    limit: LIMITE_LISTADO,
+    limit: LIMITE_USUARIOS,
   })
 
   const usuarios = [...primera.usuarios]
   const totalPaginas = Math.min(
     primera.meta.totalPages,
-    MAX_PAGINAS_LISTADO,
+    MAX_PAGINAS_USUARIOS,
   )
 
   for (let page = 2; page <= totalPaginas; page += 1) {
     const siguiente = await listarUsuarios({
       ...filtros,
       page,
-      limit: LIMITE_LISTADO,
+      limit: LIMITE_USUARIOS,
     })
     usuarios.push(...siguiente.usuarios)
   }

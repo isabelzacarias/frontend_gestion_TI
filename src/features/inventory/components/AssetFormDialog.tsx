@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react"
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
 import { Download, Upload } from "lucide-react"
 import { toast } from "sonner"
 
@@ -49,97 +49,163 @@ interface AssetFormDialogProps {
 /* ──────────────────────────────────────────────
  * Definición declarativa de secciones y campos
  * ────────────────────────────────────────────── */
-const sections: FormSection<AssetFormDraft>[] = [
-  {
-    title: "Información general",
-    color: "primary",
-    gridCols: "sm:grid-cols-3",
-    fields: [
-      { key: "cb23", label: "CB23", placeholder: "200430" },
-      {
-        key: "tipo",
-        label: "Tipo",
-        type: "select",
-        options: [
-          { value: "Laptop", label: "Laptop" },
-          { value: "Tablet", label: "Tablet" },
-          { value: "Desktop", label: "Desktop" },
-          { value: "Monitor", label: "Monitor" },
-          { value: "Servidor", label: "Servidor" },
-          { value: "Impresora", label: "Impresora" },
-          { value: "Switch", label: "Switch" },
-          { value: "Router", label: "Router" },
-        ],
-      },
-      { key: "marca", label: "Marca", placeholder: "Dell" },
-      { key: "modelo", label: "Modelo", placeholder: "Latitude 5450" },
-      {
-        key: "numeroSerie",
-        label: "Número de serie",
-        placeholder: "ABC123456",
-        colSpan: "sm:col-span-2",
-      },
-    ],
-  },
-  {
-    title: "Estado y asignación",
-    color: "cyan",
-    gridCols: "sm:grid-cols-2 lg:grid-cols-4",
-    fields: [
-      {
-        key: "sucursal",
-        label: "Sucursal",
-        type: "select",
-        options: [
-          { value: "PLAYA", label: "PLAYA" },
-          { value: "MERIDA", label: "MERIDA" },
-          { value: "CANCUN", label: "CANCUN" },
-        ],
-      },
-      {
-        key: "estado",
-        label: "Estado",
-        type: "select",
-        options: [
-          { value: "EN_USO", label: "En uso" },
-          { value: "EN_ALMACEN", label: "En almacén" },
-          { value: "EN_MANTENIMIENTO", label: "En mantenimiento" },
-          { value: "DE_BAJA", label: "De baja" },
-        ],
-      },
-      {
-        key: "estadoGeneral",
-        label: "Estado general",
-        type: "select",
-        options: [
-          { value: "Excelente", label: "Excelente" },
-          { value: "Bueno", label: "Bueno" },
-          { value: "Regular", label: "Regular" },
-          { value: "Crítico", label: "Crítico" },
-        ],
-      },
-      { key: "nombreRed", label: "Red", placeholder: "ADMP-01" },
-    ],
-  },
-  {
-    title: "Responsable",
-    color: "violet",
-    gridCols: "sm:grid-cols-2",
-    fields: [
-      {
-        key: "responsableNombre",
-        label: "Nombre completo",
-        placeholder: "Nombre completo",
-      },
-      {
-        key: "responsableEmail",
-        label: "Correo electrónico",
-        type: "email",
-        placeholder: "responsable@empresa.com",
-      },
-    ],
-  },
-]
+
+/** Tipos de equipo disponibles en el formulario */
+const TIPOS_ACTIVO = [
+  "Laptop",
+  "Desktop",
+  "All In One",
+  "Mini PC",
+  "Tablet",
+  "Monitor",
+  "Impresora",
+  "Servidor",
+  "Switch",
+  "Router",
+  "Mouse",
+  "Teclado",
+  "Regulador de voltaje",
+  "Otro",
+] as const
+
+type PerfilActivo = "equipo" | "red" | "generico"
+
+/** Perfil de campos según el tipo de equipo (clave normalizada) */
+const PERFIL_POR_TIPO: Record<string, PerfilActivo> = {
+  laptop: "equipo",
+  desktop: "equipo",
+  allinone: "equipo",
+  minipc: "equipo",
+  tablet: "equipo",
+  servidor: "red",
+  switch: "red",
+  router: "red",
+  monitor: "generico",
+  impresora: "generico",
+  mouse: "generico",
+  teclado: "generico",
+  reguladordevoltaje: "generico",
+}
+
+function normalizarTipo(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+}
+
+/** Perfil de campos para un tipo dado — por defecto "equipo" */
+function perfilDeTipo(tipo: string): PerfilActivo {
+  return PERFIL_POR_TIPO[normalizarTipo(tipo)] ?? "equipo"
+}
+
+/**
+ * Construye las secciones del formulario según el tipo de equipo.
+ * - Equipo: todos los campos (incluye Red y Responsable)
+ * - Red: sin Responsable
+ * - Genérico: sin Red ni Responsable
+ */
+function buildSections(
+  tipo: string,
+): FormSection<AssetFormDraft>[] {
+  const perfil = perfilDeTipo(tipo)
+  const mostrarRed = perfil !== "generico"
+  const mostrarResponsable = perfil === "equipo"
+
+  const estadoFields: FormSection<AssetFormDraft>["fields"] = [
+    {
+      key: "sucursal",
+      label: "Sucursal",
+      type: "select",
+      options: [
+        { value: "PLAYA", label: "PLAYA" },
+        { value: "MERIDA", label: "MERIDA" },
+        { value: "CANCUN", label: "CANCUN" },
+      ],
+    },
+    {
+      key: "estado",
+      label: "Estado",
+      type: "select",
+      options: [
+        { value: "EN_USO", label: "En uso" },
+        { value: "EN_ALMACEN", label: "En almacén" },
+        { value: "EN_MANTENIMIENTO", label: "En mantenimiento" },
+        { value: "DE_BAJA", label: "De baja" },
+      ],
+    },
+    {
+      key: "estadoGeneral",
+      label: "Estado general",
+      type: "select",
+      options: [
+        { value: "Excelente", label: "Excelente" },
+        { value: "Bueno", label: "Bueno" },
+        { value: "Regular", label: "Regular" },
+        { value: "Crítico", label: "Crítico" },
+      ],
+    },
+  ]
+
+  if (mostrarRed) {
+    estadoFields.push({ key: "nombreRed", label: "Red", placeholder: "ADMP-01" })
+  }
+
+  const sections: FormSection<AssetFormDraft>[] = [
+    {
+      title: "Información general",
+      color: "primary",
+      gridCols: "sm:grid-cols-3",
+      fields: [
+        { key: "cb23", label: "CB23", placeholder: "200430" },
+        {
+          key: "tipo",
+          label: "Tipo",
+          type: "select",
+          options: TIPOS_ACTIVO.map((value) => ({ value, label: value })),
+        },
+        { key: "marca", label: "Marca", placeholder: "Dell" },
+        { key: "modelo", label: "Modelo", placeholder: "Latitude 5450" },
+        {
+          key: "numeroSerie",
+          label: "Número de serie",
+          placeholder: "ABC123456",
+          colSpan: "sm:col-span-2",
+        },
+      ],
+    },
+    {
+      title: "Estado y asignación",
+      color: "cyan",
+      gridCols: "sm:grid-cols-2 lg:grid-cols-4",
+      fields: estadoFields,
+    },
+  ]
+
+  if (mostrarResponsable) {
+    sections.push({
+      title: "Responsable",
+      color: "violet",
+      gridCols: "sm:grid-cols-2",
+      fields: [
+        {
+          key: "responsableNombre",
+          label: "Nombre completo",
+          placeholder: "Nombre completo",
+        },
+        {
+          key: "responsableEmail",
+          label: "Correo electrónico",
+          type: "email",
+          placeholder: "responsable@empresa.com",
+        },
+      ],
+    })
+  }
+
+  return sections
+}
 
 /* ──────────────────────────────────────────────
  * Textos según modo
@@ -174,6 +240,7 @@ export function AssetFormDialog({
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false)
   const [pendingImport, setPendingImport] = useState<AssetFormDraft[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
+  const sections = useMemo(() => buildSections(draft.tipo), [draft.tipo])
 
   const handleImportClick = () => {
     importInputRef.current?.click()
