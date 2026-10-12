@@ -1,14 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd"
 import type { DropResult } from "@hello-pangea/dnd"
-import { Loader2, RefreshCw } from "lucide-react"
+import { Flag, LayoutGrid, Loader2, RefreshCw, Search, Tag, User, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { PagePlaceholder } from "@/components/common/PagePlaceholder"
+import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { KanbanFacetedFilter } from "@/features/kanban/components/KanbanFacetedFilter"
+import type {
+  FacetDimension,
+  FacetOption,
+  FacetSelections,
+} from "@/features/kanban/components/KanbanFacetedFilter"
 import { useIncidenciasSyncStore } from "@/features/kanban/store/incidenciasSyncStore"
 import {
+  PRIORIDADES,
+  TIPOS,
   estadoLabels,
   prioridadClasses,
   prioridadLabels,
@@ -76,18 +84,85 @@ function getUpdateErrorMessage(error: unknown): string {
   return "No se pudo actualizar el estado de la incidencia."
 }
 
+const RESPONSABLE_SIN_ASIGNAR = "SIN_ASIGNAR"
+
+interface Filtros {
+  prioridades: string[]
+  tipos: string[]
+  responsables: string[]
+  texto: string
+}
+
+const controlBase =
+  "h-10 rounded-2xl border border-border/80 bg-background/80 text-xs font-medium text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+
+function coincideConFiltros(ticket: Ticket, filtros: Filtros): boolean {
+  if (
+    filtros.prioridades.length > 0 &&
+    !filtros.prioridades.includes(ticket.prioridad)
+  ) {
+    return false
+  }
+
+  if (
+    filtros.tipos.length > 0 &&
+    !filtros.tipos.includes(ticket.tipoRequerimiento)
+  ) {
+    return false
+  }
+
+  if (filtros.responsables.length > 0) {
+    const responsableId = ticket.asignadoA?.id ?? RESPONSABLE_SIN_ASIGNAR
+    if (!filtros.responsables.includes(responsableId)) {
+      return false
+    }
+  }
+
+  const texto = filtros.texto.trim().toLowerCase()
+  if (texto) {
+    const coincideTitulo = ticket.titulo.toLowerCase().includes(texto)
+    const coincideId =
+      String(ticket.id).includes(texto) || `#${ticket.id}`.includes(texto)
+    const coincideSolicitante = ticket.solicitante.nombre
+      .toLowerCase()
+      .includes(texto)
+
+    if (!coincideTitulo && !coincideId && !coincideSolicitante) {
+      return false
+    }
+  }
+
+  return true
+}
+
 function KanbanPage() {
   const [tablero, setTablero] = useState<Tablero>(crearTableroVacio)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [pendingIds, setPendingIds] = useState<number[]>([])
+  const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [prioridadesSeleccionadas, setPrioridadesSeleccionadas] = useState<
+    string[]
+  >([])
+  const [tiposSeleccionados, setTiposSeleccionados] = useState<string[]>([])
+  const [responsablesSeleccionados, setResponsablesSeleccionados] = useState<
+    string[]
+  >([])
 
   const pendingIdsRef = useRef<number[]>([])
 
   useEffect(() => {
     pendingIdsRef.current = pendingIds
   }, [pendingIds])
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+    }, 300)
+    return () => window.clearTimeout(id)
+  }, [search])
 
   useEffect(() => {
     let cancelado = false
@@ -159,10 +234,135 @@ function KanbanPage() {
     return unsubscribe
   }, [])
 
+  const filtros = useMemo<Filtros>(
+    () => ({
+      prioridades: prioridadesSeleccionadas,
+      tipos: tiposSeleccionados,
+      responsables: responsablesSeleccionados,
+      texto: debouncedSearch,
+    }),
+    [
+      prioridadesSeleccionadas,
+      tiposSeleccionados,
+      responsablesSeleccionados,
+      debouncedSearch,
+    ],
+  )
+
+  const ticketsVisibles = useMemo<Tablero>(() => {
+    return ESTADOS.reduce<Tablero>((acc, estado) => {
+      acc[estado] = tablero[estado].filter((ticket) =>
+        coincideConFiltros(ticket, filtros),
+      )
+      return acc
+    }, {} as Tablero)
+  }, [tablero, filtros])
+
+  const responsablesDisponibles = useMemo<FacetOption[]>(() => {
+    const porId = new Map<string, string>()
+    let haySinAsignar = false
+
+    for (const estado of ESTADOS) {
+      for (const ticket of tablero[estado]) {
+        if (ticket.asignadoA) {
+          porId.set(ticket.asignadoA.id, ticket.asignadoA.nombre)
+        } else {
+          haySinAsignar = true
+        }
+      }
+    }
+
+    const opciones = [...porId.entries()]
+      .map<FacetOption>(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "es"))
+
+    if (haySinAsignar) {
+      opciones.push({ value: RESPONSABLE_SIN_ASIGNAR, label: "Sin asignar" })
+    }
+
+    return opciones
+  }, [tablero])
+
+  const facetDimensions = useMemo<FacetDimension[]>(
+    () => [
+      {
+        id: "responsables",
+        label: "Persona asignada",
+        icon: User,
+        options: responsablesDisponibles,
+      },
+      {
+        id: "prioridades",
+        label: "Prioridad",
+        icon: Flag,
+        options: PRIORIDADES.map<FacetOption>((value) => ({
+          value,
+          label: prioridadLabels[value],
+        })),
+      },
+      {
+        id: "tipos",
+        label: "Tipo de requerimiento",
+        icon: Tag,
+        options: TIPOS.map<FacetOption>((value) => ({
+          value,
+          label: tipoLabels[value],
+        })),
+      },
+    ],
+    [responsablesDisponibles],
+  )
+
+  const facetSelecciones = useMemo<FacetSelections>(
+    () => ({
+      responsables: responsablesSeleccionados,
+      prioridades: prioridadesSeleccionadas,
+      tipos: tiposSeleccionados,
+    }),
+    [responsablesSeleccionados, prioridadesSeleccionadas, tiposSeleccionados],
+  )
+
+  function handleFacetChange(dimensionId: string, values: string[]) {
+    if (dimensionId === "responsables") {
+      setResponsablesSeleccionados(values)
+    } else if (dimensionId === "prioridades") {
+      setPrioridadesSeleccionadas(values)
+    } else if (dimensionId === "tipos") {
+      setTiposSeleccionados(values)
+    }
+  }
+
+  const hayFiltros =
+    filtros.prioridades.length > 0 ||
+    filtros.tipos.length > 0 ||
+    filtros.responsables.length > 0 ||
+    filtros.texto !== ""
+
   const totalTickets = useMemo(
     () => ESTADOS.reduce((total, estado) => total + tablero[estado].length, 0),
     [tablero],
   )
+
+  const totalVisibles = useMemo(
+    () =>
+      ESTADOS.reduce(
+        (total, estado) => total + ticketsVisibles[estado].length,
+        0,
+      ),
+    [ticketsVisibles],
+  )
+
+  function borrarFacetas() {
+    setPrioridadesSeleccionadas([])
+    setTiposSeleccionados([])
+    setResponsablesSeleccionados([])
+  }
+
+  function limpiarFiltros() {
+    setSearch("")
+    setDebouncedSearch("")
+    borrarFacetas()
+  }
 
   async function handleDragEnd(result: DropResult) {
     const { draggableId, source, destination } = result
@@ -175,16 +375,27 @@ function KanbanPage() {
     const id = Number(draggableId)
     if (pendingIdsRef.current.includes(id)) return
 
+    if (origen === destino && source.index === destination.index) return
+
     const snapshot = tablero
     const siguiente = clonarTablero(tablero)
-    const [movido] = siguiente[origen].splice(source.index, 1)
+
+    const indiceOrigen = siguiente[origen].findIndex(
+      (ticket) => ticket.id === id,
+    )
+    if (indiceOrigen < 0) return
+    const [movido] = siguiente[origen].splice(indiceOrigen, 1)
     if (!movido) return
 
-    if (movido.estado === destino && source.index === destination.index) {
-      return
-    }
+    const columnaDestino = siguiente[destino]
+    const visiblesDestino = columnaDestino.filter((ticket) =>
+      coincideConFiltros(ticket, filtros),
+    )
+    const vecinoPosterior = visiblesDestino[destination.index]
+    const ordenDestino = vecinoPosterior
+      ? columnaDestino.findIndex((ticket) => ticket.id === vecinoPosterior.id)
+      : columnaDestino.length
 
-    const ordenDestino = destination.index
     siguiente[destino].splice(ordenDestino, 0, { ...movido, estado: destino })
 
     setTablero(siguiente)
@@ -210,27 +421,66 @@ function KanbanPage() {
   }
 
   return (
-    <PagePlaceholder
-      title="Tablero Kanban"
-      description="Incidencias agrupadas por estado. Arrastra una tarjeta para cambiar su estado o reordenarla dentro de la columna."
-      className="overflow-hidden"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-medium text-muted-foreground">
-          {loading
-            ? "Cargando..."
-            : (loadError ?? `${totalTickets} tickets`)}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setReloadKey((key) => key + 1)}
-          disabled={loading}
-        >
-          {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-          Actualizar
-        </Button>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <ModuleHeader
+        eyebrow="Mesa de Ayuda TI"
+        title="Tablero Kanban"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setReloadKey((key) => key + 1)}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            Actualizar
+          </Button>
+        }
+        filters={
+          <>
+            <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar por título, #id o solicitante..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className={`${controlBase} w-full pl-10 pr-4`}
+              />
+            </div>
+
+            <KanbanFacetedFilter
+              dimensions={facetDimensions}
+              selections={facetSelecciones}
+              onChange={handleFacetChange}
+              onClearAll={borrarFacetas}
+            />
+
+            {hayFiltros && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limpiarFiltros}
+                className="text-muted-foreground"
+              >
+                <X />
+                Borrar filtros
+              </Button>
+            )}
+          </>
+        }
+        summary={
+          <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
+            <LayoutGrid className="size-3.5 text-violet-700 dark:text-violet-200" />
+            {loading
+              ? "Cargando..."
+              : (loadError ??
+                (hayFiltros
+                  ? `${totalVisibles} de ${totalTickets} tickets`
+                  : `${totalTickets} tickets`))}
+          </span>
+        }
+      />
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div
@@ -241,7 +491,7 @@ function KanbanPage() {
           <div className="flex h-full min-h-0 min-w-0 flex-1 gap-4">
             {columns.map(({ estado, statusColor }) => {
               const headingId = `kanban-column-${estado.toLowerCase()}`
-              const columnTickets = tablero[estado]
+              const columnTickets = ticketsVisibles[estado]
 
               return (
                 <section
@@ -349,7 +599,7 @@ function KanbanPage() {
 
                         {columnTickets.length === 0 && !loading && (
                           <p className="flex flex-1 items-center justify-center px-3 py-8 text-center text-sm text-muted-foreground">
-                            Sin tickets
+                            {hayFiltros ? "Sin coincidencias" : "Sin tickets"}
                           </p>
                         )}
                       </div>
@@ -361,7 +611,7 @@ function KanbanPage() {
           </div>
         </div>
       </DragDropContext>
-    </PagePlaceholder>
+    </div>
   )
 }
 

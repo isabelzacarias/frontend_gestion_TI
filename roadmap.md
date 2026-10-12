@@ -298,6 +298,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Implementar la pantalla principal de listado de tickets utilizando obligatoriamente el componente base `DataTable`, **conectada a `GET /api/incidencias`** (paginación server-side y filtros `estado`/`prioridad` + búsqueda `q`).
 - [x] Incorporar filtros interactivos por estado (`NUEVO`, `EN_ANALISIS`, `EN_CURSO`, `COMPLETADO`, `DUPLICADO`), prioridad (`BAJA`, `NORMAL`, `ALTA`, `CRITICA`), tipo de requerimiento y búsqueda por título/solicitante. **Los valores coinciden con los enums del backend.**
 - [x] Crear la vista detallada de ticket mediante `DetailDialog`, cargando el detalle desde `GET /api/incidencias/:id` (descripción, evidencia, seguimiento/actualizaciones).
+- [x] Unificar las vistas de Tickets y Kanban en un mismo apartado (`/tickets`) con conmutador de formato (`Tabs` **Lista | Kanban**) sincronizado en la URL (`?vista=kanban`). La lista se extrajo a `TicketsListView` (`features/tickets/components`) y el tablero sigue en `KanbanPage`; la ruta `/kanban` redirige a `/tickets?vista=kanban` y se retiró el ítem de navegación independiente del sidebar.
 - [ ] Diseñar el modal de creación y edición de tickets construyendo un wrapper `TicketFormDialog` basado en `FormDialog`.
 - [ ] Incorporar soporte para registro de subtareas o checklist de resolución técnica interna.
 - [ ] Desarrollar el flujo para agregar notas públicas e internas con soporte para carga de evidencias o archivos adjuntos.
@@ -336,8 +337,9 @@ El frontend ya envía `q` y `tipoRequerimiento`, pero **el backend hoy los ignor
 - [ ] Optimizar la gestión de estado local con persistencia y sincronización inmediata frente a caídas de red.
 - [x] Incorporar indicadores sutiles de carga mientras se actualiza la posición de una tarjeta en el servidor (opacidad + `aria-busy` + arrastre deshabilitado por tarjeta mientras hay una mutación en curso).
 - [x] Implementar la sincronización en tiempo real de movimientos y modificaciones mediante WebSockets (`socket.io-client`), escuchando `incidencias:estado-cambiado` desde la conexión única de notificaciones.
-- [ ] Agregar buscador rápido por título/código y filtros directos por prioridad y asignado sobre el tablero.
+- [x] Agregar buscador rápido por título/#id/solicitante y filtro facetado multi-selección (`KanbanFacetedFilter` con `Popover` + lista buscable propia y `Checkbox`) sobre el tablero, con dimensiones de Persona asignada (incluye "Sin asignar"), Prioridad y Tipo de requerimiento, badges por dimensión, "Borrar" por sección y "Borrar todo"; botón/indicador "Borrar filtros" a nivel de página. Estado en arrays (vacío = sin filtro), filtrado en cliente sobre los tickets ya cargados; reorden exacto aun con filtros activos.
 - [ ] Optimizar el comportamiento táctil y responsivo del Drag and Drop en dispositivos móviles y tablets.
+- [x] Homogeneizar la cabecera del tablero con la de la Lista usando `ModuleHeader` (eyebrow "Mesa de Ayuda TI", título "Tablero Kanban", filtros + resumen con badge violeta y acción "Actualizar"); se retiró el `PagePlaceholder` y su descripción.
 - [x] Implementar rollback visual con mensaje de error si una actualización de estado falla en el backend (update optimista + reversión + `toast.error`).
 
 ---
