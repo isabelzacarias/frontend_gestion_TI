@@ -332,7 +332,9 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Implementar badges cromáticos para estados operativos (Activo, Mantenimiento, Baja) y condiciones físicas (Excelente, Bueno, Regular, Malo).
 - [ ] Conectar las operaciones CRUD del inventario con la API REST del backend de gestión de TI.
 - [x] Integrar validaciones de datos requeridos y notificaciones toast de éxito o error al guardar/eliminar.
-- [x] Importacion masiva de activos: flujo en dos fases (`validar` -> `confirmar`) contra `/api/activos/importaciones/*`, con importacion **parcial** (crea las filas validas y rechaza el resto sin abortar). El frontend parsea localmente la plantilla `plantilla_registro_activos.csv` (BOM UTF-8, delimitador `;`, encabezados acentuados, campos entre comillas, limite de 500 registros) y conserva la fila de origen. Los datos **no guardados** (filas con `errores`) se muestran por fila en `ImportResultDialog` y se pueden **descargar como CSV** (`activos_rechazados_<timestamp>.csv`, re-importable); las **advertencias** no bloquean. Ver el patron completo en la seccion "Importaciones masivas".
+- [x] Importacion masiva: el frontend lee y parsea localmente la plantilla `plantilla_registro_activos.csv` y envía las filas como JSON; el archivo no se sube ni se almacena en el backend. El parser del frontend soporta BOM UTF-8, delimitador `;`, encabezados acentuados, campos entre comillas, límite de 500 registros y conserva la fila de origen para reportar resultados.
+- [x] Validar la persistencia de datos y el refresco reactivo de la tabla tras cada mutación.
+- [x] Integrar registro masivo de activos por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`AssetFormDialog` + `asset-import.ts`).
 - [x] Exportación CSV del inventario filtrado (todos los registros que cumplen búsqueda y filtros, no solo la página), con valores de estado legibles (`asset-export.ts` + `listarTodosLosActivos`).
 
 
