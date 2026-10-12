@@ -458,7 +458,7 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 - [x] Integrar recordatorios de vencimiento de licencias en la misma bandeja, con deduplicación Socket.IO/REST y control de permiso `notificaciones:leer`.
 - [x] Desarrollar la store global de preferencias (`useAppPreferences`) para tema, densidad de tablas y notificaciones.
 - [x] Crear un cliente HTTP Axios centralizado con interceptores automáticos para inyección de token JWT y captura unificada de errores (401, 403, 500).
-- [x] Crear el servicio compartido `usuario.service.ts` (`listarUsuarios`/`listarTodosLosUsuarios`, tipo `UsuarioLista`) para poblar selectores de usuario en los módulos (licencias: campo "Asignado A").
+- [x] Crear el servicio compartido `usuario.service.ts` (`listarUsuarios`/`listarTodosLosUsuarios`, tipo `UsuarioLista`) para poblar selectores de usuario en los módulos (licencias: campo "Asignado A"). El tipo `UsuarioLista` se amplió para incluir catálogos (`departamento`/`ubicacion`/`puesto`/`tipoUsuario`), `rol` y fechas (`fechaInicio`/`fechaFin`), reutilizándose en el listado de Usuarios.
 - [ ] Estandarizar el uso de Zustand para evitar duplicación de estado y renderizados innecesarios.
 - [ ] Definir hooks personalizados de consulta (`useInventory`, `useTickets`, `useProjects`) con control de caché local y revalidación.
 
@@ -613,18 +613,32 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 
 ---
 
-## 22. Backlog de Mejoras Futuras
+## 22. Módulo de Usuarios y Control de Acceso
+
+- [x] Implementar el listado de usuarios con `DataTable` y paginación integrada, conectado a `GET /api/usuarios` (filtrado/paginación en cliente vía `listarTodosLosUsuarios`).
+- [x] Adoptar el filtro facetado estándar (`FacetedFilter`) con dimensiones Estado, Tipo de usuario, Departamento, Ubicación, Puesto y Rol, más búsqueda por ID/nombre/correo/área/puesto.
+- [x] Consultar el detalle del usuario con `DetailDialog` (doble clic).
+- [x] Exportar a CSV respetando los filtros aplicados (`user-export.ts`).
+- [x] Ampliar el tipo compartido `UsuarioLista` (catálogos, rol y fechas) en `src/services/usuario.service.ts`.
+- [ ] Implementar el CRUD (alta/edición/baja lógica) con `UserFormDialog` + `ConfirmDeleteDialog`, usando `GET /api/catalogos` para los selects.
+- [ ] Asignación de rol (`PATCH /api/usuarios/:id/rol`, permiso `roles:administrar`).
+- [ ] Cambio de contraseña (`PATCH /api/usuarios/:id/password`).
+- [ ] Registro masivo por plantilla CSV/Excel.
+
+---
+
+## 23. Backlog de Mejoras Futuras
 
 - [ ] Implementar exportación nativa de reportes a formatos PDF y hojas de cálculo Excel/CSV con filtros aplicados.
 - [ ] Desarrollar búsqueda global unificada (Command Palette tipo `Ctrl + K`) para saltar a cualquier activo, ticket o proyecto.
 - [ ] Permitir la personalización del dashboard principal con widgets arrastrables según el rol del usuario.
 - [ ] Integrar sistema de notificaciones push para asignaciones urgentes de tickets.
 - [ ] Evaluar virtualización de filas con `@tanstack/react-virtual` para tablas con volúmenes superiores a 10,000 registros.
-- [ ] **Recordatorio:** Adoptar el filtro facetado estándar (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`) en las tablas ya existentes (Proyectos, Usuarios, Auditoría, etc.) en sustitución de los selects sueltos por criterio. *(Ya adoptado en Tickets, Kanban, Inventario y Licencias.)*
+- [ ] **Recordatorio:** Adoptar el filtro facetado estándar (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`) en las tablas ya existentes (Proyectos, Auditoría, etc.) en sustitución de los selects sueltos por criterio. *(Ya adoptado en Tickets, Kanban, Inventario, Licencias, Contraseñas y Usuarios.)*
 
 ---
 
-## 23. Checklist de Cierre de Sprint
+## 24. Checklist de Cierre de Sprint
 
 - [ ] Verificar las tareas marcadas como completadas (`[x]`) contra las evidencias reales en el código.
 - [ ] Confirmar que cada pantalla desarrollada use estrictamente los componentes base (`DataTable`, `DetailDialog`, `FormDialog`, `ConfirmDeleteDialog`, `FacetedFilter`) y el flujo común de consulta/edición.
