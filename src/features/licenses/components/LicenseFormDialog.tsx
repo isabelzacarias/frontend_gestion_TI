@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react"
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
 import { Download, Eye, EyeOff, KeyRound, Upload } from "lucide-react"
 import { toast } from "sonner"
 
@@ -10,6 +10,7 @@ import {
   type FormSection,
 } from "@/components/ui/form-dialog"
 import type { LicenseFormDraft } from "@/features/licenses/types/license"
+import type { UsuarioLista } from "@/services/usuario.service"
 import {
   downloadLicenseCsvTemplate,
   parseLicenseCsv,
@@ -19,6 +20,7 @@ interface LicenseFormDialogProps {
   open: boolean
   draft: LicenseFormDraft
   mode?: "create" | "edit"
+  usuarios?: UsuarioLista[]
   onOpenChange: (open: boolean) => void
   onChange: <K extends keyof LicenseFormDraft>(
     field: K,
@@ -66,7 +68,9 @@ function LicenseKeyField({
   )
 }
 
-const sections: FormSection<LicenseFormDraft>[] = [
+const buildSections = (
+  usuarios: UsuarioLista[],
+): FormSection<LicenseFormDraft>[] => [
   {
     title: "Datos Principales de la Licencia",
     color: "primary",
@@ -108,9 +112,12 @@ const sections: FormSection<LicenseFormDraft>[] = [
         type: "select",
         options: [
           { value: "", label: "Sin asignar" },
-          { value: "ADMIN", label: "ADMIN - Administrador (admin@horbismex.com)" },
-          { value: "TECH-01", label: "TECH-01 - Carlos Ramírez" },
-          { value: "TECH-02", label: "TECH-02 - Daniel Valdés" },
+          ...usuarios.map((usuario) => ({
+            value: usuario.id,
+            label: usuario.email
+              ? `${usuario.nombre} (${usuario.email})`
+              : usuario.nombre,
+          })),
         ],
       },
       {
@@ -160,6 +167,7 @@ export function LicenseFormDialog({
   open,
   draft,
   mode = "create",
+  usuarios = [],
   onOpenChange,
   onChange,
   onSubmit,
@@ -170,6 +178,8 @@ export function LicenseFormDialog({
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false)
   const [pendingImport, setPendingImport] = useState<LicenseFormDraft[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
+
+  const sections = useMemo(() => buildSections(usuarios), [usuarios])
 
   const handleImportClick = () => {
     importInputRef.current?.click()

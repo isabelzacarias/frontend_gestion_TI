@@ -138,6 +138,7 @@ Es el componente base mandatorio para consultar registros sin permitir su modifi
   - Distribuye los datos automáticamente en una rejilla responsiva; usar `colSpan` solo cuando un dato realmente necesite ocupar varias columnas.
   - Incluye las acciones **Cerrar** y **Editar**. La consulta no contiene controles de guardado ni de eliminación.
   - Permite valores personalizados como enlaces, badges o contraseñas enmascaradas con alternancia de visibilidad.
+  - Permite personalizar la acción primaria del footer mediante los props opcionales `editLabel` e `editIcon` (por defecto **Editar**); se usa, por ejemplo, para relabelar la acción a **Reactivar** en registros inactivos.
 - **Regla de uso / Flujo común:** El doble clic sobre una fila de `DataTable` abre el detalle. Al elegir **Editar**, se cierra la consulta y se abre el wrapper `FormDialog` del módulo con los datos del mismo registro.
 
 ---
@@ -391,7 +392,12 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 - [x] Diseñar el panel de visualización y detalle con conteo de asientos utilizados versus disponibles y barra de uso relativo.
 - [x] Diseñar la gestión segura de contraseñas y credenciales de servicios tecnológicos con ofuscación visual y permisos de visualización.
 - [x] Incorporar registro masivo de licencias por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`LicenseFormDialog` + `license-import.ts`).
-- [ ] Conectar las consultas y mutaciones de licencias con los servicios del backend.
+- [x] Conectar las consultas y mutaciones de licencias con los servicios del backend.
+- [x] Consumir la vista como cliente del backend: `listarTodasLasLicencias` (iteración de páginas) con filtrado/paginación en cliente sobre `FacetedFilter`, y CRUD con `crearLicencia`/`actualizarLicencia`/`desactivarLicencia` + refetch.
+- [x] Mostrar la clave de forma enmascarada, ya que la API **nunca** devuelve la clave (solo `tieneClave`); se retiraron las acciones de revelar/copiar.
+- [x] Resolver el usuario asignado con la lista real de usuarios (`usuario.service.ts`), sustituyendo los IDs mock (`ADMIN`/`TECH-01`/`TECH-02`) en el `LicenseFormDialog`.
+- [x] Implementar la baja lógica (`DELETE` → `activa=false`) con `ConfirmDeleteDialog` y la **reactivación** de licencias inactivas (`PATCH { activa: true }`); las inactivas quedan en solo lectura.
+- [x] Conectar la importación masiva CSV mediante POST secuenciales (`license-import.ts` + loop de `crearLicencia`), con resumen de éxitos y errores.
 
 ---
 
@@ -447,6 +453,7 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 - [x] Integrar recordatorios de vencimiento de licencias en la misma bandeja, con deduplicación Socket.IO/REST y control de permiso `notificaciones:leer`.
 - [x] Desarrollar la store global de preferencias (`useAppPreferences`) para tema, densidad de tablas y notificaciones.
 - [x] Crear un cliente HTTP Axios centralizado con interceptores automáticos para inyección de token JWT y captura unificada de errores (401, 403, 500).
+- [x] Crear el servicio compartido `usuario.service.ts` (`listarUsuarios`/`listarTodosLosUsuarios`, tipo `UsuarioLista`) para poblar selectores de usuario en los módulos (licencias: campo "Asignado A").
 - [ ] Estandarizar el uso de Zustand para evitar duplicación de estado y renderizados innecesarios.
 - [ ] Definir hooks personalizados de consulta (`useInventory`, `useTickets`, `useProjects`) con control de caché local y revalidación.
 

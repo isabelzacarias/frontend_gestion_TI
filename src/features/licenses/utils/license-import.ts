@@ -41,20 +41,15 @@ const datePattern = /^\d{4}-\d{2}-\d{2}$/
 function parseAssignee(value: string): string {
   const normalized = normalizeCsvHeader(value)
 
-  if (normalized === "" || normalized === "sinasignar" || normalized === "ninguno") {
+  if (
+    normalized === "" ||
+    normalized === "sinasignar" ||
+    normalized === "ninguno"
+  ) {
     return ""
   }
-  if (normalized === "admin" || normalized === "administrador") return "ADMIN"
-  if (normalized === "tech01" || normalized === "carlosramirez" || normalized === "carlos") {
-    return "TECH-01"
-  }
-  if (normalized === "tech02" || normalized === "danielvaldes" || normalized === "daniel") {
-    return "TECH-02"
-  }
 
-  throw new Error(
-    `Asignado a no válido: ${value}. Usa ADMIN, TECH-01, TECH-02 o déjalo vacío.`,
-  )
+  return value.trim()
 }
 
 function parseActive(value: string): boolean {
