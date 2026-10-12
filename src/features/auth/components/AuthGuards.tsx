@@ -35,7 +35,7 @@ function LoginRoute() {
 
   if (status === "loading") return <AuthLoading />
   if (token && status === "authenticated") {
-    return <Navigate to="/tickets" replace />
+    return <Navigate to="/" replace />
   }
 
   return <LoginPage />

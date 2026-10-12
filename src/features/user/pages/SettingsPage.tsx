@@ -11,6 +11,7 @@ import {
 import type { HomeRoute } from "@/preferences/app-preferences"
 
 const homeRouteOptions: { value: HomeRoute; label: string }[] = [
+  { value: "/home", label: "Home" },
   { value: "/tickets", label: "Tickets" },
   { value: "/kanban", label: "Tablero Kanban" },
   { value: "/inventory", label: "Inventario" },

@@ -68,7 +68,7 @@ function LoginPage() {
     try {
       await iniciarSesion(email, password, rememberMe)
       toast.success("Sesión iniciada correctamente.")
-      navigate("/tickets", { replace: true })
+      navigate("/", { replace: true })
     } catch (error) {
       const message = getLoginErrorMessage(error)
       setError(message)

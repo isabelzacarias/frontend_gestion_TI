@@ -1,21 +1,21 @@
 import { useState } from "react"
 import {
+  BookText,
   Boxes,
   ChartBar,
+  ClipboardClock,
   FolderKanban,
   Home,
   KeyRound,
+  Laptop,
   Lock,
-  LogOut,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
-  SquareKanban,
   Ticket,
+  Wrench,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "cn"
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router"
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -42,14 +42,18 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { to: "/", label: "Home", icon: Home },
+  { to: "/home", label: "Home", icon: Home },
   { to: "/tickets", label: "Tickets", icon: Ticket },
-  { to: "/kanban", label: "Tablero Kanban", icon: SquareKanban },
   { to: "/inventory", label: "Inventario", icon: Boxes },
   { to: "/licenses", label: "Licencias", icon: KeyRound },
   { to: "/projects", label: "Proyectos", icon: FolderKanban },
   { to: "/reports", label: "Reportes", icon: ChartBar },
   { to: "/passwords", label: "Contraseñas", icon: Lock },
+  { to: "/assignments", label: "Asignacion de Equipo", icon: Laptop },
+  { to: "/maintenance", label: "Mantenimiento", icon: Wrench },
+  { to: "/audit", label: "Auditoría", icon: BookText },
+  { to: "/reminder", label: "Recordatorio", icon: ClipboardClock},
+  { to: "/user", label: "Usuarios", icon: BookText },
 ]
 
 function navLinkClassName({
@@ -61,7 +65,7 @@ function navLinkClassName({
 }) {
   if (collapsed) {
     return cn(
-      "relative flex h-12 w-full items-center justify-center text-sm transition-colors",
+      "relative flex h-10 w-full items-center justify-center text-sm transition-colors",
       isActive
         ? "bg-[#2a124b] text-white before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--accent-500)]"
         : "text-white/70 hover:bg-white/5 hover:text-white"
@@ -69,7 +73,7 @@ function navLinkClassName({
   }
 
   return cn(
-    "relative flex w-full items-center gap-3 px-6 py-3 text-sm font-medium transition-colors",
+    "relative flex w-full items-center gap-3 px-6 py-2.5 text-sm font-medium transition-colors",
     isActive
       ? "bg-[#2a124b] text-white before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--accent-500)]"
       : "text-white/70 hover:bg-white/5 hover:text-white",
@@ -102,11 +106,11 @@ function AppLayout() {
   }
 
   return (
-    <div className="relative flex min-h-screen bg-background text-foreground">
+    <div className="relative flex h-dvh bg-background text-foreground">
       <aside
         aria-label="Navegación principal"
         className={cn(
-          "hidden shrink-0 flex-col border-r border-[#2a124b] bg-[#07020d] text-white transition-[width] duration-200 ease-in-out md:flex",
+          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-[#2a124b] bg-[#07020d] text-white transition-[width] duration-200 ease-in-out md:flex",
           colapsado ? "w-16" : "w-[15.5rem]",
         )}
       >
@@ -116,21 +120,31 @@ function AppLayout() {
             colapsado ? "justify-center px-3" : "px-6",
           )}
         >
-          {colapsado ? (
-            <img
-              src={logoIcono}
-              alt="HO"
-              className="h-8 w-8 object-contain"
-            />
-          ) : (
-            <img
-              src={logoCompleto}
-              alt="Horbis Group"
-              className="h-10 w-auto max-w-full object-contain object-left"
-            />
-          )}
+          <Link
+            to="/"
+            aria-label="Ir al inicio"
+            title="Ir al inicio"
+            className="flex h-full items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#07020d]"
+          >
+            {colapsado ? (
+              <img
+                src={logoIcono}
+                alt=""
+                className="h-8 w-8 object-contain"
+              />
+            ) : (
+              <img
+                src={logoCompleto}
+                alt=""
+                className="h-10 w-auto max-w-full object-contain object-left"
+              />
+            )}
+          </Link>
         </div>
-        <nav id="primary-sidebar-navigation" className="flex flex-1 flex-col py-3">
+        <nav
+          id="primary-sidebar-navigation"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto py-3"
+        >
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -146,25 +160,8 @@ function AppLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-[#2a124b] p-3">
-          <div className="mb-2 flex justify-center">
-            <ProfileMenu collapsed={colapsado} />
-          </div>
-          <div className="mb-1">
-            <ThemeToggle compact={colapsado} />
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
-            aria-label={colapsado ? "Cerrar sesión" : undefined}
-            title={colapsado ? "Cerrar sesión" : undefined}
-            onClick={requestLogout}
-          >
-            <LogOut className="size-4" />
-            {!colapsado && "Cerrar sesión"}
-          </Button>
+        <div className="border-t border-[#2a124b] p-1.5">
+          <ProfileMenu collapsed={colapsado} onLogout={requestLogout} />
         </div>
       </aside>
 
@@ -244,7 +241,7 @@ function AppLayout() {
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col p-6">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
           <Outlet />
         </main>
       </div>

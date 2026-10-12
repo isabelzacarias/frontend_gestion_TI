@@ -1,9 +1,10 @@
 import { Navigate } from "react-router"
 
-import { readAppPreferences } from "@/preferences/app-preferences"
+import { useAppPreferences } from "@/hooks/useAppPreferences"
 
 function HomeRedirect() {
-  return <Navigate to={readAppPreferences().homeRoute} replace />
+  const { preferences } = useAppPreferences()
+  return <Navigate to={preferences.homeRoute} replace />
 }
 
 export default HomeRedirect
