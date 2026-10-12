@@ -1,4 +1,4 @@
-import { KeyRound, Settings, User } from "lucide-react"
+import { KeyRound, LogOut, Moon, Settings, Sun, User } from "lucide-react"
 import { useNavigate } from "react-router"
 
 import {
@@ -9,19 +9,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/store/authStore"
 
 interface ProfileMenuProps {
   collapsed: boolean
+  onLogout: () => void
 }
 
-function ProfileMenu({ collapsed }: ProfileMenuProps) {
+function ProfileMenu({ collapsed, onLogout }: ProfileMenuProps) {
   const navigate = useNavigate()
   const usuario = useAuthStore((state) => state.usuario)
+  const { theme, toggleTheme } = useTheme()
 
   if (!usuario) return null
 
   const inicial = usuario.nombre.trim().charAt(0).toUpperCase()
+  const nextTheme = theme === "dark" ? "light" : "dark"
+  const ThemeIcon = nextTheme === "dark" ? Moon : Sun
 
   return (
     <DropdownMenu>
@@ -39,7 +44,7 @@ function ProfileMenu({ collapsed }: ProfileMenuProps) {
           <button
             type="button"
             aria-label="Abrir menú de usuario"
-            className="mb-2 w-full truncate rounded-lg px-3 py-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
+            className="w-full truncate rounded-lg px-3 py-1.5 text-left transition-colors hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
           >
             <p className="truncate text-sm font-medium">{usuario.nombre}</p>
             <p className="truncate text-xs text-sidebar-foreground/70">
@@ -69,6 +74,18 @@ function ProfileMenu({ collapsed }: ProfileMenuProps) {
         <DropdownMenuItem onSelect={() => navigate("/cambiar-password")}>
           <KeyRound />
           Cambiar contraseña
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => toggleTheme()}>
+          <ThemeIcon />
+          Modo {nextTheme === "dark" ? "oscuro" : "claro"}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          variant="destructive"
+          onSelect={() => onLogout()}
+        >
+          <LogOut />
+          Cerrar sesión
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

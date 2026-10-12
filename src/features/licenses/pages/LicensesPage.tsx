@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import {
   ArrowUpDown,
-  ChevronDown,
+  CircleDot,
   Copy,
   Eye,
   EyeOff,
@@ -11,6 +11,7 @@ import {
   Search,
   ShieldCheck,
   UserCheck,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,9 +21,15 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
+import { FacetedFilter } from "@/components/ui/faceted-filter"
+import type {
+  FacetDimension,
+  FacetSelections,
+} from "@/components/ui/faceted-filter"
 import { LicenseFormDialog } from "@/features/licenses/components/LicenseFormDialog"
 import { sampleLicenses } from "@/features/licenses/data/licensesData"
 import type {
+  AsignadaA,
   License,
   LicenseFormDraft,
 } from "@/features/licenses/types/license"
@@ -64,15 +71,41 @@ const toLicenseDraft = (item: License): LicenseFormDraft => ({
 const ITEMS_PER_PAGE = 10
 const cellBase = "border-b border-border/70 px-4 py-3 text-foreground/90"
 
+const resolveAssignee = (id: string): AsignadaA | null => {
+  if (id === "ADMIN") {
+    return { id: "ADMIN", nombre: "Administrador", email: "admin@horbismex.com" }
+  }
+  if (id === "TECH-01") {
+    return { id: "TECH-01", nombre: "Carlos Ramírez", email: "carlos.ramirez@horbismex.com" }
+  }
+  if (id === "TECH-02") {
+    return { id: "TECH-02", nombre: "Daniel Valdés", email: "daniel.valdes@horbismex.com" }
+  }
+  return null
+}
+
+const createLicenseFromDraft = (draft: LicenseFormDraft, id: number): License => {
+  const tieneClave = Boolean(draft.clave && draft.clave.trim().length > 0)
+
+  return {
+    id,
+    software: draft.software.trim() || `Licencia #${id}`,
+    tieneClave,
+    clave: tieneClave ? draft.clave.trim() : null,
+    proveedor: draft.proveedor.trim() || null,
+    fechaCompra: draft.fechaCompra ? `${draft.fechaCompra}T00:00:00.000Z` : null,
+    fechaVencimiento: draft.fechaVencimiento ? `${draft.fechaVencimiento}T00:00:00.000Z` : null,
+    activa: String(draft.activa) === "true",
+    asignadaA: resolveAssignee(draft.asignadaAId),
+  }
+}
+
 function LicensesPage() {
   const [licenses, setLicenses] = useState<License[]>(sampleLicenses)
   const [search, setSearch] = useState("")
-  const [selectedActiva, setSelectedActiva] = useState<"ALL" | "true" | "false">("ALL")
-  const [selectedTieneClave, setSelectedTieneClave] = useState<"ALL" | "true" | "false">("ALL")
+  const [activaSeleccionada, setActivaSeleccionada] = useState<string[]>([])
+  const [claveSeleccionada, setClaveSeleccionada] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState(1)
-
-  // Visibilidad de claves secretas
-  const [visibleKeys, setVisibleKeys] = useState<Record<number, boolean>>({})
 
   // Modales
   const [selectedLicenseId, setSelectedLicenseId] = useState<number | null>(null)
@@ -80,6 +113,7 @@ function LicensesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
+  const [isDetailKeyVisible, setIsDetailKeyVisible] = useState(false)
   const [draft, setDraft] = useState<LicenseFormDraft>(createEmptyLicenseDraft())
 
   const selectedLicense = useMemo(
@@ -90,24 +124,89 @@ function LicensesPage() {
   // Filtrado de licencias
   const filteredLicenses = useMemo(() => {
     const term = search.trim().toLowerCase()
+    const hasTerm = term.length > 0
+    const idTerm = term.replace(/^#/, "")
+    // "#4" o "4" => búsqueda por ID; texto => nombre/proveedor/usuario
+    const isIdSearch = term.startsWith("#") || /^\d+$/.test(term)
+
     return licenses.filter((item) => {
       const matchSearch =
-        !term ||
-        item.id.toString().includes(term) ||
-        item.software.toLowerCase().includes(term) ||
-        (item.proveedor && item.proveedor.toLowerCase().includes(term)) ||
-        (item.asignadaA && item.asignadaA.nombre.toLowerCase().includes(term)) ||
-        (item.asignadaA && item.asignadaA.email.toLowerCase().includes(term))
+        !hasTerm ||
+        (isIdSearch
+          ? idTerm === "" || item.id.toString().includes(idTerm)
+          : item.software.toLowerCase().includes(term) ||
+            (item.proveedor?.toLowerCase().includes(term) ?? false) ||
+            (item.asignadaA?.nombre.toLowerCase().includes(term) ?? false) ||
+            (item.asignadaA?.email.toLowerCase().includes(term) ?? false))
 
       const matchActiva =
-        selectedActiva === "ALL" || String(item.activa) === selectedActiva
+        activaSeleccionada.length === 0 ||
+        activaSeleccionada.includes(String(item.activa))
 
       const matchTieneClave =
-        selectedTieneClave === "ALL" || String(item.tieneClave) === selectedTieneClave
+        claveSeleccionada.length === 0 ||
+        claveSeleccionada.includes(String(item.tieneClave))
 
       return matchSearch && matchActiva && matchTieneClave
     })
-  }, [licenses, search, selectedActiva, selectedTieneClave])
+  }, [licenses, search, activaSeleccionada, claveSeleccionada])
+
+  const hayFiltros =
+    activaSeleccionada.length > 0 ||
+    claveSeleccionada.length > 0 ||
+    search.trim() !== ""
+
+  const facetDimensions = useMemo<FacetDimension[]>(
+    () => [
+      {
+        id: "activa",
+        label: "Estado",
+        icon: CircleDot,
+        options: [
+          { value: "true", label: "Activas" },
+          { value: "false", label: "Inactivas" },
+        ],
+      },
+      {
+        id: "tieneClave",
+        label: "Clave",
+        icon: KeyRound,
+        options: [
+          { value: "true", label: "Con clave" },
+          { value: "false", label: "Sin clave" },
+        ],
+      },
+    ],
+    [],
+  )
+
+  const facetSelecciones = useMemo<FacetSelections>(
+    () => ({
+      activa: activaSeleccionada,
+      tieneClave: claveSeleccionada,
+    }),
+    [activaSeleccionada, claveSeleccionada],
+  )
+
+  function handleFacetChange(dimensionId: string, values: string[]) {
+    if (dimensionId === "activa") {
+      setActivaSeleccionada(values)
+    } else if (dimensionId === "tieneClave") {
+      setClaveSeleccionada(values)
+    }
+    setCurrentPage(1)
+  }
+
+  function borrarFacetas() {
+    setActivaSeleccionada([])
+    setClaveSeleccionada([])
+    setCurrentPage(1)
+  }
+
+  function limpiarFiltros() {
+    setSearch("")
+    borrarFacetas()
+  }
 
   const totalPages = Math.max(1, Math.ceil(filteredLicenses.length / ITEMS_PER_PAGE))
   const activePage = Math.min(currentPage, totalPages)
@@ -115,11 +214,6 @@ function LicensesPage() {
     const start = (activePage - 1) * ITEMS_PER_PAGE
     return filteredLicenses.slice(start, start + ITEMS_PER_PAGE)
   }, [filteredLicenses, activePage])
-
-  const toggleKeyVisibility = (id: number, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setVisibleKeys((prev) => ({ ...prev, [id]: !prev[id] }))
-  }
 
   const copyToClipboard = (text: string, label: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -150,32 +244,25 @@ function LicensesPage() {
   const handleCreateLicense = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const nextId = Math.max(...licenses.map((l) => l.id), 0) + 1
-    const tieneClave = Boolean(draft.clave && draft.clave.trim().length > 0)
-    
-    let asignadaAObj = null
-    if (draft.asignadaAId === "ADMIN") {
-      asignadaAObj = { id: "ADMIN", nombre: "Administrador", email: "admin@horbismex.com" }
-    } else if (draft.asignadaAId === "TECH-01") {
-      asignadaAObj = { id: "TECH-01", nombre: "Carlos Ramírez", email: "carlos.ramirez@horbismex.com" }
-    } else if (draft.asignadaAId === "TECH-02") {
-      asignadaAObj = { id: "TECH-02", nombre: "Daniel Valdés", email: "daniel.valdes@horbismex.com" }
-    }
-
-    const newLicense: License = {
-      id: nextId,
-      software: draft.software.trim() || `Licencia #${nextId}`,
-      tieneClave,
-      clave: tieneClave ? draft.clave.trim() : null,
-      proveedor: draft.proveedor.trim() || null,
-      fechaCompra: draft.fechaCompra ? `${draft.fechaCompra}T00:00:00.000Z` : null,
-      fechaVencimiento: draft.fechaVencimiento ? `${draft.fechaVencimiento}T00:00:00.000Z` : null,
-      activa: String(draft.activa) === "true",
-      asignadaA: asignadaAObj,
-    }
+    const newLicense = createLicenseFromDraft(draft, nextId)
 
     setLicenses((prev) => [newLicense, ...prev])
     setIsAddDialogOpen(false)
     toast.success(`Licencia "${newLicense.software}" creada exitosamente.`)
+  }
+
+  const handleImportLicenses = (records: LicenseFormDraft[]) => {
+    const idBase = Math.max(...licenses.map((l) => l.id), 0)
+    const importedLicenses = records.map((record, index) =>
+      createLicenseFromDraft(record, idBase + index + 1),
+    )
+
+    setLicenses((prev) => [...importedLicenses, ...prev])
+    setIsAddDialogOpen(false)
+    setCurrentPage(1)
+    toast.success(
+      `${importedLicenses.length} ${importedLicenses.length === 1 ? "licencia registrada" : "licencias registradas"} correctamente.`,
+    )
   }
 
   const handleUpdateLicense = (e: FormEvent<HTMLFormElement>) => {
@@ -183,15 +270,7 @@ function LicensesPage() {
     if (selectedLicenseId === null) return
 
     const tieneClave = Boolean(draft.clave && draft.clave.trim().length > 0)
-
-    let asignadaAObj = null
-    if (draft.asignadaAId === "ADMIN") {
-      asignadaAObj = { id: "ADMIN", nombre: "Administrador", email: "admin@horbismex.com" }
-    } else if (draft.asignadaAId === "TECH-01") {
-      asignadaAObj = { id: "TECH-01", nombre: "Carlos Ramírez", email: "carlos.ramirez@horbismex.com" }
-    } else if (draft.asignadaAId === "TECH-02") {
-      asignadaAObj = { id: "TECH-02", nombre: "Daniel Valdés", email: "daniel.valdes@horbismex.com" }
-    }
+    const asignadaAObj = resolveAssignee(draft.asignadaAId)
 
     setLicenses((prev) =>
       prev.map((item) =>
@@ -249,44 +328,21 @@ function LicensesPage() {
     {
       key: "tieneClave",
       header: "Clave Secret",
-      cellClassName: "border-b border-border/70 px-4 py-3 font-mono text-xs",
-      render: (item) => {
-        if (!item.tieneClave) {
-          return (
-            <Badge variant="outline" className="border-slate-400/30 bg-slate-400/10 text-slate-500 font-medium">
-              Sin Clave
-            </Badge>
-          )
-        }
-
-        const isVisible = visibleKeys[item.id]
-        const displayClave = item.clave ?? "BRUNO-SECRET-KEY-123"
-
-        return (
-          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold gap-1">
-              <KeyRound className="size-3" />
-              {isVisible ? displayClave : "••••-••••-••••"}
-            </Badge>
-            <button
-              type="button"
-              onClick={(e) => toggleKeyVisibility(item.id, e)}
-              className="p-1 text-muted-foreground hover:text-foreground rounded"
-              title={isVisible ? "Ocultar clave" : "Mostrar clave"}
-            >
-              {isVisible ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => copyToClipboard(displayClave, "Clave de licencia", e)}
-              className="p-1 text-muted-foreground hover:text-foreground rounded"
-              title="Copiar clave"
-            >
-              <Copy className="size-3.5" />
-            </button>
-          </div>
-        )
-      },
+      cellClassName: "border-b border-border/70 px-4 py-3",
+      render: (item) =>
+        item.tieneClave ? (
+          <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold gap-1">
+            <KeyRound className="size-3" />
+            Con clave
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="border-slate-400/30 bg-slate-400/10 text-slate-500 font-medium"
+          >
+            Sin clave
+          </Badge>
+        ),
     },
     {
       key: "proveedor",
@@ -358,27 +414,45 @@ function LicensesPage() {
             { key: "proveedor", label: "Proveedor", value: selectedLicense.proveedor ?? "No especificado" },
             {
               key: "tieneClave",
-              label: "Tiene Clave Secreta",
-              value: selectedLicense.tieneClave ? (
-                <div className="flex items-center gap-2">
-                  <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 font-semibold">
-                    Sí (Tiene Clave)
-                  </Badge>
-                  {selectedLicense.clave && (
+              label: "Clave Secreta",
+              value:
+                selectedLicense.tieneClave && selectedLicense.clave ? (
+                  <div className="flex min-h-8 items-center gap-2">
+                    <span className="break-all py-1 font-mono text-sm text-foreground">
+                      {isDetailKeyVisible ? selectedLicense.clave : "••••-••••-••••"}
+                    </span>
                     <button
                       type="button"
-                      onClick={(e) => copyToClipboard(selectedLicense.clave!, "Clave de licencia", e)}
-                      className="p-1 text-primary hover:underline text-xs flex items-center gap-1"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={isDetailKeyVisible ? "Ocultar clave" : "Mostrar clave"}
+                      aria-pressed={isDetailKeyVisible}
+                      onClick={() => setIsDetailKeyVisible((current) => !current)}
                     >
-                      <Copy className="size-3" /> Copiar Clave
+                      {isDetailKeyVisible ? (
+                        <EyeOff aria-hidden="true" className="size-4" />
+                      ) : (
+                        <Eye aria-hidden="true" className="size-4" />
+                      )}
                     </button>
-                  )}
-                </div>
-              ) : (
-                <Badge variant="outline" className="border-slate-400/30 bg-slate-400/10 text-slate-500">
-                  No (Sin Clave)
-                </Badge>
-              ),
+                    <button
+                      type="button"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="Copiar clave"
+                      onClick={(e) =>
+                        copyToClipboard(selectedLicense.clave!, "Clave de licencia", e)
+                      }
+                    >
+                      <Copy aria-hidden="true" className="size-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="border-slate-400/30 bg-slate-400/10 text-slate-500"
+                  >
+                    Sin clave
+                  </Badge>
+                ),
             },
           ],
         },
@@ -423,7 +497,7 @@ function LicensesPage() {
     : []
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <ModuleHeader
         eyebrow="Inventario de Software"
         title="Gestión de Licencias"
@@ -444,7 +518,7 @@ function LicensesPage() {
               <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar por software, proveedor, usuario o ID..."
+                placeholder="Buscar por software, proveedor, usuario o ID (ej. 4 o #4)..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value)
@@ -454,45 +528,32 @@ function LicensesPage() {
               />
             </div>
 
-            {/* Filtro por Estado (Activa / Inactiva) */}
-            <div className="relative">
-              <select
-                value={selectedActiva}
-                onChange={(e) => {
-                  setSelectedActiva(e.target.value as "ALL" | "true" | "false")
-                  setCurrentPage(1)
-                }}
-                className="h-10 appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors shadow-sm cursor-pointer"
-              >
-                <option value="ALL">Todos los Estados</option>
-                <option value="true">Activas</option>
-                <option value="false">Inactivas</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            </div>
+            <FacetedFilter
+              dimensions={facetDimensions}
+              selections={facetSelecciones}
+              onChange={handleFacetChange}
+              onClearAll={borrarFacetas}
+            />
 
-            {/* Filtro por Tiene Clave */}
-            <div className="relative">
-              <select
-                value={selectedTieneClave}
-                onChange={(e) => {
-                  setSelectedTieneClave(e.target.value as "ALL" | "true" | "false")
-                  setCurrentPage(1)
-                }}
-                className="h-10 appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors shadow-sm cursor-pointer"
+            {hayFiltros && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limpiarFiltros}
+                className="text-muted-foreground"
               >
-                <option value="ALL">Todas las licencias</option>
-                <option value="true">Con Clave</option>
-                <option value="false">Sin Clave</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            </div>
+                <X />
+                Borrar filtros
+              </Button>
+            )}
           </div>
         }
         summary={
           <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
             <ArrowUpDown className="size-3.5 text-violet-700 dark:text-violet-200" />
-            {filteredLicenses.length} licencias registradas
+            {hayFiltros
+              ? `${filteredLicenses.length} de ${licenses.length} licencias`
+              : `${filteredLicenses.length} licencias registradas`}
           </span>
         }
       />
@@ -520,7 +581,10 @@ function LicensesPage() {
       {selectedLicense && (
         <DetailDialog
           open={isDetailDialogOpen}
-          onOpenChange={setIsDetailDialogOpen}
+          onOpenChange={(open) => {
+            setIsDetailDialogOpen(open)
+            if (!open) setIsDetailKeyVisible(false)
+          }}
           title={selectedLicense.software}
           description={`Detalle de la licencia #${selectedLicense.id}`}
           icon={<KeyRound className="size-6 text-white" />}
@@ -537,6 +601,7 @@ function LicensesPage() {
         onOpenChange={setIsAddDialogOpen}
         onChange={handleDraftChange}
         onSubmit={handleCreateLicense}
+        onImport={handleImportLicenses}
       />
 
       {/* Modal de Edición */}
