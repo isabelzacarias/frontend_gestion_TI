@@ -25,19 +25,19 @@ export interface FacetDimension {
 
 export type FacetSelections = Record<string, string[]>
 
-export interface KanbanFacetedFilterProps {
+export interface FacetedFilterProps {
   dimensions: FacetDimension[]
   selections: FacetSelections
   onChange: (dimensionId: string, values: string[]) => void
   onClearAll: () => void
 }
 
-export function KanbanFacetedFilter({
+export function FacetedFilter({
   dimensions,
   selections,
   onChange,
   onClearAll,
-}: KanbanFacetedFilterProps) {
+}: FacetedFilterProps) {
   const [open, setOpen] = React.useState(false)
   const [activeDimensionId, setActiveDimensionId] = React.useState(
     () => dimensions[0]?.id ?? ""

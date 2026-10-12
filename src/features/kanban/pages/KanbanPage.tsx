@@ -7,12 +7,12 @@ import { toast } from "sonner"
 import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { KanbanFacetedFilter } from "@/features/kanban/components/KanbanFacetedFilter"
+import { FacetedFilter } from "@/components/ui/faceted-filter"
 import type {
   FacetDimension,
   FacetOption,
   FacetSelections,
-} from "@/features/kanban/components/KanbanFacetedFilter"
+} from "@/components/ui/faceted-filter"
 import { useIncidenciasSyncStore } from "@/features/kanban/store/incidenciasSyncStore"
 import {
   PRIORIDADES,
@@ -449,7 +449,7 @@ function KanbanPage() {
               />
             </div>
 
-            <KanbanFacetedFilter
+            <FacetedFilter
               dimensions={facetDimensions}
               selections={facetSelecciones}
               onChange={handleFacetChange}
