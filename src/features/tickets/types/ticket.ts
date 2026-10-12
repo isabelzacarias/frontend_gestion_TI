@@ -38,6 +38,7 @@ export interface Ticket {
   tipoRequerimiento: TipoRequerimiento
   fechaNotificacion: string
   fechaResolucion: string | null
+  orden: number
   solicitante: UsuarioResumen
   asignadoA: UsuarioResumen | null
   departamento: DepartamentoResumen | null

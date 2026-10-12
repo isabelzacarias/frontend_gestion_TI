@@ -29,6 +29,14 @@ export interface LicenseNotification {
   creadaEn: string
 }
 
+export interface IncidentStatusChange {
+  id: string
+  titulo: string
+  estadoAnterior: string
+  estado: string
+  fechaCambio: string
+}
+
 interface PersistedNotificationBase {
   id: string
   creadaEn: string

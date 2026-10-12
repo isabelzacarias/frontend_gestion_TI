@@ -332,13 +332,13 @@ El frontend ya envía `q` y `tipoRequerimiento`, pero **el backend hoy los ignor
 
 - [x] Diseñar y construir la estructura del tablero visual distribuido por columnas de estado.
 - [x] Conectar las tarjetas del tablero con la base de datos real de tickets (solo lectura): las columnas se agrupan por `estado` desde `GET /api/incidencias` (paginado, vía `listarTodosLosTickets`); cada tarjeta muestra `#id`, título, tipo de requerimiento, prioridad y responsable (iniciales de `asignadoA` o "Sin asignar"). Se muestran las 4 prioridades del backend (Baja, Normal, Alta, Crítica). Estados de carga, error y vacío incluidos.
-- [ ] Implementar el Drag and Drop para cambiar el estado desde el tablero; requiere `PATCH /api/incidencias/:id/estado` en el backend (ver §5). Nota: el arrastre existente usa HTML5 nativo, no `@hello-pangea/dnd`; el orden dentro de una columna no es persistible porque el backend no tiene campo de orden (ordena por `fechaNotificacion desc, id desc`).
+- [x] Implementar el Drag and Drop para cambiar el estado y reordenar dentro de la columna con `@hello-pangea/dnd`, persistiendo con `PATCH /api/incidencias/:id/estado` (permiso `incidencias:editar`), que ahora acepta `estado` y `orden` (posición 0-based en la columna destino). El backend tiene el campo `Incidencia.orden` por columna (migración `add_orden_incidencia`) y reindexa origen/destino en una transacción.
 - [ ] Optimizar la gestión de estado local con persistencia y sincronización inmediata frente a caídas de red.
-- [ ] Incorporar indicadores sutiles de carga mientras se actualiza la posición de una tarjeta en el servidor.
-- [ ] Implementar la sincronización en tiempo real de movimientos y modificaciones mediante WebSockets (`socket.io-client`).
+- [x] Incorporar indicadores sutiles de carga mientras se actualiza la posición de una tarjeta en el servidor (opacidad + `aria-busy` + arrastre deshabilitado por tarjeta mientras hay una mutación en curso).
+- [x] Implementar la sincronización en tiempo real de movimientos y modificaciones mediante WebSockets (`socket.io-client`), escuchando `incidencias:estado-cambiado` desde la conexión única de notificaciones.
 - [ ] Agregar buscador rápido por título/código y filtros directos por prioridad y asignado sobre el tablero.
 - [ ] Optimizar el comportamiento táctil y responsivo del Drag and Drop en dispositivos móviles y tablets.
-- [ ] Implementar rollback visual con mensaje de error si una actualización de estado falla en el backend.
+- [x] Implementar rollback visual con mensaje de error si una actualización de estado falla en el backend (update optimista + reversión + `toast.error`).
 
 ---
 

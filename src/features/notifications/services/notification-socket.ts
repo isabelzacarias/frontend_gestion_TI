@@ -3,6 +3,7 @@ import type { Socket } from "socket.io-client"
 
 import type {
   IncidentNotification,
+  IncidentStatusChange,
   LicenseNotification,
 } from "@/features/notifications/types/notification"
 
@@ -12,6 +13,7 @@ interface NotificationSocketHandlers {
   onConnectError: (message: string) => void
   onNewIncident: (notification: IncidentNotification) => void
   onLicenseExpiring: (notification: LicenseNotification) => void
+  onIncidentStatusChanged: (change: IncidentStatusChange) => void
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -104,6 +106,39 @@ function parseLicenseNotification(
   }
 }
 
+function parseIncidentStatusChange(
+  value: unknown,
+): IncidentStatusChange | null {
+  if (
+    !isRecord(value) ||
+    !(
+      (typeof value.id === "string" && value.id.trim().length > 0) ||
+      (typeof value.id === "number" && Number.isFinite(value.id))
+    ) ||
+    typeof value.titulo !== "string" ||
+    value.titulo.trim().length === 0 ||
+    typeof value.estadoAnterior !== "string" ||
+    value.estadoAnterior.trim().length === 0 ||
+    typeof value.estado !== "string" ||
+    value.estado.trim().length === 0 ||
+    typeof value.fechaCambio !== "string" ||
+    !Number.isFinite(Date.parse(value.fechaCambio))
+  ) {
+    console.error(
+      "Se recibió un cambio de estado de incidencia con un formato inválido.",
+    )
+    return null
+  }
+
+  return {
+    id: String(value.id),
+    titulo: value.titulo,
+    estadoAnterior: value.estadoAnterior,
+    estado: value.estado,
+    fechaCambio: value.fechaCambio,
+  }
+}
+
 function getSocketUrl(): string {
   if (import.meta.env.VITE_SOCKET_URL) {
     return import.meta.env.VITE_SOCKET_URL
@@ -148,12 +183,20 @@ export function connectNotificationSocket(
     }
   }
 
+  function handleIncidentStatusChanged(value: unknown) {
+    const change = parseIncidentStatusChange(value)
+    if (change) {
+      handlers.onIncidentStatusChanged(change)
+    }
+  }
+
   socket.on("connect", handlers.onConnect)
   socket.on("disconnect", handleDisconnect)
   socket.on("connect_error", (error) => {
     handlers.onConnectError(error.message)
   })
   socket.on("incidencias:nueva", handleNewIncident)
+  socket.on("incidencias:estado-cambiado", handleIncidentStatusChanged)
   socket.on("licencias:por-vencer", handleLicenseExpiring)
   socket.connect()
 
@@ -162,6 +205,7 @@ export function connectNotificationSocket(
     socket.off("disconnect", handleDisconnect)
     socket.off("connect_error")
     socket.off("incidencias:nueva", handleNewIncident)
+    socket.off("incidencias:estado-cambiado", handleIncidentStatusChanged)
     socket.off("licencias:por-vencer", handleLicenseExpiring)
     socket.disconnect()
   }
