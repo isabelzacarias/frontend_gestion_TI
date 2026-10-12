@@ -3,6 +3,7 @@ import { toast } from "sonner"
 
 import { connectNotificationSocket } from "@/features/notifications/services/notification-socket"
 import { useNotificationsStore } from "@/features/notifications/store/notificationsStore"
+import { useIncidenciasSyncStore } from "@/features/kanban/store/incidenciasSyncStore"
 import { useAuthStore } from "@/store/authStore"
 
 function NotificationsSocketManager() {
@@ -66,6 +67,9 @@ function NotificationsSocketManager() {
               description: notification.software,
             })
           }
+        },
+        onIncidentStatusChanged(change) {
+          useIncidenciasSyncStore.getState().publishChange(change)
         },
       })
     } catch (error) {

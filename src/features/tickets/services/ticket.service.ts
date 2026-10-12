@@ -8,6 +8,7 @@ import type {
   RespuestaPaginada,
   Ticket,
   TicketDetalle,
+  TicketEstado,
 } from "@/features/tickets/types/ticket"
 
 export class TicketApiError extends Error {
@@ -117,6 +118,31 @@ export async function listarTodosLosTickets(
   }
 
   return tickets
+}
+
+export async function actualizarEstadoTicket(
+  id: number,
+  estado: TicketEstado,
+  orden?: number,
+): Promise<Ticket> {
+  try {
+    const response = await api.patch<RespuestaApi<Ticket>>(
+      `/incidencias/${id}/estado`,
+      orden === undefined ? { estado } : { estado, orden },
+    )
+
+    if (!response.data.success || !response.data.data) {
+      throw new TicketApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toTicketApiError(error)
+  }
 }
 
 export async function obtenerTicket(id: number): Promise<TicketDetalle> {
