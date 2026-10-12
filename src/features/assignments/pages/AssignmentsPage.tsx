@@ -172,6 +172,13 @@ function AssignmentsPage() {
             nombre: usuario.nombre,
             email: usuario.email,
             activo: true,
+            fechaInicio: null,
+            fechaFin: null,
+            departamento: null,
+            ubicacion: null,
+            puesto: null,
+            tipoUsuario: null,
+            rol: null,
           },
         ]
       }
