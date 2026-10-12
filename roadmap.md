@@ -332,7 +332,14 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Implementar badges cromáticos para estados operativos (Activo, Mantenimiento, Baja) y condiciones físicas (Excelente, Bueno, Regular, Malo).
 - [ ] Conectar las operaciones CRUD del inventario con la API REST del backend de gestión de TI.
 - [x] Integrar validaciones de datos requeridos y notificaciones toast de éxito o error al guardar/eliminar.
+<<<<<<< Updated upstream
 - [x] Importacion masiva de activos: flujo en dos fases (`validar` -> `confirmar`) contra `/api/activos/importaciones/*`, con importacion **parcial** (crea las filas validas y rechaza el resto sin abortar). El frontend parsea localmente la plantilla `plantilla_registro_activos.csv` (BOM UTF-8, delimitador `;`, encabezados acentuados, campos entre comillas, limite de 500 registros) y conserva la fila de origen. Los datos **no guardados** (filas con `errores`) se muestran por fila en `ImportResultDialog` y se pueden **descargar como CSV** (`activos_rechazados_<timestamp>.csv`, re-importable); las **advertencias** no bloquean. Ver el patron completo en la seccion "Importaciones masivas".
+=======
+- [x] Importacion masiva: el frontend lee y parsea localmente la plantilla `plantilla_registro_activos.csv` y envía las filas como JSON; el archivo no se sube ni se almacena en el backend. El parser del frontend soporta BOM UTF-8, delimitador `;`, encabezados acentuados, campos entre comillas, límite de 500 registros y conserva la fila de origen para reportar resultados.
+- [x] Validar la persistencia de datos y el refresco reactivo de la tabla tras cada mutación.
+- [x] Integrar registro masivo de activos por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`AssetFormDialog` + `asset-import.ts`).
+- [x] Exportación CSV del inventario filtrado (todos los registros que cumplen búsqueda y filtros, no solo la página), con valores de estado legibles (`asset-export.ts` + `listarTodosLosActivos`).
+>>>>>>> Stashed changes
 
 ---
 
@@ -438,7 +445,126 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 
 ---
 
+<<<<<<< Updated upstream
 ## 16. Backlog de Mejoras Futuras
+=======
+## 16. Registro Masivo de Datos mediante Plantillas CSV/Excel
+
+Estandariza la carga masiva de registros en los módulos del sistema. La plantilla se genera y descarga en formato CSV codificado en UTF-8 con BOM y separador `;`, de modo que Excel la abra correctamente en español.
+
+### Componentes y utilidades base
+
+- `ImportConfirmDialog` (`src/components/ui/import-confirm-dialog.tsx`): diálogo obligatorio de confirmación que muestra el conteo de registros detectados y el mensaje correspondiente cuando el archivo llega vacío.
+- `src/lib/csv.ts`: utilidades compartidas `normalizeCsvHeader`, `parseCsvRows`, `detectCsvDelimiter` y `downloadCsvTemplate`.
+- **Convención por módulo:** una utilidad `{modulo}-import.ts` en `features/{modulo}/utils/` que define los encabezados de la plantilla, valida cada fila (con mensajes del tipo `Fila N: ...`) y expone `downloadXxxCsvTemplate()` y `parseXxxCsv(content)`.
+- **Patrón UI:** en el formulario de creación (`FormDialog`), el bloque superior (`formActions`) incluye los botones **Descargar plantilla de registro** e **Importar**; al elegir un `.csv` se previsualiza el lote y se confirma con `ImportConfirmDialog` antes de registrarlo.
+
+### Tareas y estado
+
+- [x] Definir utilidades CSV compartidas (`src/lib/csv.ts`) y el componente `ImportConfirmDialog`.
+- [x] Implementar registro masivo en Inventario (`AssetFormDialog` + `asset-import.ts`).
+- [x] Implementar registro masivo en Contraseñas (`CredentialDialog` + `credential-import.ts`).
+- [x] Implementar registro masivo en Licencias (`LicenseFormDialog` + `license-import.ts`).
+- [x] Implementar registro masivo en Asignaciones (`AssignmentFormDialog` + `assignment-import.ts`).
+- [ ] Extender el registro masivo a Tickets y Proyectos cuando se construyan sus formularios.
+- [ ] Añadir detección de duplicados y resumen de errores por fila antes de confirmar el lote.
+- [ ] Evaluar soporte nativo de archivos `.xlsx` (además del CSV compatible con Excel).
+
+---
+
+## Patrón: Exportación de Listados Filtrados (CSV)
+
+Permite descargar en CSV **todos los registros que cumplen los filtros actuales** de un listado (`DataTable`), no solo la página visible. Es el complemento de la sección 16 (Registro Masivo) y es **obligatorio** para los nuevos módulos con listado.
+
+### Reglas
+
+- **Alcance:** respeta siempre los filtros aplicados (búsqueda + selects). Sin filtros, exporta todo el recurso.
+- **100% frontend:** se pagina el endpoint de listado en el cliente y se arma el CSV en el navegador; **no requiere endpoint de exportación** salvo volúmenes muy grandes (ahí sí convendría `GET /<recurso>/export`).
+- **Formato:** CSV UTF-8 con BOM y separador `;` (abre directo en Excel y es compatible con el flujo de importación).
+
+### Utilidades y patrón por módulo
+
+- `src/lib/csv.ts`: `downloadCsv(headers, rows, fileName)` (con escaping de `;`, comillas y saltos de línea).
+- **Convención por módulo:** una utilidad `{modulo}-export.ts` en `features/{modulo}/utils/` que expone los encabezados (`XXX_EXPORT_HEADERS`), el mapeo `xxxToExportRows(items)` y `exportXxxToCsv(items, fileName?)` (nombre por defecto `{recurso}_<YYYYMMDD_HHmmss>.csv`).
+- **Servicio:** un helper `listarTodosLosXxx(filtros)` que pagina el endpoint de listado con `limit` máximo permitido (`100`) hasta cubrir `meta.totalPages`, con tope de seguridad de páginas.
+
+### Contenido y presentación
+
+- **Columnas:** las mismas de la tabla más los campos extra del `DetailDialog` (en Inventario se añaden `Clave` y `Correo responsable`).
+- **Valores:** los enums se exportan como **etiquetas legibles** (ej. `EN_USO` -> "En uso"); los `null`/vacíos como cadena vacía.
+- **Botón `Exportar`** en el `ModuleHeader`: deshabilitado mientras carga o durante la exportación (texto "Exportando..."), con `toast` de éxito (con conteo) e `info` cuando no hay registros.
+
+### Tareas y estado
+
+- [x] Implementar exportación CSV en Inventario (`asset-export.ts` + `listarTodosLosActivos`), respetando filtros y con estados legibles.
+- [ ] Extender la exportación CSV a Tickets, Licencias, Contraseñas y Asignaciones.
+- [ ] Evaluar exportación nativa a `.xlsx` y PDF (ver sección 18).
+
+---
+
+## 17. Módulo de Asignaciones de Equipo
+
+Módulo responsable de registrar la entrega y devolución de activos tecnológicos a colaboradores.
+
+- [x] Definir el modelo de datos de asignaciones y los catálogos de activos/usuarios.
+- [x] Implementar el listado con `DataTable`, búsqueda por ID, equipo o usuario y filtro Activas/Devueltas.
+- [x] Consultar el detalle con `DetailDialog` y editar con `AssignmentFormDialog`.
+- [x] Implementar el alta de asignaciones con selección de activo y usuario.
+- [x] Implementar la devolución (cambio de estado Activa → Devuelta) con confirmación.
+- [x] Integrar eliminación con `ConfirmDeleteDialog`.
+- [x] Añadir registro masivo por plantilla CSV/Excel.
+- [ ] Conectar el módulo con la API REST (`GET /api/asignaciones`, devoluciones y asignación por activo).
+- [ ] Sincronizar el estado del activo (En uso / En almacén) con Inventario al asignar o devolver.
+- [ ] Registrar trazabilidad de entrega/devolución con evidencias y firmas.
+
+---
+
+## 18. Módulo de Reportes e Indicadores Analíticos
+
+- [ ] Diseñar la pantalla de reportes con filtros por rango de fechas, sucursal, tipo de activo y estado.
+- [ ] Implementar exportación a PDF y CSV/Excel respetando los filtros aplicados.
+- [ ] Desarrollar reportes de inventario, asignaciones, licencias por vencer y tickets por periodo.
+- [ ] Incorporar gráficas comparativas (histórico mensual) reutilizando la integración de Chart.js.
+- [ ] Definir plantillas de reporte programables y envío automático por correo.
+- [ ] Conectar los reportes con los endpoints del backend.
+
+---
+
+## 19. Módulo de Auditoría y Trazabilidad
+
+- [ ] Diseñar la bitácora de eventos (quién, qué, cuándo, desde qué IP) con `DataTable`.
+- [ ] Implementar filtros por usuario, módulo, tipo de acción y rango de fechas.
+- [ ] Registrar automáticamente altas, ediciones, eliminaciones e importaciones masivas.
+- [ ] Consultar el detalle de cada evento con `DetailDialog` (valores anteriores y nuevos).
+- [ ] Definir políticas de retención y exportación de la bitácora.
+- [ ] Conectar la auditoría con el backend y validar permisos de solo lectura.
+
+---
+
+## 20. Módulo de Recordatorios de TI
+
+- [ ] Diseñar la vista de recordatorios y notas operativas con prioridad, fecha y estado.
+- [ ] Implementar el CRUD completo con `DataTable`, `FormDialog` y `ConfirmDeleteDialog`.
+- [ ] Integrar los recordatorios en el widget del Dashboard y en la bandeja de notificaciones.
+- [ ] Añadir recordatorios automáticos (mantenimiento preventivo y renovación de licencias).
+- [ ] Conectar el módulo con la API REST y Socket.IO para sincronización en vivo.
+
+---
+
+## 21. Módulo de Mantenimiento Preventivo y Correctivo
+
+- [ ] Definir el modelo de órdenes de mantenimiento (activo, tipo, técnico, fechas, costos y evidencias).
+- [ ] Implementar el listado y los filtros con `DataTable`.
+- [ ] Construir el `MaintenanceFormDialog` para el alta y edición de órdenes.
+- [ ] Consultar el historial por activo con `DetailDialog`.
+- [ ] Vincular las órdenes con el estado del activo en Inventario (En mantenimiento / Baja).
+- [ ] Añadir confirmación de cancelación o eliminación con `ConfirmDeleteDialog`.
+- [ ] Conectar el módulo con la API REST.
+
+---
+
+## 22. Backlog de Mejoras Futuras
+>>>>>>> Stashed changes
 
 - [ ] Implementar exportación nativa de reportes a formatos PDF y hojas de cálculo Excel/CSV con filtros aplicados.
 - [ ] Desarrollar búsqueda global unificada (Command Palette tipo `Ctrl + K`) para saltar a cualquier activo, ticket o proyecto.
