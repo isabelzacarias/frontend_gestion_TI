@@ -406,10 +406,15 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 - [x] Agregar alternancia de visibilidad de contraseña y mensajes de contexto para entorno demo sin conexión a API.
 - [x] Diseñar la experiencia con datos ficticios para validar la interacción del módulo antes de conectarlo al backend.
 - [x] Integrar registro masivo de credenciales por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`CredentialDialog` + `credential-import.ts`).
-- [ ] Conectar el módulo de contraseñas con la API real y persistencia del backend.
+- [x] Conectar el módulo de contraseñas con la API real y persistencia del backend.
+- [x] Consumir la vista como cliente del backend: `listarTodosLosSecretos` (iteración de páginas) con filtrado/paginación en cliente sobre `FacetedFilter` (dimensiones **Tipo** y **Estado** [Activas/Inactivas]), y CRUD con `crearSecreto`/`actualizarSecreto`/`desactivarSecreto` + refetch.
+- [x] Alinear el formulario a los campos reales de `Secreto` (**Nombre**, **Tipo**, **Usuario**, **Contraseña**, **Comentario**); se retiraron Cuenta y Sitio web y el mock `sample-credentials.ts`.
+- [x] Implementar el **revelado seguro** del password (`GET /secretos/:id/password`, permiso `secretos:revelar`, auditado); password write-only con opción de conservar el actual al editar.
+- [x] Implementar la baja lógica (`DELETE` → `activo=false`) con `ConfirmDeleteDialog` y la **reactivación** (`PATCH { activo: true }`); las inactivas quedan en solo lectura y sin revelado.
+- [x] Conectar la importación masiva CSV alineada a los campos reales (loop de `crearSecreto`) y la exportación CSV **sin contraseñas** (solo campos no sensibles).
 - [ ] Implementar almacenamiento seguro de secretos con enmascarado, control de permisos y trazabilidad de acceso.
 - [ ] Añadir filtros avanzados por categoría, servicio, responsable y estado de uso.
-- [ ] Incorporar acciones de copia segura al portapapeles, historial de acceso y auditoría de cambios.
+- [ ] Incorporar acciones de copia segura al portapapeles, historial de acceso y auditoría de cambios (existe `GET /secretos/:id/auditoria`).
 - [ ] Configurar validaciones reforzadas para evitar contraseñas débiles y rotación programada.
 - [ ] Establecer políticas de eliminación y revocación con confirmación explícita y registro de actividad.
 
