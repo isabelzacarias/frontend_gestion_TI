@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import {
   ArrowUpDown,
-  ChevronDown,
+  CircleDot,
   Copy,
   Eye,
   EyeOff,
@@ -11,6 +11,7 @@ import {
   Search,
   ShieldCheck,
   UserCheck,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,6 +21,11 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
+import { FacetedFilter } from "@/components/ui/faceted-filter"
+import type {
+  FacetDimension,
+  FacetSelections,
+} from "@/components/ui/faceted-filter"
 import { LicenseFormDialog } from "@/features/licenses/components/LicenseFormDialog"
 import { sampleLicenses } from "@/features/licenses/data/licensesData"
 import type {
@@ -97,8 +103,8 @@ const createLicenseFromDraft = (draft: LicenseFormDraft, id: number): License =>
 function LicensesPage() {
   const [licenses, setLicenses] = useState<License[]>(sampleLicenses)
   const [search, setSearch] = useState("")
-  const [selectedActiva, setSelectedActiva] = useState<"ALL" | "true" | "false">("ALL")
-  const [selectedTieneClave, setSelectedTieneClave] = useState<"ALL" | "true" | "false">("ALL")
+  const [activaSeleccionada, setActivaSeleccionada] = useState<string[]>([])
+  const [claveSeleccionada, setClaveSeleccionada] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState(1)
 
   // Modales
@@ -134,14 +140,73 @@ function LicensesPage() {
             (item.asignadaA?.email.toLowerCase().includes(term) ?? false))
 
       const matchActiva =
-        selectedActiva === "ALL" || String(item.activa) === selectedActiva
+        activaSeleccionada.length === 0 ||
+        activaSeleccionada.includes(String(item.activa))
 
       const matchTieneClave =
-        selectedTieneClave === "ALL" || String(item.tieneClave) === selectedTieneClave
+        claveSeleccionada.length === 0 ||
+        claveSeleccionada.includes(String(item.tieneClave))
 
       return matchSearch && matchActiva && matchTieneClave
     })
-  }, [licenses, search, selectedActiva, selectedTieneClave])
+  }, [licenses, search, activaSeleccionada, claveSeleccionada])
+
+  const hayFiltros =
+    activaSeleccionada.length > 0 ||
+    claveSeleccionada.length > 0 ||
+    search.trim() !== ""
+
+  const facetDimensions = useMemo<FacetDimension[]>(
+    () => [
+      {
+        id: "activa",
+        label: "Estado",
+        icon: CircleDot,
+        options: [
+          { value: "true", label: "Activas" },
+          { value: "false", label: "Inactivas" },
+        ],
+      },
+      {
+        id: "tieneClave",
+        label: "Clave",
+        icon: KeyRound,
+        options: [
+          { value: "true", label: "Con clave" },
+          { value: "false", label: "Sin clave" },
+        ],
+      },
+    ],
+    [],
+  )
+
+  const facetSelecciones = useMemo<FacetSelections>(
+    () => ({
+      activa: activaSeleccionada,
+      tieneClave: claveSeleccionada,
+    }),
+    [activaSeleccionada, claveSeleccionada],
+  )
+
+  function handleFacetChange(dimensionId: string, values: string[]) {
+    if (dimensionId === "activa") {
+      setActivaSeleccionada(values)
+    } else if (dimensionId === "tieneClave") {
+      setClaveSeleccionada(values)
+    }
+    setCurrentPage(1)
+  }
+
+  function borrarFacetas() {
+    setActivaSeleccionada([])
+    setClaveSeleccionada([])
+    setCurrentPage(1)
+  }
+
+  function limpiarFiltros() {
+    setSearch("")
+    borrarFacetas()
+  }
 
   const totalPages = Math.max(1, Math.ceil(filteredLicenses.length / ITEMS_PER_PAGE))
   const activePage = Math.min(currentPage, totalPages)
@@ -463,45 +528,32 @@ function LicensesPage() {
               />
             </div>
 
-            {/* Filtro por Estado (Activa / Inactiva) */}
-            <div className="relative">
-              <select
-                value={selectedActiva}
-                onChange={(e) => {
-                  setSelectedActiva(e.target.value as "ALL" | "true" | "false")
-                  setCurrentPage(1)
-                }}
-                className="h-10 appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors shadow-sm cursor-pointer"
-              >
-                <option value="ALL">Todos los Estados</option>
-                <option value="true">Activas</option>
-                <option value="false">Inactivas</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            </div>
+            <FacetedFilter
+              dimensions={facetDimensions}
+              selections={facetSelecciones}
+              onChange={handleFacetChange}
+              onClearAll={borrarFacetas}
+            />
 
-            {/* Filtro por Tiene Clave */}
-            <div className="relative">
-              <select
-                value={selectedTieneClave}
-                onChange={(e) => {
-                  setSelectedTieneClave(e.target.value as "ALL" | "true" | "false")
-                  setCurrentPage(1)
-                }}
-                className="h-10 appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors shadow-sm cursor-pointer"
+            {hayFiltros && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limpiarFiltros}
+                className="text-muted-foreground"
               >
-                <option value="ALL">Todas las licencias</option>
-                <option value="true">Con Clave</option>
-                <option value="false">Sin Clave</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            </div>
+                <X />
+                Borrar filtros
+              </Button>
+            )}
           </div>
         }
         summary={
           <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
             <ArrowUpDown className="size-3.5 text-violet-700 dark:text-violet-200" />
-            {filteredLicenses.length} licencias registradas
+            {hayFiltros
+              ? `${filteredLicenses.length} de ${licenses.length} licencias`
+              : `${filteredLicenses.length} licencias registradas`}
           </span>
         }
       />

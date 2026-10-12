@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd"
 import type { DropResult } from "@hello-pangea/dnd"
-import { Flag, LayoutGrid, Loader2, RefreshCw, Search, Tag, User, X } from "lucide-react"
+import {
+  Flag,
+  LayoutGrid,
+  Loader2,
+  MousePointerClick,
+  RefreshCw,
+  Search,
+  Tag,
+  User,
+  X,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { ModuleHeader } from "@/components/common/ModuleHeader"
@@ -13,6 +23,7 @@ import type {
   FacetOption,
   FacetSelections,
 } from "@/components/ui/faceted-filter"
+import { TicketDetailDialog } from "@/features/tickets/components/TicketDetailDialog"
 import { useIncidenciasSyncStore } from "@/features/kanban/store/incidenciasSyncStore"
 import {
   PRIORIDADES,
@@ -150,6 +161,8 @@ function KanbanPage() {
   const [responsablesSeleccionados, setResponsablesSeleccionados] = useState<
     string[]
   >([])
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
 
   const pendingIdsRef = useRef<number[]>([])
 
@@ -364,6 +377,11 @@ function KanbanPage() {
     borrarFacetas()
   }
 
+  function abrirDetalle(ticket: Ticket) {
+    setSelectedTicket(ticket)
+    setIsDetailOpen(true)
+  }
+
   async function handleDragEnd(result: DropResult) {
     const { draggableId, source, destination } = result
     if (!destination) return
@@ -542,6 +560,8 @@ function KanbanPage() {
                                 {...dragProvided.draggableProps}
                                 {...dragProvided.dragHandleProps}
                                 style={dragProvided.draggableProps.style}
+                                onDoubleClick={() => abrirDetalle(ticket)}
+                                title="Doble clic para ver el detalle"
                                 aria-label={`#${ticket.id}: ${ticket.titulo}`}
                                 aria-busy={pendingIds.includes(ticket.id)}
                                 className={`rounded-lg border border-border bg-background p-3 shadow-sm transition-[border-color,box-shadow,opacity] duration-150 hover:border-primary/40 hover:shadow-md ${
@@ -554,9 +574,18 @@ function KanbanPage() {
                                     : ""
                                 }`}
                               >
-                                <p className="font-mono text-xs font-medium text-muted-foreground">
-                                  #{ticket.id}
-                                </p>
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="font-mono text-xs font-medium text-muted-foreground">
+                                    #{ticket.id}
+                                  </p>
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/70">
+                                    <MousePointerClick
+                                      className="size-3"
+                                      aria-hidden="true"
+                                    />
+                                    Doble clic
+                                  </span>
+                                </div>
                                 <h3 className="mt-1 text-sm font-medium leading-snug text-card-foreground">
                                   {ticket.titulo}
                                 </h3>
@@ -611,6 +640,12 @@ function KanbanPage() {
           </div>
         </div>
       </DragDropContext>
+
+      <TicketDetailDialog
+        ticket={selectedTicket}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+      />
     </div>
   )
 }

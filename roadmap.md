@@ -314,6 +314,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Migrar la vista de lista al filtro facetado estándar (`FacetedFilter`) con dimensiones de Estado, Prioridad y Tipo de requerimiento (multi-selección, arreglo vacío = sin filtro) y búsqueda por título/#id/solicitante. El listado pasó a **filtrado y paginación en cliente** sobre `listarTodosLosTickets` (consistente con el tablero); se conserva `DataTable` con paginación controlada y el `DetailDialog`.
 - [x] Crear la vista detallada de ticket mediante `DetailDialog`, cargando el detalle desde `GET /api/incidencias/:id` (descripción, evidencia, seguimiento/actualizaciones).
 - [x] Unificar las vistas de Tickets y Kanban en un mismo apartado (`/tickets`) con conmutador de formato (`Tabs` **Lista | Kanban**) sincronizado en la URL (`?vista=kanban`). La lista se extrajo a `TicketsListView` (`features/tickets/components`) y el tablero sigue en `KanbanPage`; la ruta `/kanban` redirige a `/tickets?vista=kanban` y se retiró el ítem de navegación independiente del sidebar.
+- [x] Extraer la consulta de detalle a un componente compartido `TicketDetailDialog` (`features/tickets/components`, envuelve `DetailDialog` + `obtenerTicket`) y habilitar la apertura del detalle con **doble clic sobre la tarjeta del Kanban** (además del doble clic en la fila de la lista), con pista visible **"Doble clic"** en la tarjeta; el arrastre de la tarjeta sigue funcionando.
 - [ ] Diseñar el modal de creación y edición de tickets construyendo un wrapper `TicketFormDialog` basado en `FormDialog`.
 - [ ] Incorporar soporte para registro de subtareas o checklist de resolución técnica interna.
 - [ ] Desarrollar el flujo para agregar notas públicas e internas con soporte para carga de evidencias o archivos adjuntos.
@@ -363,6 +364,7 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 
 - [x] Implementar el listado centralizado de inventario de equipos utilizando el componente base `DataTable`.
 - [x] Desarrollar la barra de búsqueda y filtros combinados por tipo de equipo, sucursal, estado operativo y estado físico.
+- [x] Migrar los filtros de inventario al filtro facetado estándar `FacetedFilter` (dimensiones **Estado** y **Sucursal**, multi-selección) con búsqueda integrada y botón **Borrar filtros**. El listado pasó a **filtrado y paginación en cliente** sobre `listarTodosLosActivos` (consistente con Tickets y Kanban); la exportación CSV ahora opera sobre los registros ya filtrados en cliente.
 - [x] Consultar el detalle del activo con `DetailDialog` al hacer doble clic y abrir `AssetFormDialog` en edición mediante la acción **Editar**.
 - [x] Construir el modal de alta y edición de activos utilizando el componente `AssetFormDialog` (basado en `FormDialog`).
 - [x] Integrar el diálogo de confirmación de baja de activos utilizando `ConfirmDeleteDialog`.
@@ -382,6 +384,7 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 
 - [x] Definir el modelo de datos para licencias de software: claves, vigencia, tipo (suscripción, perpetua), responsable y equipos asignados.
 - [x] Implementar la vista principal de licencias utilizando obligatoriamente el componente base `DataTable`.
+- [x] Migrar los filtros de licencias al filtro facetado estándar `FacetedFilter` (dimensiones **Estado** [Activas/Inactivas] y **Clave** [Con/Sin clave], multi-selección) con búsqueda integrada y botón **Borrar filtros**.
 - [x] Crear el modal de registro y modificación de licencias construyendo un wrapper `LicenseFormDialog` basado en `FormDialog`.
 - [x] Integrar el diálogo de confirmación para revocar o dar de baja licencias con `ConfirmDeleteDialog`.
 - [x] Desarrollar alertas visuales preventivas para licencias próximas a expirar y vencidas.
@@ -605,7 +608,7 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 - [ ] Permitir la personalización del dashboard principal con widgets arrastrables según el rol del usuario.
 - [ ] Integrar sistema de notificaciones push para asignaciones urgentes de tickets.
 - [ ] Evaluar virtualización de filas con `@tanstack/react-virtual` para tablas con volúmenes superiores a 10,000 registros.
-- [ ] **Recordatorio:** Adoptar el filtro facetado estándar (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`) en las tablas ya existentes (Inventario, Licencias, Proyectos, Usuarios, Auditoría, etc.) en sustitución de los selects sueltos por criterio.
+- [ ] **Recordatorio:** Adoptar el filtro facetado estándar (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`) en las tablas ya existentes (Proyectos, Usuarios, Auditoría, etc.) en sustitución de los selects sueltos por criterio. *(Ya adoptado en Tickets, Kanban, Inventario y Licencias.)*
 
 ---
 
