@@ -4,11 +4,28 @@ import { api } from "@/services/api"
 import type { MetadatosPaginacion } from "@/types/activo"
 import type { RespuestaApi } from "@/types/auth"
 
+export interface ResumenCatalogo {
+  id: number
+  nombre: string
+}
+
+export interface ResumenRol {
+  id: number
+  nombre: string
+}
+
 export interface UsuarioLista {
   id: string
   nombre: string
   email: string | null
   activo: boolean
+  fechaInicio: string | null
+  fechaFin: string | null
+  departamento: ResumenCatalogo | null
+  ubicacion: ResumenCatalogo | null
+  puesto: ResumenCatalogo | null
+  tipoUsuario: ResumenCatalogo | null
+  rol: ResumenRol | null
 }
 
 export interface ParametrosListadoUsuarios {
