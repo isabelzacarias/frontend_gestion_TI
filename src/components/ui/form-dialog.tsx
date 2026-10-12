@@ -67,6 +67,11 @@ export interface FormField<T> {
   colSpan?: string
   /** Si el campo es requerido */
   required?: boolean
+  /** Renderizado personalizado para controles específicos del formulario */
+  render?: (
+    value: T[keyof T],
+    onChange: (value: T[keyof T]) => void,
+  ) => ReactNode
 }
 
 /** Sección agrupadora de campos */
@@ -105,10 +110,14 @@ export interface FormDialogProps<T extends Record<string, unknown>> {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   /** Definición de las secciones y sus campos */
   sections: FormSection<T>[]
+  /** Acciones opcionales dentro del formulario, antes de las secciones */
+  formActions?: ReactNode
   /** Callback opcional para eliminar — cuando se pasa, se muestra un botón rojo de eliminar */
   onDelete?: () => void
   /** Texto del botón de eliminar — por defecto "Eliminar" */
   deleteLabel?: string
+  /** Deshabilita el envío cuando el formulario aún no es válido */
+  submitDisabled?: boolean
 }
 
 /* ──────────────────────────────────────────────
@@ -126,8 +135,10 @@ export function FormDialog<T extends Record<string, unknown>>({
   onChange,
   onSubmit,
   sections,
+  formActions,
   onDelete,
   deleteLabel = "Eliminar",
+  submitDisabled = false,
 }: FormDialogProps<T>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -153,6 +164,7 @@ export function FormDialog<T extends Record<string, unknown>>({
         {/* ─── Form body ─── */}
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+            {formActions}
             {sections.map((section) => (
               <section key={section.title} className={sectionClass}>
                 <div className="mb-2.5 flex items-center gap-2">
@@ -174,7 +186,12 @@ export function FormDialog<T extends Record<string, unknown>>({
                         {field.label}
                       </label>
 
-                      {field.type === "select" ? (
+                      {field.render ? (
+                        field.render(
+                          draft[field.key],
+                          (value) => onChange(field.key, value),
+                        )
+                      ) : field.type === "select" ? (
                         <select
                           id={field.key}
                           value={draft[field.key] as string}
@@ -266,6 +283,7 @@ export function FormDialog<T extends Record<string, unknown>>({
                 </Button>
                 <Button
                   type="submit"
+                  disabled={submitDisabled}
                   className="h-9 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-3 text-xs font-semibold text-white shadow-[0_12px_24px_rgba(109,40,217,0.28)] hover:brightness-110"
                 >
                   {submitLabel}
