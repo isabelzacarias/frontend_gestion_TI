@@ -1,21 +1,31 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   ArrowUpDown,
-  ChevronDown,
+  CircleDot,
+  Flag,
   Search,
+  Tag,
   Ticket as TicketIcon,
   UserCheck,
   UserRound,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
+import { FacetedFilter } from "@/components/ui/faceted-filter"
+import type {
+  FacetDimension,
+  FacetOption,
+  FacetSelections,
+} from "@/components/ui/faceted-filter"
 import {
   TicketApiError,
-  listarTickets,
+  listarTodosLosTickets,
   obtenerTicket,
 } from "@/features/tickets/services/ticket.service"
 import {
@@ -30,12 +40,8 @@ import {
   tipoLabels,
 } from "@/features/tickets/data/ticket-display"
 import type {
-  MetadatosPaginacion,
   Ticket,
   TicketDetalle,
-  TicketEstado,
-  TicketPrioridad,
-  TipoRequerimiento,
 } from "@/features/tickets/types/ticket"
 
 function formatDate(isoString: string | null): string {
@@ -64,6 +70,49 @@ function getErrorMessage(error: unknown): string {
   }
   if (error instanceof Error) return error.message
   return "No se pudieron cargar las incidencias."
+}
+
+interface FiltrosLista {
+  estados: string[]
+  prioridades: string[]
+  tipos: string[]
+  texto: string
+}
+
+function coincideConFiltros(ticket: Ticket, filtros: FiltrosLista): boolean {
+  if (filtros.estados.length > 0 && !filtros.estados.includes(ticket.estado)) {
+    return false
+  }
+
+  if (
+    filtros.prioridades.length > 0 &&
+    !filtros.prioridades.includes(ticket.prioridad)
+  ) {
+    return false
+  }
+
+  if (
+    filtros.tipos.length > 0 &&
+    !filtros.tipos.includes(ticket.tipoRequerimiento)
+  ) {
+    return false
+  }
+
+  const texto = filtros.texto.trim().toLowerCase()
+  if (texto) {
+    const coincideTitulo = ticket.titulo.toLowerCase().includes(texto)
+    const coincideId =
+      String(ticket.id).includes(texto) || `#${ticket.id}`.includes(texto)
+    const coincideSolicitante = ticket.solicitante.nombre
+      .toLowerCase()
+      .includes(texto)
+
+    if (!coincideTitulo && !coincideId && !coincideSolicitante) {
+      return false
+    }
+  }
+
+  return true
 }
 
 const ITEMS_PER_PAGE = 10
@@ -182,19 +231,14 @@ export function TicketsListView() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [meta, setMeta] = useState<MetadatosPaginacion>({
-    page: 1,
-    limit: ITEMS_PER_PAGE,
-    total: 0,
-    totalPages: 1,
-  })
+
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
-  const [selectedEstado, setSelectedEstado] = useState<"ALL" | TicketEstado>("ALL")
-  const [selectedPrioridad, setSelectedPrioridad] = useState<"ALL" | TicketPrioridad>(
-    "ALL",
-  )
-  const [selectedTipo, setSelectedTipo] = useState<"ALL" | TipoRequerimiento>("ALL")
+  const [estadosSeleccionados, setEstadosSeleccionados] = useState<string[]>([])
+  const [prioridadesSeleccionadas, setPrioridadesSeleccionadas] = useState<
+    string[]
+  >([])
+  const [tiposSeleccionados, setTiposSeleccionados] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState(1)
 
   const [isDetailOpen, setIsDetailOpen] = useState(false)
@@ -218,20 +262,9 @@ export function TicketsListView() {
       setLoadError(null)
 
       try {
-        const { tickets: lista, meta: metaRespuesta } = await listarTickets({
-          page: currentPage,
-          limit: ITEMS_PER_PAGE,
-          ...(selectedEstado !== "ALL" ? { estado: selectedEstado } : {}),
-          ...(selectedPrioridad !== "ALL"
-            ? { prioridad: selectedPrioridad }
-            : {}),
-          ...(selectedTipo !== "ALL" ? { tipoRequerimiento: selectedTipo } : {}),
-          ...(debouncedSearch ? { q: debouncedSearch } : {}),
-        })
-
+        const lista = await listarTodosLosTickets()
         if (cancelado) return
         setTickets(lista)
-        setMeta(metaRespuesta)
       } catch (error) {
         if (cancelado) return
         setLoadError(getErrorMessage(error))
@@ -246,13 +279,7 @@ export function TicketsListView() {
     return () => {
       cancelado = true
     }
-  }, [
-    currentPage,
-    selectedEstado,
-    selectedPrioridad,
-    selectedTipo,
-    debouncedSearch,
-  ])
+  }, [])
 
   useEffect(() => {
     if (!isDetailOpen || !selectedTicket) return
@@ -278,8 +305,113 @@ export function TicketsListView() {
     }
   }, [isDetailOpen, selectedTicket])
 
+  const filtros = useMemo<FiltrosLista>(
+    () => ({
+      estados: estadosSeleccionados,
+      prioridades: prioridadesSeleccionadas,
+      tipos: tiposSeleccionados,
+      texto: debouncedSearch,
+    }),
+    [
+      estadosSeleccionados,
+      prioridadesSeleccionadas,
+      tiposSeleccionados,
+      debouncedSearch,
+    ],
+  )
+
+  const ticketsFiltrados = useMemo(
+    () => tickets.filter((ticket) => coincideConFiltros(ticket, filtros)),
+    [tickets, filtros],
+  )
+
+  const hayFiltros =
+    filtros.estados.length > 0 ||
+    filtros.prioridades.length > 0 ||
+    filtros.tipos.length > 0 ||
+    filtros.texto !== ""
+
+  const totalFiltrados = ticketsFiltrados.length
+  const totalPages = Math.max(1, Math.ceil(totalFiltrados / ITEMS_PER_PAGE))
+  const paginaActual = Math.min(currentPage, totalPages)
+
+  const ticketsPagina = useMemo(
+    () =>
+      ticketsFiltrados.slice(
+        (paginaActual - 1) * ITEMS_PER_PAGE,
+        paginaActual * ITEMS_PER_PAGE,
+      ),
+    [ticketsFiltrados, paginaActual],
+  )
+
+  const facetDimensions = useMemo<FacetDimension[]>(
+    () => [
+      {
+        id: "estados",
+        label: "Estado",
+        icon: CircleDot,
+        options: ESTADOS.map<FacetOption>((value) => ({
+          value,
+          label: estadoLabels[value],
+        })),
+      },
+      {
+        id: "prioridades",
+        label: "Prioridad",
+        icon: Flag,
+        options: PRIORIDADES.map<FacetOption>((value) => ({
+          value,
+          label: prioridadLabels[value],
+        })),
+      },
+      {
+        id: "tipos",
+        label: "Tipo de requerimiento",
+        icon: Tag,
+        options: TIPOS.map<FacetOption>((value) => ({
+          value,
+          label: tipoLabels[value],
+        })),
+      },
+    ],
+    [],
+  )
+
+  const facetSelecciones = useMemo<FacetSelections>(
+    () => ({
+      estados: estadosSeleccionados,
+      prioridades: prioridadesSeleccionadas,
+      tipos: tiposSeleccionados,
+    }),
+    [estadosSeleccionados, prioridadesSeleccionadas, tiposSeleccionados],
+  )
+
+  function handleFacetChange(dimensionId: string, values: string[]) {
+    if (dimensionId === "estados") {
+      setEstadosSeleccionados(values)
+    } else if (dimensionId === "prioridades") {
+      setPrioridadesSeleccionadas(values)
+    } else if (dimensionId === "tipos") {
+      setTiposSeleccionados(values)
+    }
+    setCurrentPage(1)
+  }
+
+  function borrarFacetas() {
+    setEstadosSeleccionados([])
+    setPrioridadesSeleccionadas([])
+    setTiposSeleccionados([])
+    setCurrentPage(1)
+  }
+
+  function limpiarFiltros() {
+    setSearch("")
+    setDebouncedSearch("")
+    borrarFacetas()
+  }
+
   const handlePageChange = (nextPage: number) => {
-    setCurrentPage(Math.min(Math.max(nextPage, 1), meta.totalPages))
+    setCurrentPage(Math.min(Math.max(nextPage, 1), totalPages))
   }
 
   const handleOpenDetails = (ticket: Ticket) => {
@@ -430,93 +562,62 @@ export function TicketsListView() {
               <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar por título o solicitante..."
+                placeholder="Buscar por título, #id o solicitante..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-10 w-full rounded-2xl border border-border/80 bg-background/80 pl-10 pr-4 text-xs font-medium text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
-            <div className="relative">
-              <select
-                value={selectedEstado}
-                onChange={(e) => {
-                  setSelectedEstado(e.target.value as "ALL" | TicketEstado)
-                  setCurrentPage(1)
-                }}
-                className="h-10 cursor-pointer appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="ALL">Todos los Estados</option>
-                {ESTADOS.map((estado) => (
-                  <option key={estado} value={estado}>
-                    {estadoLabels[estado]}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            </div>
+            <FacetedFilter
+              dimensions={facetDimensions}
+              selections={facetSelecciones}
+              onChange={handleFacetChange}
+              onClearAll={borrarFacetas}
+            />
 
-            <div className="relative">
-              <select
-                value={selectedPrioridad}
-                onChange={(e) => {
-                  setSelectedPrioridad(e.target.value as "ALL" | TicketPrioridad)
-                  setCurrentPage(1)
-                }}
-                className="h-10 cursor-pointer appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            {hayFiltros && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limpiarFiltros}
+                className="text-muted-foreground"
               >
-                <option value="ALL">Todas las Prioridades</option>
-                {PRIORIDADES.map((prioridad) => (
-                  <option key={prioridad} value={prioridad}>
-                    {prioridadLabels[prioridad]}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            </div>
-
-            <div className="relative">
-              <select
-                value={selectedTipo}
-                onChange={(e) => {
-                  setSelectedTipo(e.target.value as "ALL" | TipoRequerimiento)
-                  setCurrentPage(1)
-                }}
-                className="h-10 cursor-pointer appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="ALL">Todos los Tipos</option>
-                {TIPOS.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {tipoLabels[tipo]}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            </div>
+                <X />
+                Borrar filtros
+              </Button>
+            )}
           </div>
         }
         summary={
           <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
             <ArrowUpDown className="size-3.5 text-violet-700 dark:text-violet-200" />
-            {loading ? "Cargando..." : `${meta.total} tickets registrados`}
+            {loading
+              ? "Cargando..."
+              : (loadError ??
+                (hayFiltros
+                  ? `${totalFiltrados} de ${tickets.length} tickets`
+                  : `${tickets.length} tickets registrados`))}
           </span>
         }
       />
 
       <DataTable<Ticket>
         columns={columns}
-        data={tickets}
+        data={ticketsPagina}
         rowKey={(ticket) => ticket.id}
-        page={meta.page}
-        totalPages={meta.totalPages}
-        totalFiltered={meta.total}
+        page={paginaActual}
+        totalPages={totalPages}
+        totalFiltered={totalFiltrados}
         itemsPerPage={ITEMS_PER_PAGE}
         onPageChange={handlePageChange}
         onRowDoubleClick={handleOpenDetails}
         onRowClick={(ticket) => setSelectedTicket(ticket)}
         selectedRowKey={selectedTicket?.id ?? null}
         emptyMessage={
-          loading ? "Cargando incidencias..." : (loadError ?? "Sin resultados")
+          loading
+            ? "Cargando incidencias..."
+            : (loadError ?? (hayFiltros ? "Sin coincidencias" : "Sin resultados"))
         }
       />
 
