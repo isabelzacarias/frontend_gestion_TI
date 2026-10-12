@@ -27,6 +27,9 @@ function PasswordStrengthIndicator({
 
   return (
     <div id="password-strength-help" className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Sugerencias para una contraseña más segura (no obligatorias)
+      </p>
       <div
         className="flex items-center gap-1.5"
         role="img"
@@ -46,7 +49,7 @@ function PasswordStrengthIndicator({
       </div>
       <ul
         className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs text-muted-foreground sm:grid-cols-2"
-        aria-label="Requisitos de la contraseña"
+        aria-label="Sugerencias para una contraseña más segura"
       >
         {strength.requirements.map(({ id, label, met }) => {
           const Icon = met ? CircleCheck : Circle

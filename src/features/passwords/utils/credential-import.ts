@@ -1,5 +1,4 @@
 import type { CredentialDraft } from "@/features/passwords/types/credential"
-import { evaluatePasswordStrength } from "@/features/passwords/utils/password-strength"
 import {
   detectCsvDelimiter,
   downloadCsvTemplate,
@@ -100,10 +99,6 @@ export function parseCredentialCsv(content: string): CredentialDraft[] {
       const missingFields = requiredFields.filter((field) => !draft[field])
       if (missingFields.length > 0) {
         throw new Error("Completa los campos requeridos del formulario.")
-      }
-
-      if (!evaluatePasswordStrength(draft.password).isStrong) {
-        throw new Error("La contraseña no cumple todos los requisitos de seguridad.")
       }
 
       return draft

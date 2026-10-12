@@ -24,7 +24,6 @@ import {
   downloadCredentialCsvTemplate,
   parseCredentialCsv,
 } from "@/features/passwords/utils/credential-import"
-import { evaluatePasswordStrength } from "@/features/passwords/utils/password-strength"
 
 export type CredentialFormMode = "create" | "edit" | "view"
 
@@ -107,7 +106,6 @@ function CredentialPasswordField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           autoComplete="new-password"
-          minLength={optional ? undefined : 12}
           required={!optional}
           aria-describedby="password-strength-help"
           className="h-9 border-white/70 bg-white/80 pr-10 text-[13px] shadow-sm dark:border-white/10 dark:bg-slate-900/55"
@@ -283,9 +281,6 @@ function CredentialDialog({
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false)
   const [pendingImport, setPendingImport] = useState<CredentialDraft[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
-  const passwordIsStrong = evaluatePasswordStrength(draft.password).isStrong
-  const isPasswordRequired = mode === "create" || draft.password.length > 0
-  const submitDisabled = isPasswordRequired && !passwordIsStrong
   const sections = buildSections(isEdit)
 
   const detailSections: DetailSection[] = [
@@ -336,11 +331,6 @@ function CredentialDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     if (mode === "view") {
-      event.preventDefault()
-      return
-    }
-
-    if (isPasswordRequired && !passwordIsStrong) {
       event.preventDefault()
       return
     }
@@ -416,7 +406,6 @@ function CredentialDialog({
           sections={sections}
           onDelete={isEdit ? handleDeleteClick : undefined}
           deleteLabel="Desactivar"
-          submitDisabled={submitDisabled}
           formActions={
             mode === "create" && onImport ? (
               <>

@@ -45,7 +45,6 @@ import type {
   CredentialDraft,
   DatosEdicionSecreto,
 } from "@/features/passwords/types/credential"
-import { evaluatePasswordStrength } from "@/features/passwords/utils/password-strength"
 import { downloadCsv } from "@/lib/csv"
 
 const ITEMS_PER_PAGE = 10
@@ -334,9 +333,6 @@ function PasswordsPage() {
       toast.error("El nombre es obligatorio.")
       return
     }
-    if (!evaluatePasswordStrength(draft.password).isStrong) {
-      return
-    }
 
     setIsSaving(true)
     try {
@@ -402,7 +398,7 @@ function PasswordsPage() {
 
     for (const record of records) {
       const nombre = record.nombre.trim()
-      if (!nombre || !evaluatePasswordStrength(record.password).isStrong) {
+      if (!nombre) {
         fallos.push(nombre || "(sin nombre)")
         continue
       }
