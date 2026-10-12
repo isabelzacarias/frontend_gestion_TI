@@ -336,7 +336,7 @@ El frontend ya envía `q` y `tipoRequerimiento`, pero **el backend hoy los ignor
 - [ ] Optimizar la gestión de estado local con persistencia y sincronización inmediata frente a caídas de red.
 - [x] Incorporar indicadores sutiles de carga mientras se actualiza la posición de una tarjeta en el servidor (opacidad + `aria-busy` + arrastre deshabilitado por tarjeta mientras hay una mutación en curso).
 - [x] Implementar la sincronización en tiempo real de movimientos y modificaciones mediante WebSockets (`socket.io-client`), escuchando `incidencias:estado-cambiado` desde la conexión única de notificaciones.
-- [x] Agregar buscador rápido por título/#id/solicitante y filtros directos de prioridad y tipo de requerimiento sobre el tablero (filtrado en cliente sobre los tickets ya cargados; reorden exacto aun con filtros activos). Falta el filtro por asignado.
+- [x] Agregar buscador rápido por título/#id/solicitante y filtro facetado multi-selección (`KanbanFacetedFilter` con `Popover` + lista buscable propia y `Checkbox`) sobre el tablero, con dimensiones de Persona asignada (incluye "Sin asignar"), Prioridad y Tipo de requerimiento, badges por dimensión, "Borrar" por sección y "Borrar todo"; botón/indicador "Borrar filtros" a nivel de página. Estado en arrays (vacío = sin filtro), filtrado en cliente sobre los tickets ya cargados; reorden exacto aun con filtros activos.
 - [ ] Optimizar el comportamiento táctil y responsivo del Drag and Drop en dispositivos móviles y tablets.
 - [x] Implementar rollback visual con mensaje de error si una actualización de estado falla en el backend (update optimista + reversión + `toast.error`).
 

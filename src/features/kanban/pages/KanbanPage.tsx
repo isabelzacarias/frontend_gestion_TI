@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd"
 import type { DropResult } from "@hello-pangea/dnd"
-import { ChevronDown, Loader2, RefreshCw, Search, X } from "lucide-react"
+import { Flag, Loader2, RefreshCw, Search, Tag, User, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { PagePlaceholder } from "@/components/common/PagePlaceholder"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { KanbanFacetedFilter } from "@/features/kanban/components/KanbanFacetedFilter"
+import type {
+  FacetDimension,
+  FacetOption,
+  FacetSelections,
+} from "@/features/kanban/components/KanbanFacetedFilter"
 import { useIncidenciasSyncStore } from "@/features/kanban/store/incidenciasSyncStore"
 import {
   PRIORIDADES,
@@ -22,12 +28,7 @@ import {
   TicketApiError,
   listarTodosLosTickets,
 } from "@/features/tickets/services/ticket.service"
-import type {
-  Ticket,
-  TicketEstado,
-  TicketPrioridad,
-  TipoRequerimiento,
-} from "@/features/tickets/types/ticket"
+import type { Ticket, TicketEstado } from "@/features/tickets/types/ticket"
 
 const columns: { estado: TicketEstado; statusColor: string }[] = [
   { estado: "NUEVO", statusColor: "bg-info" },
@@ -83,9 +84,12 @@ function getUpdateErrorMessage(error: unknown): string {
   return "No se pudo actualizar el estado de la incidencia."
 }
 
+const RESPONSABLE_SIN_ASIGNAR = "SIN_ASIGNAR"
+
 interface Filtros {
-  prioridad: "ALL" | TicketPrioridad
-  tipo: "ALL" | TipoRequerimiento
+  prioridades: string[]
+  tipos: string[]
+  responsables: string[]
   texto: string
 }
 
@@ -93,12 +97,25 @@ const controlBase =
   "h-10 rounded-2xl border border-border/80 bg-background/80 text-xs font-medium text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
 
 function coincideConFiltros(ticket: Ticket, filtros: Filtros): boolean {
-  if (filtros.prioridad !== "ALL" && ticket.prioridad !== filtros.prioridad) {
+  if (
+    filtros.prioridades.length > 0 &&
+    !filtros.prioridades.includes(ticket.prioridad)
+  ) {
     return false
   }
 
-  if (filtros.tipo !== "ALL" && ticket.tipoRequerimiento !== filtros.tipo) {
+  if (
+    filtros.tipos.length > 0 &&
+    !filtros.tipos.includes(ticket.tipoRequerimiento)
+  ) {
     return false
+  }
+
+  if (filtros.responsables.length > 0) {
+    const responsableId = ticket.asignadoA?.id ?? RESPONSABLE_SIN_ASIGNAR
+    if (!filtros.responsables.includes(responsableId)) {
+      return false
+    }
   }
 
   const texto = filtros.texto.trim().toLowerCase()
@@ -126,8 +143,13 @@ function KanbanPage() {
   const [pendingIds, setPendingIds] = useState<number[]>([])
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
-  const [prioridad, setPrioridad] = useState<"ALL" | TicketPrioridad>("ALL")
-  const [tipo, setTipo] = useState<"ALL" | TipoRequerimiento>("ALL")
+  const [prioridadesSeleccionadas, setPrioridadesSeleccionadas] = useState<
+    string[]
+  >([])
+  const [tiposSeleccionados, setTiposSeleccionados] = useState<string[]>([])
+  const [responsablesSeleccionados, setResponsablesSeleccionados] = useState<
+    string[]
+  >([])
 
   const pendingIdsRef = useRef<number[]>([])
 
@@ -213,8 +235,18 @@ function KanbanPage() {
   }, [])
 
   const filtros = useMemo<Filtros>(
-    () => ({ prioridad, tipo, texto: debouncedSearch }),
-    [prioridad, tipo, debouncedSearch],
+    () => ({
+      prioridades: prioridadesSeleccionadas,
+      tipos: tiposSeleccionados,
+      responsables: responsablesSeleccionados,
+      texto: debouncedSearch,
+    }),
+    [
+      prioridadesSeleccionadas,
+      tiposSeleccionados,
+      responsablesSeleccionados,
+      debouncedSearch,
+    ],
   )
 
   const ticketsVisibles = useMemo<Tablero>(() => {
@@ -226,8 +258,85 @@ function KanbanPage() {
     }, {} as Tablero)
   }, [tablero, filtros])
 
+  const responsablesDisponibles = useMemo<FacetOption[]>(() => {
+    const porId = new Map<string, string>()
+    let haySinAsignar = false
+
+    for (const estado of ESTADOS) {
+      for (const ticket of tablero[estado]) {
+        if (ticket.asignadoA) {
+          porId.set(ticket.asignadoA.id, ticket.asignadoA.nombre)
+        } else {
+          haySinAsignar = true
+        }
+      }
+    }
+
+    const opciones = [...porId.entries()]
+      .map<FacetOption>(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "es"))
+
+    if (haySinAsignar) {
+      opciones.push({ value: RESPONSABLE_SIN_ASIGNAR, label: "Sin asignar" })
+    }
+
+    return opciones
+  }, [tablero])
+
+  const facetDimensions = useMemo<FacetDimension[]>(
+    () => [
+      {
+        id: "responsables",
+        label: "Persona asignada",
+        icon: User,
+        options: responsablesDisponibles,
+      },
+      {
+        id: "prioridades",
+        label: "Prioridad",
+        icon: Flag,
+        options: PRIORIDADES.map<FacetOption>((value) => ({
+          value,
+          label: prioridadLabels[value],
+        })),
+      },
+      {
+        id: "tipos",
+        label: "Tipo de requerimiento",
+        icon: Tag,
+        options: TIPOS.map<FacetOption>((value) => ({
+          value,
+          label: tipoLabels[value],
+        })),
+      },
+    ],
+    [responsablesDisponibles],
+  )
+
+  const facetSelecciones = useMemo<FacetSelections>(
+    () => ({
+      responsables: responsablesSeleccionados,
+      prioridades: prioridadesSeleccionadas,
+      tipos: tiposSeleccionados,
+    }),
+    [responsablesSeleccionados, prioridadesSeleccionadas, tiposSeleccionados],
+  )
+
+  function handleFacetChange(dimensionId: string, values: string[]) {
+    if (dimensionId === "responsables") {
+      setResponsablesSeleccionados(values)
+    } else if (dimensionId === "prioridades") {
+      setPrioridadesSeleccionadas(values)
+    } else if (dimensionId === "tipos") {
+      setTiposSeleccionados(values)
+    }
+  }
+
   const hayFiltros =
-    filtros.prioridad !== "ALL" || filtros.tipo !== "ALL" || filtros.texto !== ""
+    filtros.prioridades.length > 0 ||
+    filtros.tipos.length > 0 ||
+    filtros.responsables.length > 0 ||
+    filtros.texto !== ""
 
   const totalTickets = useMemo(
     () => ESTADOS.reduce((total, estado) => total + tablero[estado].length, 0),
@@ -243,11 +352,16 @@ function KanbanPage() {
     [ticketsVisibles],
   )
 
+  function borrarFacetas() {
+    setPrioridadesSeleccionadas([])
+    setTiposSeleccionados([])
+    setResponsablesSeleccionados([])
+  }
+
   function limpiarFiltros() {
     setSearch("")
     setDebouncedSearch("")
-    setPrioridad("ALL")
-    setTipo("ALL")
+    borrarFacetas()
   }
 
   async function handleDragEnd(result: DropResult) {
@@ -324,43 +438,12 @@ function KanbanPage() {
           />
         </div>
 
-        <div className="relative">
-          <select
-            aria-label="Filtrar por prioridad"
-            value={prioridad}
-            onChange={(event) =>
-              setPrioridad(event.target.value as "ALL" | TicketPrioridad)
-            }
-            className={`${controlBase} cursor-pointer appearance-none pl-4 pr-9`}
-          >
-            <option value="ALL">Todas las prioridades</option>
-            {PRIORIDADES.map((valor) => (
-              <option key={valor} value={valor}>
-                {prioridadLabels[valor]}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        </div>
-
-        <div className="relative">
-          <select
-            aria-label="Filtrar por tipo de requerimiento"
-            value={tipo}
-            onChange={(event) =>
-              setTipo(event.target.value as "ALL" | TipoRequerimiento)
-            }
-            className={`${controlBase} cursor-pointer appearance-none pl-4 pr-9`}
-          >
-            <option value="ALL">Todos los tipos</option>
-            {TIPOS.map((valor) => (
-              <option key={valor} value={valor}>
-                {tipoLabels[valor]}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        </div>
+        <KanbanFacetedFilter
+          dimensions={facetDimensions}
+          selections={facetSelecciones}
+          onChange={handleFacetChange}
+          onClearAll={borrarFacetas}
+        />
 
         {hayFiltros && (
           <Button
@@ -370,7 +453,7 @@ function KanbanPage() {
             className="text-muted-foreground"
           >
             <X />
-            Limpiar
+            Borrar filtros
           </Button>
         )}
 
