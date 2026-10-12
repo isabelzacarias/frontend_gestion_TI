@@ -1,5 +1,12 @@
-import { useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from "react"
-import { Check, Copy, Download, ExternalLink, Eye, EyeOff, Upload } from "lucide-react"
+import {
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react"
+import { Check, Copy, Download, Eye, EyeOff, Loader2, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
@@ -17,7 +24,6 @@ import {
   downloadCredentialCsvTemplate,
   parseCredentialCsv,
 } from "@/features/passwords/utils/credential-import"
-import { evaluatePasswordStrength } from "@/features/passwords/utils/password-strength"
 
 export type CredentialFormMode = "create" | "edit" | "view"
 
@@ -29,8 +35,11 @@ interface CredentialDialogProps {
   onChange: <K extends keyof CredentialDraft>(field: K, value: CredentialDraft[K]) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onEdit: () => void
+  editLabel?: string
+  editIcon?: ReactNode
   onImport?: (records: CredentialDraft[]) => void
   onDelete?: () => void
+  onReveal?: () => Promise<string>
 }
 
 interface CustomStringFieldProps {
@@ -81,7 +90,11 @@ function CredentialTextDisplay({ value, label }: { value: string; label: string 
   )
 }
 
-function CredentialPasswordField({ value, onChange }: CustomStringFieldProps) {
+function CredentialPasswordField({
+  value,
+  onChange,
+  optional = false,
+}: CustomStringFieldProps & { optional?: boolean }) {
   const [passwordVisible, setPasswordVisible] = useState(false)
 
   return (
@@ -93,8 +106,7 @@ function CredentialPasswordField({ value, onChange }: CustomStringFieldProps) {
           value={value}
           onChange={(event) => onChange(event.target.value)}
           autoComplete="new-password"
-          minLength={12}
-          required
+          required={!optional}
           aria-describedby="password-strength-help"
           className="h-9 border-white/70 bg-white/80 pr-10 text-[13px] shadow-sm dark:border-white/10 dark:bg-slate-900/55"
         />
@@ -112,116 +124,127 @@ function CredentialPasswordField({ value, onChange }: CustomStringFieldProps) {
           )}
         </button>
       </div>
+      {optional ? (
+        <p className="text-xs text-muted-foreground">
+          Déjala vacía para conservar la contraseña actual.
+        </p>
+      ) : null}
       <PasswordStrengthIndicator password={value} />
     </div>
   )
 }
 
-function CredentialPasswordDisplay({ value }: { value: string }) {
-  const [passwordVisible, setPasswordVisible] = useState(false)
+function CredentialPasswordReveal({
+  onReveal,
+}: {
+  onReveal?: () => Promise<string>
+}) {
+  const [password, setPassword] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
+
+  async function handleReveal() {
+    if (password !== null) {
+      setIsVisible((visible) => !visible)
+      return
+    }
+    if (!onReveal) return
+
+    setIsLoading(true)
+    try {
+      const value = await onReveal()
+      setPassword(value)
+      setIsVisible(true)
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo revelar la contraseña.",
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="flex min-h-8 items-center gap-2">
       <span className="break-all py-1 font-mono text-sm text-foreground">
-        {passwordVisible ? value : "••••••••••••"}
+        {password !== null && isVisible ? password : "••••••••••••"}
       </span>
       <button
         type="button"
-        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={passwordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
-        aria-pressed={passwordVisible}
+        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        aria-label={password !== null && isVisible ? "Ocultar contraseña" : "Revelar contraseña"}
+        aria-pressed={password !== null && isVisible}
+        disabled={isLoading}
         onClick={(event) => {
           event.preventDefault()
           event.stopPropagation()
-          setPasswordVisible((visible) => !visible)
+          void handleReveal()
         }}
       >
-        {passwordVisible ? (
+        {isLoading ? (
+          <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+        ) : password !== null && isVisible ? (
           <EyeOff aria-hidden="true" className="size-4" />
         ) : (
           <Eye aria-hidden="true" className="size-4" />
         )}
       </button>
-      <CopyButton value={value} label="la contraseña" />
+      {password !== null && isVisible ? (
+        <CopyButton value={password} label="la contraseña" />
+      ) : null}
     </div>
   )
 }
 
-function getSafeWebsiteUrl(value: string): URL | null {
-  try {
-    const parsedUrl = new URL(value)
-    if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
-      return parsedUrl
-    }
-  } catch {
-    return null
-  }
-
-  return null
+function buildSections(isEdit: boolean): FormSection<CredentialDraft>[] {
+  return [
+    {
+      title: "Información general",
+      color: "primary",
+      gridCols: "sm:grid-cols-2",
+      fields: [
+        { key: "nombre", label: "Nombre", placeholder: "Portal interno", required: true },
+        { key: "tipo", label: "Tipo", placeholder: "Cloud", required: true },
+      ],
+    },
+    {
+      title: "Datos de acceso",
+      color: "cyan",
+      gridCols: "sm:grid-cols-2",
+      fields: [
+        { key: "usuario", label: "Usuario", placeholder: "soporte.admin", required: true },
+        {
+          key: "password",
+          label: isEdit ? "Nueva contraseña (opcional)" : "Contraseña",
+          colSpan: "sm:col-span-2",
+          render: (value, onChange) => (
+            <CredentialPasswordField
+              value={value as string}
+              onChange={onChange as (value: string) => void}
+              optional={isEdit}
+            />
+          ),
+        },
+      ],
+    },
+    {
+      title: "Notas",
+      color: "violet",
+      gridCols: "sm:grid-cols-1",
+      fields: [
+        {
+          key: "comentario",
+          label: "Comentario",
+          type: "textarea",
+          placeholder: "Describe el uso, acceso o política de esta credencial.",
+          rows: 4,
+        },
+      ],
+    },
+  ]
 }
-
-const sections: FormSection<CredentialDraft>[] = [
-  {
-    title: "Información general",
-    color: "primary",
-    gridCols: "sm:grid-cols-2",
-    fields: [
-      { key: "service", label: "Servicio", placeholder: "Portal interno", required: true },
-      { key: "category", label: "Categoría", placeholder: "Cloud", required: true },
-    ],
-  },
-  {
-    title: "Datos de acceso",
-    color: "cyan",
-    gridCols: "sm:grid-cols-2",
-    fields: [
-      { key: "account", label: "Cuenta / correo", placeholder: "soporte@empresa.test", required: true },
-      { key: "username", label: "Nombre de usuario", placeholder: "soporte.admin", required: true },
-      {
-        key: "password",
-        label: "Nueva contraseña",
-        colSpan: "sm:col-span-2",
-        render: (value, onChange) => (
-          <CredentialPasswordField
-            value={value as string}
-            onChange={onChange as (value: string) => void}
-          />
-        ),
-      },
-      {
-        key: "website",
-        label: "Sitio web",
-        colSpan: "sm:col-span-2",
-        type: "url",
-        render: (value, onChange) => (
-          <Input
-            id="website"
-            type="url"
-            value={value as string}
-            onChange={(event) => onChange(event.target.value)}
-            autoComplete="url"
-            required
-            className="h-9 border-white/70 bg-white/80 text-[13px] shadow-sm dark:border-white/10 dark:bg-slate-900/55"
-          />
-        ),
-      },
-    ],
-  },
-  {
-    title: "Notas",
-    color: "violet",
-    gridCols: "sm:grid-cols-1",
-    fields: [
-      {
-        key: "notes",
-        label: "Observaciones",
-        type: "textarea",
-        placeholder: "Describe el uso, acceso o política de esta credencial.",
-        rows: 4,
-      },
-    ],
-  },
-]
 
 const modeConfig = {
   create: {
@@ -246,23 +269,27 @@ function CredentialDialog({
   onChange,
   onSubmit,
   onEdit,
+  editLabel,
+  editIcon,
   onImport,
   onDelete,
+  onReveal,
 }: CredentialDialogProps) {
   const config = mode === "edit" ? modeConfig.edit : modeConfig.create
+  const isEdit = mode === "edit"
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false)
   const [pendingImport, setPendingImport] = useState<CredentialDraft[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
-  const passwordIsStrong = evaluatePasswordStrength(draft.password).isStrong
-  const websiteUrl = getSafeWebsiteUrl(draft.website)
+  const sections = buildSections(isEdit)
+
   const detailSections: DetailSection[] = [
     {
       title: "Información general",
       color: "primary",
       fields: [
-        { key: "service", label: "Servicio", value: draft.service },
-        { key: "category", label: "Categoría", value: draft.category },
+        { key: "nombre", label: "Nombre", value: draft.nombre || "—" },
+        { key: "tipo", label: "Tipo", value: draft.tipo || "—" },
       ],
     },
     {
@@ -270,36 +297,21 @@ function CredentialDialog({
       color: "cyan",
       fields: [
         {
-          key: "account",
-          label: "Cuenta / correo",
+          key: "usuario",
+          label: "Usuario",
           value: (
-            <CredentialTextDisplay
-              value={draft.account}
-              label="la cuenta / correo"
-            />
+            <CredentialTextDisplay value={draft.usuario} label="el usuario" />
           ),
         },
-        { key: "username", label: "Nombre de usuario", value: draft.username },
         {
           key: "password",
           label: "Contraseña",
-          value: <CredentialPasswordDisplay value={draft.password} />,
-        },
-        {
-          key: "website",
-          label: "Sitio web",
-          value: websiteUrl ? (
-            <a
-              href={websiteUrl.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex max-w-full items-center gap-1.5 break-all font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span>{websiteUrl.href}</span>
-              <ExternalLink aria-hidden="true" className="size-3.5 shrink-0" />
-            </a>
+          value: onReveal ? (
+            <CredentialPasswordReveal onReveal={onReveal} />
           ) : (
-            "—"
+            <span className="text-sm italic text-muted-foreground">
+              No disponible (credencial inactiva)
+            </span>
           ),
         },
       ],
@@ -309,9 +321,9 @@ function CredentialDialog({
       color: "violet",
       fields: [
         {
-          key: "notes",
-          label: "Observaciones",
-          value: draft.notes || "—",
+          key: "comentario",
+          label: "Comentario",
+          value: draft.comentario || "—",
         },
       ],
     },
@@ -319,11 +331,6 @@ function CredentialDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     if (mode === "view") {
-      event.preventDefault()
-      return
-    }
-
-    if (!passwordIsStrong) {
       event.preventDefault()
       return
     }
@@ -377,11 +384,13 @@ function CredentialDialog({
       {mode === "view" ? (
         <DetailDialog
           open={open}
-          title={draft.service || "Consultar credencial"}
+          title={draft.nombre || "Consultar credencial"}
           description="Consulta la información guardada de esta credencial."
           sections={detailSections}
           onOpenChange={onOpenChange}
           onEdit={onEdit}
+          editLabel={editLabel}
+          editIcon={editIcon}
         />
       ) : (
         <FormDialog<CredentialDraft>
@@ -395,8 +404,8 @@ function CredentialDialog({
           submitLabel={config.submitLabel}
           icon={config.icon}
           sections={sections}
-          onDelete={mode === "edit" ? handleDeleteClick : undefined}
-          submitDisabled={!passwordIsStrong}
+          onDelete={isEdit ? handleDeleteClick : undefined}
+          deleteLabel="Desactivar"
           formActions={
             mode === "create" && onImport ? (
               <>
@@ -460,9 +469,10 @@ function CredentialDialog({
 
       <ConfirmDeleteDialog
         open={isConfirmOpen}
-        title="Eliminar credencial"
-        itemName={draft.service || "esta credencial"}
-        description={`¿Deseas eliminar la credencial de ${draft.service || "este servicio"}? Esta acción no se puede deshacer.`}
+        title="Desactivar credencial"
+        itemName={draft.nombre || "esta credencial"}
+        description={`¿Deseas desactivar la credencial de ${draft.nombre || "este servicio"}? Pasará a estado inactivo (baja lógica) y podrás reactivarla más adelante.`}
+        confirmLabel="Desactivar"
         onConfirm={handleConfirmDelete}
         onCancel={() => setIsConfirmOpen(false)}
       />

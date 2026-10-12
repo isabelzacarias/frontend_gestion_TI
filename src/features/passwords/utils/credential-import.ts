@@ -1,5 +1,4 @@
 import type { CredentialDraft } from "@/features/passwords/types/credential"
-import { evaluatePasswordStrength } from "@/features/passwords/utils/password-strength"
 import {
   detectCsvDelimiter,
   downloadCsvTemplate,
@@ -7,43 +6,29 @@ import {
   parseCsvRows,
 } from "@/lib/csv"
 
-const headers = [
-  "Servicio",
-  "Cuenta / correo",
-  "Nombre de usuario",
-  "Contraseña",
-  "Sitio web",
-  "Categoría",
-  "Notas",
-]
+const headers = ["Nombre", "Tipo", "Usuario", "Contraseña", "Comentario"]
 
 const headerFields: Record<string, keyof CredentialDraft> = {
-  servicio: "service",
-  cuentacorreo: "account",
-  nombredeusuario: "username",
+  nombre: "nombre",
+  tipo: "tipo",
+  usuario: "usuario",
   contrasena: "password",
-  sitoweb: "website",
-  categoria: "category",
-  notas: "notes",
+  comentario: "comentario",
 }
 
 const requiredFields: Array<keyof CredentialDraft> = [
-  "service",
-  "account",
-  "username",
+  "nombre",
+  "tipo",
+  "usuario",
   "password",
-  "website",
-  "category",
 ]
 
 const fieldLabels: Record<keyof CredentialDraft, string> = {
-  service: "Servicio",
-  account: "Cuenta / correo",
-  username: "Nombre de usuario",
+  nombre: "Nombre",
+  tipo: "Tipo",
+  usuario: "Usuario",
   password: "Contraseña",
-  website: "Sitio web",
-  category: "Categoría",
-  notes: "Notas",
+  comentario: "Comentario",
 }
 
 function resolveHeaderField(header: string): keyof CredentialDraft | undefined {
@@ -51,14 +36,20 @@ function resolveHeaderField(header: string): keyof CredentialDraft | undefined {
   if (exactField) return exactField
 
   if (
-    header === "url" ||
-    header === "urlweb" ||
-    header === "enlace" ||
-    header === "enlaceweb" ||
-    header.startsWith("sitioweb") ||
-    header.startsWith("website")
+    header === "password" ||
+    header === "clave" ||
+    header.startsWith("contrasena")
   ) {
-    return "website"
+    return "password"
+  }
+
+  if (
+    header === "notas" ||
+    header === "notes" ||
+    header.startsWith("observacion") ||
+    header.startsWith("comentario")
+  ) {
+    return "comentario"
   }
 
   return undefined
@@ -80,11 +71,7 @@ export function parseCredentialCsv(content: string): CredentialDraft[] {
   )
 
   if (missingHeaders.length > 0) {
-    const missingLabels = missingHeaders.map((field) =>
-      field === "website"
-        ? 'Sitio web (también se acepta "URL")'
-        : fieldLabels[field],
-    )
+    const missingLabels = missingHeaders.map((field) => fieldLabels[field])
     throw new Error(
       `Faltan las columnas obligatorias: ${missingLabels.join(", ")}. Descarga la plantilla de credenciales y úsala para importar.`,
     )
@@ -102,32 +89,16 @@ export function parseCredentialCsv(content: string): CredentialDraft[] {
 
       const value = (field: keyof CredentialDraft) => fields.get(field)?.trim() ?? ""
       const draft: CredentialDraft = {
-        service: value("service"),
-        account: value("account"),
-        username: value("username"),
+        nombre: value("nombre"),
+        tipo: value("tipo"),
+        usuario: value("usuario"),
         password: value("password"),
-        website: value("website"),
-        category: value("category"),
-        notes: value("notes"),
+        comentario: value("comentario"),
       }
 
       const missingFields = requiredFields.filter((field) => !draft[field])
       if (missingFields.length > 0) {
         throw new Error("Completa los campos requeridos del formulario.")
-      }
-
-      let website: URL
-      try {
-        website = new URL(draft.website)
-      } catch {
-        throw new Error("El sitio web debe ser una URL válida con http o https.")
-      }
-      if (website.protocol !== "http:" && website.protocol !== "https:") {
-        throw new Error("El sitio web debe comenzar con http:// o https://.")
-      }
-
-      if (!evaluatePasswordStrength(draft.password).isStrong) {
-        throw new Error("La contraseña no cumple todos los requisitos de seguridad.")
       }
 
       return draft
