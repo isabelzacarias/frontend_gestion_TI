@@ -1,11 +1,749 @@
-import { PagePlaceholder } from "@/components/common/PagePlaceholder"
+import { useEffect, useState, type FormEvent } from "react"
+import {
+  ArrowUpDown,
+  ChevronDown,
+  Download,
+  Plus,
+  Search,
+  UserRound,
+} from "lucide-react"
+import { toast } from "sonner"
+
+import { ModuleHeader } from "@/components/common/ModuleHeader"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
+import {
+  AssetFormDialog,
+  type AssetFormDraft,
+} from "@/features/inventory/components/AssetFormDialog"
+import {
+  ImportResultDialog,
+  type ImportResultRow,
+} from "@/features/inventory/components/ImportResultDialog"
+import { type InventoryItem } from "@/features/inventory/data/inventoryData"
+import {
+  downloadAssetImportErrors,
+  transformDraftsToImportRows,
+} from "@/features/inventory/utils/asset-import"
+import { exportActivosToCsv } from "@/features/inventory/utils/asset-export"
+import {
+  ActivoApiError,
+  confirmarImportacionActivos,
+  listarActivos,
+  listarTodosLosActivos,
+  validarImportacionActivos,
+} from "@/services/activo.service"
+import type {
+  ActivoImportRow,
+  ActivoResumen,
+  ErrorPeticion,
+  FilaConfirmacionImportacion,
+  FilaValidacionImportacion,
+  MetadatosPaginacion,
+} from "@/types/activo"
+
+interface ImportDialogState {
+  title: string
+  description: string
+  total: number
+  okCount: number
+  errorCount: number
+  okLabel: string
+  errorLabel: string
+  rows: ImportResultRow[]
+  primaryAction?: { label: string; onClick: () => void }
+  onDownloadErrors?: () => void
+}
+
+function toValidationRows(
+  filas: FilaValidacionImportacion[],
+): ImportResultRow[] {
+  return filas
+    .filter((fila) => !fila.valido || fila.advertencias.length > 0)
+    .map((fila) => ({
+      fila: fila.fila,
+      status: fila.valido ? "warning" : "error",
+      mensajes: fila.valido ? fila.advertencias : fila.errores,
+    }))
+}
+
+function toConfirmationRows(
+  filas: FilaConfirmacionImportacion[],
+): ImportResultRow[] {
+  return filas
+    .filter((fila) => !fila.creado || fila.advertencias.length > 0)
+    .map((fila) => ({
+      fila: fila.fila,
+      status: fila.creado ? "warning" : "error",
+      mensajes: fila.creado ? fila.advertencias : fila.errores,
+    }))
+}
+
+function getApiErrorMessage(error: unknown): string {
+  if (error instanceof ActivoApiError) {
+    if (error.status === 403) {
+      return "No tienes permiso para importar activos (activos:crear)."
+    }
+
+    const campos = error.errors
+      .map((detalle) =>
+        typeof detalle === "object" && detalle !== null && "campo" in detalle
+          ? String((detalle as ErrorPeticion).campo)
+          : "",
+      )
+      .filter((campo) => campo.length > 0)
+
+    return campos.length > 0
+      ? `${error.message} (campos: ${campos.join(", ")})`
+      : error.message
+  }
+
+  if (error instanceof Error) return error.message
+
+  return "No se pudo completar la importación masiva."
+}
+
+const stateClasses: Record<InventoryItem["estado"], string> = {
+  EN_USO: "border border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
+  EN_ALMACEN: "border border-sky-500/30 bg-sky-500/10 text-sky-600",
+  EN_MANTENIMIENTO:
+    "border border-amber-500/30 bg-amber-500/10 text-amber-600",
+  DE_BAJA: "border border-rose-500/30 bg-rose-500/10 text-rose-600",
+}
+
+const generalClasses: Record<InventoryItem["estadoGeneral"], string> = {
+  Excelente: "border border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
+  Bueno: "border border-violet-500/30 bg-violet-500/10 text-violet-600",
+  Regular: "border border-amber-500/30 bg-amber-500/10 text-amber-600",
+  Crítico: "border border-rose-500/30 bg-rose-500/10 text-rose-600",
+}
+
+const stateLabels: Record<InventoryItem["estado"], string> = {
+  EN_USO: "En uso",
+  EN_ALMACEN: "En almacén",
+  EN_MANTENIMIENTO: "En mantenimiento",
+  DE_BAJA: "De baja",
+}
+
+const ITEMS_PER_PAGE = 10
+
+const createEmptyAssetDraft = (): AssetFormDraft => ({
+  cb23: "",
+  tipo: "Laptop",
+  marca: "",
+  modelo: "",
+  numeroSerie: "",
+  sucursal: "PLAYA",
+  estado: "EN_ALMACEN",
+  estadoGeneral: "Bueno",
+  nombreRed: "",
+  responsableNombre: "",
+  responsableEmail: "",
+})
+
+const toAssetDraft = (item: InventoryItem): AssetFormDraft => ({
+  cb23: item.cb23,
+  tipo: item.tipo,
+  marca: item.marca,
+  modelo: item.modelo,
+  numeroSerie: item.numeroSerie,
+  sucursal: item.sucursal,
+  estado: item.estado,
+  estadoGeneral: item.estadoGeneral,
+  nombreRed: item.nombreRed,
+  responsableNombre: item.responsable.nombre,
+  responsableEmail: item.responsable.email,
+})
+
+const createInventoryItem = (draft: AssetFormDraft, id: number): InventoryItem => ({
+  id,
+  claveActivo: null,
+  cb23: draft.cb23.trim() || `CB-${id.toString().slice(-6)}`,
+  tipo: draft.tipo,
+  marca: draft.marca.trim() || "Sin marca",
+  modelo: draft.modelo.trim() || "Sin modelo",
+  numeroSerie: draft.numeroSerie.trim() || "N/A",
+  sucursal: draft.sucursal,
+  estado: draft.estado,
+  estadoGeneral: draft.estadoGeneral,
+  nombreRed: draft.nombreRed.trim() || "SIN_RED",
+  responsable: {
+    id: `USR-${id.toString().slice(-4)}`,
+    nombre: draft.responsableNombre.trim() || "Sin responsable",
+    email: draft.responsableEmail.trim() || "sin.responsable@empresa.com",
+  },
+})
+
+/* ──────────────────────────────────────────────
+ * Definición declarativa de las columnas
+ * ────────────────────────────────────────────── */
+const cellBase = "border-b border-border/70 px-4 py-3 text-foreground/90"
+const generalFallbackClass =
+  "border border-border/60 bg-muted text-muted-foreground"
+
+function toInventoryItem(activo: ActivoResumen): InventoryItem {
+  return {
+    id: activo.id,
+    claveActivo: activo.claveActivo,
+    cb23: activo.cb23 ?? "—",
+    tipo: activo.tipo,
+    marca: activo.marca ?? "—",
+    modelo: activo.modelo ?? "—",
+    numeroSerie: activo.numeroSerie ?? "—",
+    sucursal: activo.sucursal ?? "—",
+    estado: activo.estado,
+    estadoGeneral: activo.estadoGeneral ?? "—",
+    nombreRed: activo.nombreRed ?? "—",
+    responsable: {
+      id: activo.responsable?.id ?? "",
+      nombre: activo.responsable?.nombre ?? "Sin responsable",
+      email: activo.responsable?.email ?? "",
+    },
+  }
+}
+
+const columns: DataTableColumn<InventoryItem>[] = [
+  {
+    key: "id",
+    header: "ID",
+    cellClassName: "border-b border-border/70 px-4 py-3 font-semibold text-foreground",
+    render: (item) => item.id,
+  },
+  { key: "cb23", header: "CB23", cellClassName: cellBase, render: (item) => item.cb23 },
+  { key: "tipo", header: "Tipo", cellClassName: cellBase, render: (item) => item.tipo },
+  { key: "marca", header: "Marca", cellClassName: cellBase, render: (item) => item.marca },
+  { key: "modelo", header: "Modelo", cellClassName: cellBase, render: (item) => item.modelo },
+  { key: "numeroSerie", header: "No. serie", cellClassName: cellBase, render: (item) => item.numeroSerie },
+  { key: "sucursal", header: "Sucursal", cellClassName: cellBase, render: (item) => item.sucursal },
+  {
+    key: "estado",
+    header: "Estado",
+    cellClassName: "border-b border-border/70 px-4 py-3",
+    render: (item) => <Badge className={stateClasses[item.estado]}>{item.estado}</Badge>,
+  },
+  {
+    key: "estadoGeneral",
+    header: "General",
+    cellClassName: "border-b border-border/70 px-4 py-3",
+    render: (item) => (
+      <Badge
+        className={generalClasses[item.estadoGeneral] ?? generalFallbackClass}
+      >
+        {item.estadoGeneral}
+      </Badge>
+    ),
+  },
+  { key: "nombreRed", header: "Red", cellClassName: cellBase, render: (item) => item.nombreRed },
+  {
+    key: "responsable",
+    header: "Responsable",
+    cellClassName: "border-b border-border/70 px-4 py-3",
+    render: (item) => (
+      <div className="flex items-start gap-2">
+        <span className="mt-0.5 flex size-7 items-center justify-center rounded-full bg-[rgba(6,182,212,0.12)] text-primary">
+          <UserRound className="size-3.5" />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">
+            {item.responsable.nombre}
+          </div>
+          <div className="truncate text-xs text-muted-foreground">
+            {item.responsable.email}
+          </div>
+        </div>
+      </div>
+    ),
+  },
+]
 
 function InventoryPage() {
+  const [activos, setActivos] = useState<InventoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [meta, setMeta] = useState<MetadatosPaginacion>({
+    page: 1,
+    limit: ITEMS_PER_PAGE,
+    total: 0,
+    totalPages: 1,
+  })
+  const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [selectedState, setSelectedState] = useState<"ALL" | InventoryItem["estado"]>("ALL")
+  const [selectedBranch, setSelectedBranch] = useState<"ALL" | string>("ALL")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [exporting, setExporting] = useState(false)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+  const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null)
+  const [draft, setDraft] = useState(createEmptyAssetDraft())
+  const [importDialog, setImportDialog] = useState<ImportDialogState | null>(null)
+  const selectedAsset = activos.find((item) => item.id === selectedAssetId)
+  const detailSections: DetailSection[] = selectedAsset
+    ? [
+        {
+          title: "Identificación",
+          color: "primary",
+          fields: [
+            { key: "id", label: "ID", value: selectedAsset.id },
+            { key: "cb23", label: "CB23", value: selectedAsset.cb23 },
+           
+            { key: "tipo", label: "Tipo", value: selectedAsset.tipo },
+            { key: "marca", label: "Marca", value: selectedAsset.marca },
+            { key: "modelo", label: "Modelo", value: selectedAsset.modelo },
+            {
+              key: "numeroSerie",
+              label: "Número de serie",
+              value: selectedAsset.numeroSerie,
+            },
+          ],
+        },
+        {
+          title: "Ubicación y estado",
+          color: "cyan",
+          fields: [
+            { key: "sucursal", label: "Sucursal", value: selectedAsset.sucursal },
+            {
+              key: "estado",
+              label: "Estado",
+              value: stateLabels[selectedAsset.estado],
+            },
+            {
+              key: "estadoGeneral",
+              label: "Estado general",
+              value: selectedAsset.estadoGeneral,
+            },
+            { key: "nombreRed", label: "Red", value: selectedAsset.nombreRed },
+          ],
+        },
+        {
+          title: "Responsable",
+          color: "violet",
+          fields: [
+            {
+              key: "responsableNombre",
+              label: "Nombre completo",
+              value: selectedAsset.responsable.nombre,
+            },
+            {
+              key: "responsableEmail",
+              label: "Correo electrónico",
+              value: selectedAsset.responsable.email,
+            },
+          ],
+        },
+      ]
+    : []
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+      setCurrentPage(1)
+    }, 300)
+    return () => window.clearTimeout(id)
+  }, [search])
+
+  useEffect(() => {
+    let cancelado = false
+
+    async function cargarActivos() {
+      setLoading(true)
+      setLoadError(null)
+
+      try {
+        const { activos: lista, meta: metaRespuesta } = await listarActivos({
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+          ...(selectedState !== "ALL" ? { estado: selectedState } : {}),
+          ...(selectedBranch !== "ALL" ? { sucursal: selectedBranch } : {}),
+          ...(debouncedSearch ? { q: debouncedSearch } : {}),
+        })
+
+        if (cancelado) return
+        setActivos(lista.map(toInventoryItem))
+        setMeta(metaRespuesta)
+      } catch (error) {
+        if (cancelado) return
+        setLoadError(getApiErrorMessage(error))
+        setActivos([])
+      } finally {
+        if (!cancelado) setLoading(false)
+      }
+    }
+
+    void cargarActivos()
+
+    return () => {
+      cancelado = true
+    }
+  }, [currentPage, selectedState, selectedBranch, debouncedSearch, reloadKey])
+
+  const recargar = () => setReloadKey((key) => key + 1)
+
+  const handlePageChange = (nextPage: number) => {
+    setCurrentPage(Math.min(Math.max(nextPage, 1), meta.totalPages))
+  }
+
+  const handleExport = async () => {
+    if (exporting) return
+
+    setExporting(true)
+    const toastId = toast.loading("Preparando la exportación...")
+
+    try {
+      const activosExportables = await listarTodosLosActivos({
+        ...(selectedState !== "ALL" ? { estado: selectedState } : {}),
+        ...(selectedBranch !== "ALL" ? { sucursal: selectedBranch } : {}),
+        ...(debouncedSearch ? { q: debouncedSearch } : {}),
+      })
+
+      if (activosExportables.length === 0) {
+        toast.info(
+          "No hay registros para exportar con los filtros actuales.",
+          { id: toastId },
+        )
+        return
+      }
+
+      exportActivosToCsv(activosExportables)
+      toast.success(
+        `${activosExportables.length} registro(s) exportados a CSV.`,
+        { id: toastId },
+      )
+    } catch (error) {
+      toast.error(getApiErrorMessage(error), { id: toastId })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleDraftChange = <K extends keyof AssetFormDraft>(field: K, value: AssetFormDraft[K]) => {
+    setDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  const confirmarLote = async (
+    records: AssetFormDraft[],
+    filas: ActivoImportRow[],
+  ) => {
+    const toastId = toast.loading(`Registrando ${filas.length} activo(s)...`)
+
+    try {
+      const confirmacion = await confirmarImportacionActivos(filas)
+
+      setDraft(createEmptyAssetDraft())
+      setIsAddDialogOpen(false)
+      setCurrentPage(1)
+      recargar()
+
+      if (confirmacion.resumen.creadas > 0) {
+        toast.success(
+          `${confirmacion.resumen.creadas} activo(s) registrados${
+            confirmacion.resumen.rechazadas > 0
+              ? `; ${confirmacion.resumen.rechazadas} rechazados`
+              : ""
+          }.`,
+          { id: toastId },
+        )
+      } else {
+        toast.error("No se registró ningún activo del lote.", { id: toastId })
+      }
+
+      setImportDialog({
+        title: "Resultado de la importación",
+        description:
+          confirmacion.resumen.rechazadas > 0
+            ? "Algunas filas no se pudieron registrar. Revisa el detalle por fila."
+            : "Todas las filas se registraron correctamente.",
+        total: confirmacion.resumen.total,
+        okCount: confirmacion.resumen.creadas,
+        errorCount: confirmacion.resumen.rechazadas,
+        okLabel: "registradas",
+        errorLabel: "rechazadas",
+        rows: toConfirmationRows(confirmacion.filas),
+        onDownloadErrors:
+          confirmacion.resumen.rechazadas > 0
+            ? () => downloadAssetImportErrors(records, confirmacion.filas)
+            : undefined,
+      })
+    } catch (error) {
+      toast.error(getApiErrorMessage(error), { id: toastId })
+    }
+  }
+
+  const handleImportAssets = async (records: AssetFormDraft[]) => {
+    if (records.length === 0) return
+
+    const toastId = toast.loading(`Validando ${records.length} activo(s)...`)
+
+    try {
+      const filas = transformDraftsToImportRows(records)
+      const validacion = await validarImportacionActivos(filas)
+      toast.dismiss(toastId)
+
+      if (validacion.resumen.invalidas > 0) {
+        setImportDialog({
+          title: "Revisión del lote",
+          description:
+            "Hay filas con errores. Puedes importar solo las válidas o cerrar para corregir el archivo.",
+          total: validacion.resumen.total,
+          okCount: validacion.resumen.validas,
+          errorCount: validacion.resumen.invalidas,
+          okLabel: "válidas",
+          errorLabel: "con errores",
+          rows: toValidationRows(validacion.filas),
+          onDownloadErrors: () =>
+            downloadAssetImportErrors(records, validacion.filas),
+          primaryAction: {
+            label: `Importar ${validacion.resumen.validas} válida(s)`,
+            onClick: () => {
+              setImportDialog(null)
+              void confirmarLote(records, filas)
+            },
+          },
+        })
+        return
+      }
+
+      await confirmarLote(records, filas)
+    } catch (error) {
+      toast.error(getApiErrorMessage(error), { id: toastId })
+    }
+  }
+
+  const handleCreateAsset = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const nextItem = createInventoryItem(draft, Date.now())
+
+    setActivos((current) => [nextItem, ...current])
+    setDraft(createEmptyAssetDraft())
+    setIsAddDialogOpen(false)
+    setCurrentPage(1)
+  }
+
+  const handleSelectAsset = (item: InventoryItem) => {
+    setSelectedAssetId(item.id)
+  }
+
+  const handleOpenEditDialog = (item: InventoryItem) => {
+    setSelectedAssetId(item.id)
+    setDraft(toAssetDraft(item))
+    setIsDetailDialogOpen(false)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleOpenDetails = (item: InventoryItem) => {
+    setSelectedAssetId(item.id)
+    setIsDetailDialogOpen(true)
+  }
+
+  const handleUpdateAsset = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (selectedAssetId === null) return
+
+    setActivos((current) =>
+      current.map((item) =>
+        item.id === selectedAssetId
+          ? {
+              ...item,
+              cb23: draft.cb23.trim() || item.cb23,
+              tipo: draft.tipo,
+              marca: draft.marca.trim() || item.marca,
+              modelo: draft.modelo.trim() || item.modelo,
+              numeroSerie: draft.numeroSerie.trim() || item.numeroSerie,
+              sucursal: draft.sucursal,
+              estado: draft.estado,
+              estadoGeneral: draft.estadoGeneral,
+              nombreRed: draft.nombreRed.trim() || item.nombreRed,
+              responsable: {
+                ...item.responsable,
+                nombre: draft.responsableNombre.trim() || item.responsable.nombre,
+                email: draft.responsableEmail.trim() || item.responsable.email,
+              },
+            }
+          : item,
+      ),
+    )
+
+    setDraft(createEmptyAssetDraft())
+    setSelectedAssetId(null)
+    setIsEditDialogOpen(false)
+  }
+
+  const handleDeleteAsset = () => {
+    if (selectedAssetId === null) return
+
+    setActivos((current) => current.filter((item) => item.id !== selectedAssetId))
+    setDraft(createEmptyAssetDraft())
+    setSelectedAssetId(null)
+    setIsEditDialogOpen(false)
+    setCurrentPage(1)
+  }
+
   return (
-    <PagePlaceholder
-      title="Inventario"
-      description="Consulta los activos de TI y sus asignaciones."
-    />
+    <div className="flex h-full flex-col gap-4 overflow-hidden">
+      <ModuleHeader
+        eyebrow="Inventario TI"
+        title="Consulta de activos"
+        actions={
+          <>
+            <Button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting || loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-4 py-2 text-sm font-semibold text-foreground shadow-[0_10px_20px_rgba(15,23,42,0.05)] backdrop-blur-md hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-violet-400/30 dark:bg-slate-900/70 dark:text-violet-100 dark:hover:bg-slate-800/90"
+            >
+              <Download className="size-4" />
+              {exporting ? "Exportando..." : "Exportar"}
+            </Button>
+
+            <Button
+              type="button"
+              onClick={() => setIsAddDialogOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(91,36,128,0.24)] hover:brightness-110"
+            >
+              <Plus className="size-4" />
+              Agregar
+            </Button>
+          </>
+        }
+        filters={
+          <>
+            <div className="flex items-center gap-2 rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 text-sm text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_10px_24px_rgba(91,36,128,0.08)] backdrop-blur-md md:min-w-[290px] dark:border-white/10 dark:bg-slate-900/55 dark:shadow-[inset_0_1px_0_rgba(148,163,184,0.12),0_12px_25px_rgba(15,23,42,0.18)]">
+              <Search className="size-4 text-primary" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar por CB23, serie, marca, modelo o red..."
+                className="w-full border-0 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none"
+                aria-label="Buscar inventario"
+              />
+            </div>
+
+            <div className="relative inline-flex min-w-[180px] items-center">
+              <select
+                value={selectedState}
+                onChange={(event) => {
+                  setSelectedState(
+                    event.target.value as "ALL" | InventoryItem["estado"],
+                  )
+                  setCurrentPage(1)
+                }}
+                className="w-full appearance-none rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 pr-9 text-sm font-medium text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.05)] outline-none backdrop-blur-md transition focus:border-primary dark:border-white/10 dark:bg-slate-900/55"
+                aria-label="Filtrar por estado"
+              >
+                <option value="ALL">Todos los estados</option>
+                <option value="EN_USO">En uso</option>
+                <option value="EN_ALMACEN">En almacén</option>
+                <option value="EN_MANTENIMIENTO">En mantenimiento</option>
+                <option value="DE_BAJA">De baja</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 size-4 text-muted-foreground" />
+            </div>
+
+            <div className="relative inline-flex min-w-[180px] items-center">
+              <select
+                value={selectedBranch}
+                onChange={(event) => {
+                  setSelectedBranch(event.target.value as "ALL" | string)
+                  setCurrentPage(1)
+                }}
+                className="w-full appearance-none rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 pr-9 text-sm font-medium text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.05)] outline-none backdrop-blur-md transition focus:border-primary dark:border-white/10 dark:bg-slate-900/55"
+                aria-label="Filtrar por sucursal"
+              >
+                <option value="ALL">Todas las sucursales</option>
+                <option value="PLAYA">PLAYA</option>
+                <option value="CANCUN">CANCUN</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 size-4 text-muted-foreground" />
+            </div>
+          </>
+        }
+        summary={
+          <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
+            <ArrowUpDown className="size-3.5 text-violet-700 dark:text-violet-200" />
+            {loading ? "Cargando..." : `${meta.total} registros`}
+          </span>
+        }
+      />
+
+      <DetailDialog
+        open={isDetailDialogOpen && selectedAsset !== undefined}
+        title={selectedAsset ? `${selectedAsset.tipo} - ${selectedAsset.cb23}` : "Detalle del activo"}
+        description="Información del equipo registrado en el inventario TI."
+        icon={<UserRound aria-hidden="true" className="size-5" />}
+        sections={detailSections}
+        onOpenChange={setIsDetailDialogOpen}
+        onEdit={() => {
+          if (selectedAsset) handleOpenEditDialog(selectedAsset)
+        }}
+      />
+
+      <AssetFormDialog
+        open={isAddDialogOpen}
+        draft={draft}
+        onOpenChange={setIsAddDialogOpen}
+        onChange={handleDraftChange}
+        onSubmit={handleCreateAsset}
+        onImport={handleImportAssets}
+      />
+
+      <AssetFormDialog
+        open={isEditDialogOpen}
+        draft={draft}
+        mode="edit"
+        onOpenChange={(nextOpen) => {
+          setIsEditDialogOpen(nextOpen)
+          if (!nextOpen) {
+            setSelectedAssetId(null)
+            setDraft(createEmptyAssetDraft())
+          }
+        }}
+        onChange={handleDraftChange}
+        onSubmit={handleUpdateAsset}
+        onDelete={handleDeleteAsset}
+      />
+
+      {importDialog && (
+        <ImportResultDialog
+          open
+          title={importDialog.title}
+          description={importDialog.description}
+          total={importDialog.total}
+          okCount={importDialog.okCount}
+          errorCount={importDialog.errorCount}
+          okLabel={importDialog.okLabel}
+          errorLabel={importDialog.errorLabel}
+          rows={importDialog.rows}
+          primaryAction={importDialog.primaryAction}
+          onDownloadErrors={importDialog.onDownloadErrors}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setImportDialog(null)
+          }}
+        />
+      )}
+
+      <DataTable<InventoryItem>
+        columns={columns}
+        data={activos}
+        rowKey={(item) => item.id}
+        page={meta.page}
+        totalPages={meta.totalPages}
+        totalFiltered={meta.total}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={handlePageChange}
+        onRowClick={handleSelectAsset}
+        onRowDoubleClick={handleOpenDetails}
+        selectedRowKey={selectedAssetId}
+        emptyMessage={
+          loading ? "Cargando activos..." : (loadError ?? "Sin resultados")
+        }
+      />
+    </div>
   )
 }
 

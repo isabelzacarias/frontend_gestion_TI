@@ -1,6 +1,3 @@
-<<<<<<< Updated upstream
-import { PagePlaceholder } from "@/components/common/PagePlaceholder"
-=======
 import { useEffect, useState } from "react"
 import {
   ArrowUpDown,
@@ -180,14 +177,360 @@ const columns: DataTableColumn<Ticket>[] = [
     render: (item) => formatDate(item.fechaNotificacion),
   },
 ]
->>>>>>> Stashed changes
 
 function TicketsPage() {
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [meta, setMeta] = useState<MetadatosPaginacion>({
+    page: 1,
+    limit: ITEMS_PER_PAGE,
+    total: 0,
+    totalPages: 1,
+  })
+  const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [selectedEstado, setSelectedEstado] = useState<"ALL" | TicketEstado>("ALL")
+  const [selectedPrioridad, setSelectedPrioridad] = useState<"ALL" | TicketPrioridad>(
+    "ALL",
+  )
+  const [selectedTipo, setSelectedTipo] = useState<"ALL" | TipoRequerimiento>("ALL")
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const [ticketDetail, setTicketDetail] = useState<TicketDetalle | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+      setCurrentPage(1)
+    }, 300)
+    return () => window.clearTimeout(id)
+  }, [search])
+
+  useEffect(() => {
+    let cancelado = false
+
+    async function cargarTickets() {
+      setLoading(true)
+      setLoadError(null)
+
+      try {
+        const { tickets: lista, meta: metaRespuesta } = await listarTickets({
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+          ...(selectedEstado !== "ALL" ? { estado: selectedEstado } : {}),
+          ...(selectedPrioridad !== "ALL"
+            ? { prioridad: selectedPrioridad }
+            : {}),
+          ...(selectedTipo !== "ALL" ? { tipoRequerimiento: selectedTipo } : {}),
+          ...(debouncedSearch ? { q: debouncedSearch } : {}),
+        })
+
+        if (cancelado) return
+        setTickets(lista)
+        setMeta(metaRespuesta)
+      } catch (error) {
+        if (cancelado) return
+        setLoadError(getErrorMessage(error))
+        setTickets([])
+      } finally {
+        if (!cancelado) setLoading(false)
+      }
+    }
+
+    void cargarTickets()
+
+    return () => {
+      cancelado = true
+    }
+  }, [
+    currentPage,
+    selectedEstado,
+    selectedPrioridad,
+    selectedTipo,
+    debouncedSearch,
+  ])
+
+  useEffect(() => {
+    if (!isDetailOpen || !selectedTicket) return
+
+    let cancelado = false
+
+    async function cargarDetalle() {
+      setDetailLoading(true)
+      try {
+        const detalle = await obtenerTicket(selectedTicket!.id)
+        if (!cancelado) setTicketDetail(detalle)
+      } catch (error) {
+        if (!cancelado) toast.error(getErrorMessage(error))
+      } finally {
+        if (!cancelado) setDetailLoading(false)
+      }
+    }
+
+    void cargarDetalle()
+
+    return () => {
+      cancelado = true
+    }
+  }, [isDetailOpen, selectedTicket])
+
+  const handlePageChange = (nextPage: number) => {
+    setCurrentPage(Math.min(Math.max(nextPage, 1), meta.totalPages))
+  }
+
+  const handleOpenDetails = (ticket: Ticket) => {
+    setSelectedTicket(ticket)
+    setTicketDetail(null)
+    setIsDetailOpen(true)
+  }
+
+  const detailSections: DetailSection[] = selectedTicket
+    ? [
+        {
+          title: "Información General",
+          color: "primary",
+          fields: [
+            { key: "id", label: "ID Ticket", value: `#${selectedTicket.id}` },
+            {
+              key: "originalId",
+              label: "ID Original / Referencia",
+              value: selectedTicket.originalId ?? "N/A",
+            },
+            {
+              key: "titulo",
+              label: "Título de la Incidencia",
+              value: selectedTicket.titulo,
+              colSpan: "sm:col-span-2",
+            },
+            {
+              key: "estado",
+              label: "Estado Actual",
+              value: (
+                <Badge className={estadoClasses[selectedTicket.estado]}>
+                  {estadoLabels[selectedTicket.estado]}
+                </Badge>
+              ),
+            },
+            {
+              key: "prioridad",
+              label: "Prioridad",
+              value: (
+                <Badge className={prioridadClasses[selectedTicket.prioridad]}>
+                  {prioridadLabels[selectedTicket.prioridad]}
+                </Badge>
+              ),
+            },
+            {
+              key: "tipoRequerimiento",
+              label: "Tipo de Requerimiento",
+              value: (
+                <Badge className={reqClasses[selectedTicket.tipoRequerimiento]}>
+                  {tipoLabels[selectedTicket.tipoRequerimiento]}
+                </Badge>
+              ),
+            },
+            {
+              key: "descripcion",
+              label: "Descripción",
+              value: detailLoading
+                ? "Cargando..."
+                : (ticketDetail?.descripcion ?? "—"),
+              colSpan: "sm:col-span-2",
+            },
+            {
+              key: "evidenciaUrl",
+              label: "Evidencia",
+              value: ticketDetail?.evidenciaUrl ?? "—",
+            },
+          ],
+        },
+        {
+          title: "Solicitante y Asignación",
+          color: "cyan",
+          fields: [
+            {
+              key: "solicitanteNombre",
+              label: "Solicitante",
+              value: selectedTicket.solicitante.nombre,
+            },
+            {
+              key: "solicitanteEmail",
+              label: "Correo Solicitante",
+              value: selectedTicket.solicitante.email ?? "—",
+            },
+            {
+              key: "asignadoNombre",
+              label: "Técnico Asignado",
+              value: selectedTicket.asignadoA
+                ? selectedTicket.asignadoA.nombre
+                : "Sin asignar",
+            },
+            {
+              key: "asignadoEmail",
+              label: "Correo Asignado",
+              value: selectedTicket.asignadoA?.email ?? "—",
+            },
+            {
+              key: "departamento",
+              label: "Departamento",
+              value: selectedTicket.departamento?.nombre ?? "No especificado",
+            },
+          ],
+        },
+        {
+          title: "Fechas y Registro",
+          color: "violet",
+          fields: [
+            {
+              key: "fechaNotificacion",
+              label: "Fecha de Notificación",
+              value: formatDate(selectedTicket.fechaNotificacion),
+            },
+            {
+              key: "fechaResolucion",
+              label: "Fecha de Resolución",
+              value: formatDate(selectedTicket.fechaResolucion),
+            },
+            {
+              key: "totalActualizaciones",
+              label: "Actualizaciones",
+              value: String(selectedTicket.totalActualizaciones),
+            },
+          ],
+        },
+        ...(ticketDetail && ticketDetail.actualizaciones.length > 0
+          ? [
+              {
+                title: "Seguimiento",
+                color: "emerald" as const,
+                fields: ticketDetail.actualizaciones.map((actualizacion) => ({
+                  key: `actualizacion-${actualizacion.id}`,
+                  label: formatDate(actualizacion.creadaEn),
+                  value: actualizacion.texto,
+                  colSpan: "sm:col-span-2",
+                })),
+              },
+            ]
+          : []),
+      ]
+    : []
+
   return (
-    <PagePlaceholder
-      title="Tickets"
-      description="Gestiona incidencias y solicitudes del area de TI."
-    />
+    <div className="space-y-6">
+      <ModuleHeader
+        eyebrow="Mesa de Ayuda TI"
+        title="Gestión de Tickets e Incidencias"
+        filters={
+          <div className="flex flex-1 flex-wrap items-center gap-3">
+            <div className="relative min-w-[240px] flex-1 sm:max-w-md">
+              <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar por título o solicitante..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-10 w-full rounded-2xl border border-border/80 bg-background/80 pl-10 pr-4 text-xs font-medium text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div className="relative">
+              <select
+                value={selectedEstado}
+                onChange={(e) => {
+                  setSelectedEstado(e.target.value as "ALL" | TicketEstado)
+                  setCurrentPage(1)
+                }}
+                className="h-10 cursor-pointer appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="ALL">Todos los Estados</option>
+                {ESTADOS.map((estado) => (
+                  <option key={estado} value={estado}>
+                    {estadoLabels[estado]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+
+            <div className="relative">
+              <select
+                value={selectedPrioridad}
+                onChange={(e) => {
+                  setSelectedPrioridad(e.target.value as "ALL" | TicketPrioridad)
+                  setCurrentPage(1)
+                }}
+                className="h-10 cursor-pointer appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="ALL">Todas las Prioridades</option>
+                {PRIORIDADES.map((prioridad) => (
+                  <option key={prioridad} value={prioridad}>
+                    {prioridadLabels[prioridad]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+
+            <div className="relative">
+              <select
+                value={selectedTipo}
+                onChange={(e) => {
+                  setSelectedTipo(e.target.value as "ALL" | TipoRequerimiento)
+                  setCurrentPage(1)
+                }}
+                className="h-10 cursor-pointer appearance-none rounded-2xl border border-border/80 bg-background/80 pl-4 pr-9 text-xs font-medium text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="ALL">Todos los Tipos</option>
+                {TIPOS.map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {tipoLabels[tipo]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+          </div>
+        }
+        summary={
+          <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
+            <ArrowUpDown className="size-3.5 text-violet-700 dark:text-violet-200" />
+            {loading ? "Cargando..." : `${meta.total} tickets registrados`}
+          </span>
+        }
+      />
+
+      <DataTable<Ticket>
+        columns={columns}
+        data={tickets}
+        rowKey={(ticket) => ticket.id}
+        page={meta.page}
+        totalPages={meta.totalPages}
+        totalFiltered={meta.total}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={handlePageChange}
+        onRowDoubleClick={handleOpenDetails}
+        onRowClick={(ticket) => setSelectedTicket(ticket)}
+        selectedRowKey={selectedTicket?.id ?? null}
+        emptyMessage={
+          loading ? "Cargando incidencias..." : (loadError ?? "Sin resultados")
+        }
+      />
+
+      {selectedTicket && (
+        <DetailDialog
+          open={isDetailOpen}
+          onOpenChange={setIsDetailOpen}
+          title={`Ticket #${selectedTicket.id}`}
+          description="Consulta detallada de la incidencia o solicitud."
+          icon={<TicketIcon className="size-6 text-white" />}
+          sections={detailSections}
+        />
+      )}
+    </div>
   )
 }
 

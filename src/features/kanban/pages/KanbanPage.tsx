@@ -1,13 +1,3 @@
-<<<<<<< Updated upstream
-import { PagePlaceholder } from "@/components/common/PagePlaceholder"
-
-function KanbanPage() {
-  return (
-    <PagePlaceholder
-      title="Tablero Kanban"
-      description="Arrastra y suelta tarjetas para actualizar el estado en tiempo real."
-    />
-=======
 import { useEffect, useState } from "react"
 import { Loader2, RefreshCw } from "lucide-react"
 
@@ -203,7 +193,6 @@ function KanbanPage() {
         </div>
       </div>
     </PagePlaceholder>
->>>>>>> Stashed changes
   )
 }
 
