@@ -1,11 +1,13 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import {
   ArrowUpDown,
-  ChevronDown,
+  Building2,
+  CircleDot,
   Download,
   Plus,
   Search,
   UserRound,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -14,6 +16,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
+import { FacetedFilter } from "@/components/ui/faceted-filter"
+import type {
+  FacetDimension,
+  FacetOption,
+  FacetSelections,
+} from "@/components/ui/faceted-filter"
 import {
   AssetFormDialog,
   type AssetFormDraft,
@@ -31,7 +39,6 @@ import { exportActivosToCsv } from "@/features/inventory/utils/asset-export"
 import {
   ActivoApiError,
   confirmarImportacionActivos,
-  listarActivos,
   listarTodosLosActivos,
   validarImportacionActivos,
 } from "@/services/activo.service"
@@ -39,9 +46,9 @@ import type {
   ActivoImportRow,
   ActivoResumen,
   ErrorPeticion,
+  EstadoActivo,
   FilaConfirmacionImportacion,
   FilaValidacionImportacion,
-  MetadatosPaginacion,
 } from "@/types/activo"
 
 interface ImportDialogState {
@@ -128,6 +135,39 @@ const stateLabels: Record<InventoryItem["estado"], string> = {
 }
 
 const ITEMS_PER_PAGE = 10
+
+const ESTADOS_ACTIVO: EstadoActivo[] = [
+  "EN_USO",
+  "EN_ALMACEN",
+  "EN_MANTENIMIENTO",
+  "DE_BAJA",
+]
+
+const SUCURSALES = ["PLAYA", "CANCUN"]
+
+function toActivoResumen(item: InventoryItem): ActivoResumen {
+  const clean = (value: string) => (value === "—" ? null : value)
+  return {
+    id: item.id,
+    claveActivo: item.claveActivo,
+    cb23: clean(item.cb23),
+    tipo: item.tipo,
+    marca: clean(item.marca),
+    modelo: clean(item.modelo),
+    numeroSerie: clean(item.numeroSerie),
+    sucursal: clean(item.sucursal),
+    estado: item.estado,
+    estadoGeneral: clean(item.estadoGeneral),
+    nombreRed: clean(item.nombreRed),
+    responsable: item.responsable.id
+      ? {
+          id: item.responsable.id,
+          nombre: item.responsable.nombre,
+          email: item.responsable.email || null,
+        }
+      : null,
+  }
+}
 
 const createEmptyAssetDraft = (): AssetFormDraft => ({
   cb23: "",
@@ -262,19 +302,14 @@ function InventoryPage() {
   const [activos, setActivos] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [meta, setMeta] = useState<MetadatosPaginacion>({
-    page: 1,
-    limit: ITEMS_PER_PAGE,
-    total: 0,
-    totalPages: 1,
-  })
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
-  const [selectedState, setSelectedState] = useState<"ALL" | InventoryItem["estado"]>("ALL")
-  const [selectedBranch, setSelectedBranch] = useState<"ALL" | string>("ALL")
+  const [estadosSeleccionados, setEstadosSeleccionados] = useState<string[]>([])
+  const [sucursalesSeleccionadas, setSucursalesSeleccionadas] = useState<
+    string[]
+  >([])
   const [currentPage, setCurrentPage] = useState(1)
   const [reloadKey, setReloadKey] = useState(0)
-  const [exporting, setExporting] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
@@ -338,6 +373,118 @@ function InventoryPage() {
       ]
     : []
 
+  const filtros = useMemo(
+    () => ({
+      estados: estadosSeleccionados,
+      sucursales: sucursalesSeleccionadas,
+      texto: debouncedSearch,
+    }),
+    [estadosSeleccionados, sucursalesSeleccionadas, debouncedSearch],
+  )
+
+  const activosFiltrados = useMemo(() => {
+    const termino = filtros.texto.trim().toLowerCase()
+
+    return activos.filter((item) => {
+      if (filtros.estados.length > 0 && !filtros.estados.includes(item.estado)) {
+        return false
+      }
+
+      if (
+        filtros.sucursales.length > 0 &&
+        !filtros.sucursales.includes(item.sucursal)
+      ) {
+        return false
+      }
+
+      if (termino) {
+        const coincide = [
+          item.cb23,
+          item.numeroSerie,
+          item.marca,
+          item.modelo,
+          item.nombreRed,
+          item.tipo,
+        ].some((valor) => valor.toLowerCase().includes(termino))
+
+        if (!coincide) return false
+      }
+
+      return true
+    })
+  }, [activos, filtros])
+
+  const hayFiltros =
+    filtros.estados.length > 0 ||
+    filtros.sucursales.length > 0 ||
+    filtros.texto !== ""
+
+  const totalFiltrados = activosFiltrados.length
+  const totalPages = Math.max(1, Math.ceil(totalFiltrados / ITEMS_PER_PAGE))
+  const paginaActual = Math.min(currentPage, totalPages)
+
+  const activosPagina = useMemo(
+    () =>
+      activosFiltrados.slice(
+        (paginaActual - 1) * ITEMS_PER_PAGE,
+        paginaActual * ITEMS_PER_PAGE,
+      ),
+    [activosFiltrados, paginaActual],
+  )
+
+  const facetDimensions = useMemo<FacetDimension[]>(
+    () => [
+      {
+        id: "estados",
+        label: "Estado",
+        icon: CircleDot,
+        options: ESTADOS_ACTIVO.map<FacetOption>((value) => ({
+          value,
+          label: stateLabels[value],
+        })),
+      },
+      {
+        id: "sucursales",
+        label: "Sucursal",
+        icon: Building2,
+        options: SUCURSALES.map<FacetOption>((value) => ({
+          value,
+          label: value,
+        })),
+      },
+    ],
+    [],
+  )
+
+  const facetSelecciones = useMemo<FacetSelections>(
+    () => ({
+      estados: estadosSeleccionados,
+      sucursales: sucursalesSeleccionadas,
+    }),
+    [estadosSeleccionados, sucursalesSeleccionadas],
+  )
+
+  function handleFacetChange(dimensionId: string, values: string[]) {
+    if (dimensionId === "estados") {
+      setEstadosSeleccionados(values)
+    } else if (dimensionId === "sucursales") {
+      setSucursalesSeleccionadas(values)
+    }
+    setCurrentPage(1)
+  }
+
+  function borrarFacetas() {
+    setEstadosSeleccionados([])
+    setSucursalesSeleccionadas([])
+    setCurrentPage(1)
+  }
+
+  function limpiarFiltros() {
+    setSearch("")
+    setDebouncedSearch("")
+    borrarFacetas()
+  }
+
   useEffect(() => {
     const id = window.setTimeout(() => {
       setDebouncedSearch(search.trim())
@@ -354,17 +501,9 @@ function InventoryPage() {
       setLoadError(null)
 
       try {
-        const { activos: lista, meta: metaRespuesta } = await listarActivos({
-          page: currentPage,
-          limit: ITEMS_PER_PAGE,
-          ...(selectedState !== "ALL" ? { estado: selectedState } : {}),
-          ...(selectedBranch !== "ALL" ? { sucursal: selectedBranch } : {}),
-          ...(debouncedSearch ? { q: debouncedSearch } : {}),
-        })
-
+        const lista = await listarTodosLosActivos()
         if (cancelado) return
         setActivos(lista.map(toInventoryItem))
-        setMeta(metaRespuesta)
       } catch (error) {
         if (cancelado) return
         setLoadError(getApiErrorMessage(error))
@@ -379,45 +518,24 @@ function InventoryPage() {
     return () => {
       cancelado = true
     }
-  }, [currentPage, selectedState, selectedBranch, debouncedSearch, reloadKey])
+  }, [reloadKey])
 
   const recargar = () => setReloadKey((key) => key + 1)
 
   const handlePageChange = (nextPage: number) => {
-    setCurrentPage(Math.min(Math.max(nextPage, 1), meta.totalPages))
+    setCurrentPage(Math.min(Math.max(nextPage, 1), totalPages))
   }
 
-  const handleExport = async () => {
-    if (exporting) return
-
-    setExporting(true)
-    const toastId = toast.loading("Preparando la exportación...")
-
-    try {
-      const activosExportables = await listarTodosLosActivos({
-        ...(selectedState !== "ALL" ? { estado: selectedState } : {}),
-        ...(selectedBranch !== "ALL" ? { sucursal: selectedBranch } : {}),
-        ...(debouncedSearch ? { q: debouncedSearch } : {}),
-      })
-
-      if (activosExportables.length === 0) {
-        toast.info(
-          "No hay registros para exportar con los filtros actuales.",
-          { id: toastId },
-        )
-        return
-      }
-
-      exportActivosToCsv(activosExportables)
-      toast.success(
-        `${activosExportables.length} registro(s) exportados a CSV.`,
-        { id: toastId },
-      )
-    } catch (error) {
-      toast.error(getApiErrorMessage(error), { id: toastId })
-    } finally {
-      setExporting(false)
+  const handleExport = () => {
+    if (activosFiltrados.length === 0) {
+      toast.info("No hay registros para exportar con los filtros actuales.")
+      return
     }
+
+    exportActivosToCsv(activosFiltrados.map(toActivoResumen))
+    toast.success(
+      `${activosFiltrados.length} registro(s) exportados a CSV.`,
+    )
   }
 
   const handleDraftChange = <K extends keyof AssetFormDraft>(field: K, value: AssetFormDraft[K]) => {
@@ -594,11 +712,11 @@ function InventoryPage() {
             <Button
               type="button"
               onClick={handleExport}
-              disabled={exporting || loading}
+              disabled={loading}
               className="inline-flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-4 py-2 text-sm font-semibold text-foreground shadow-[0_10px_20px_rgba(15,23,42,0.05)] backdrop-blur-md hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-violet-400/30 dark:bg-slate-900/70 dark:text-violet-100 dark:hover:bg-slate-800/90"
             >
               <Download className="size-4" />
-              {exporting ? "Exportando..." : "Exportar"}
+              Exportar
             </Button>
 
             <Button
@@ -612,61 +730,48 @@ function InventoryPage() {
           </>
         }
         filters={
-          <>
-            <div className="flex items-center gap-2 rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 text-sm text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_10px_24px_rgba(91,36,128,0.08)] backdrop-blur-md md:min-w-[290px] dark:border-white/10 dark:bg-slate-900/55 dark:shadow-[inset_0_1px_0_rgba(148,163,184,0.12),0_12px_25px_rgba(15,23,42,0.18)]">
-              <Search className="size-4 text-primary" />
+          <div className="flex flex-1 flex-wrap items-center gap-3">
+            <div className="relative min-w-[240px] flex-1 sm:max-w-md">
+              <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
+                type="text"
+                placeholder="Buscar por CB23, serie, marca, modelo o red..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar por CB23, serie, marca, modelo o red..."
-                className="w-full border-0 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none"
+                className="h-10 w-full rounded-2xl border border-border/80 bg-background/80 pl-10 pr-4 text-xs font-medium text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 aria-label="Buscar inventario"
               />
             </div>
 
-            <div className="relative inline-flex min-w-[180px] items-center">
-              <select
-                value={selectedState}
-                onChange={(event) => {
-                  setSelectedState(
-                    event.target.value as "ALL" | InventoryItem["estado"],
-                  )
-                  setCurrentPage(1)
-                }}
-                className="w-full appearance-none rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 pr-9 text-sm font-medium text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.05)] outline-none backdrop-blur-md transition focus:border-primary dark:border-white/10 dark:bg-slate-900/55"
-                aria-label="Filtrar por estado"
-              >
-                <option value="ALL">Todos los estados</option>
-                <option value="EN_USO">En uso</option>
-                <option value="EN_ALMACEN">En almacén</option>
-                <option value="EN_MANTENIMIENTO">En mantenimiento</option>
-                <option value="DE_BAJA">De baja</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 size-4 text-muted-foreground" />
-            </div>
+            <FacetedFilter
+              dimensions={facetDimensions}
+              selections={facetSelecciones}
+              onChange={handleFacetChange}
+              onClearAll={borrarFacetas}
+            />
 
-            <div className="relative inline-flex min-w-[180px] items-center">
-              <select
-                value={selectedBranch}
-                onChange={(event) => {
-                  setSelectedBranch(event.target.value as "ALL" | string)
-                  setCurrentPage(1)
-                }}
-                className="w-full appearance-none rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 pr-9 text-sm font-medium text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.05)] outline-none backdrop-blur-md transition focus:border-primary dark:border-white/10 dark:bg-slate-900/55"
-                aria-label="Filtrar por sucursal"
+            {hayFiltros && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limpiarFiltros}
+                className="text-muted-foreground"
               >
-                <option value="ALL">Todas las sucursales</option>
-                <option value="PLAYA">PLAYA</option>
-                <option value="CANCUN">CANCUN</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 size-4 text-muted-foreground" />
-            </div>
-          </>
+                <X />
+                Borrar filtros
+              </Button>
+            )}
+          </div>
         }
         summary={
           <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
             <ArrowUpDown className="size-3.5 text-violet-700 dark:text-violet-200" />
-            {loading ? "Cargando..." : `${meta.total} registros`}
+            {loading
+              ? "Cargando..."
+              : (loadError ??
+                (hayFiltros
+                  ? `${totalFiltrados} de ${activos.length} registros`
+                  : `${activos.length} registros`))}
           </span>
         }
       />
@@ -729,18 +834,20 @@ function InventoryPage() {
 
       <DataTable<InventoryItem>
         columns={columns}
-        data={activos}
+        data={activosPagina}
         rowKey={(item) => item.id}
-        page={meta.page}
-        totalPages={meta.totalPages}
-        totalFiltered={meta.total}
+        page={paginaActual}
+        totalPages={totalPages}
+        totalFiltered={totalFiltrados}
         itemsPerPage={ITEMS_PER_PAGE}
         onPageChange={handlePageChange}
         onRowClick={handleSelectAsset}
         onRowDoubleClick={handleOpenDetails}
         selectedRowKey={selectedAssetId}
         emptyMessage={
-          loading ? "Cargando activos..." : (loadError ?? "Sin resultados")
+          loading
+            ? "Cargando activos..."
+            : (loadError ?? (hayFiltros ? "Sin coincidencias" : "Sin resultados"))
         }
       />
     </div>

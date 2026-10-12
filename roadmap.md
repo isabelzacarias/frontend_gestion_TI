@@ -325,6 +325,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 
 - [x] Implementar el listado centralizado de inventario de equipos utilizando el componente base `DataTable`.
 - [x] Desarrollar la barra de búsqueda y filtros combinados por tipo de equipo, sucursal, estado operativo y estado físico.
+- [x] Migrar los filtros de inventario al filtro facetado estándar `FacetedFilter` (dimensiones **Estado** y **Sucursal**, multi-selección) con búsqueda integrada y botón **Borrar filtros**. El listado pasó a **filtrado y paginación en cliente** sobre `listarTodosLosActivos` (consistente con Tickets y Kanban); la exportación CSV ahora opera sobre los registros ya filtrados en cliente.
 - [x] Consultar el detalle del activo con `DetailDialog` al hacer doble clic y abrir `AssetFormDialog` en edición mediante la acción **Editar**.
 - [x] Construir el modal de alta y edición de activos utilizando el componente `AssetFormDialog` (basado en `FormDialog`).
 - [x] Integrar el diálogo de confirmación de baja de activos utilizando `ConfirmDeleteDialog`.
@@ -567,6 +568,10 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 - [ ] Permitir la personalización del dashboard principal con widgets arrastrables según el rol del usuario.
 - [ ] Integrar sistema de notificaciones push para asignaciones urgentes de tickets.
 - [ ] Evaluar virtualización de filas con `@tanstack/react-virtual` para tablas con volúmenes superiores a 10,000 registros.
+<<<<<<< Updated upstream
+=======
+- [ ] **Recordatorio:** Adoptar el filtro facetado estándar (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`) en las tablas ya existentes (Licencias, Proyectos, Usuarios, Auditoría, etc.) en sustitución de los selects sueltos por criterio. *(Ya adoptado en Tickets, Kanban e Inventario.)*
+>>>>>>> Stashed changes
 
 ---
 
