@@ -5,28 +5,25 @@ import {
   Flag,
   Search,
   Tag,
-  Ticket as TicketIcon,
   UserCheck,
   UserRound,
   X,
 } from "lucide-react"
-import { toast } from "sonner"
 
 import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
-import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
 import { FacetedFilter } from "@/components/ui/faceted-filter"
 import type {
   FacetDimension,
   FacetOption,
   FacetSelections,
 } from "@/components/ui/faceted-filter"
+import { TicketDetailDialog } from "@/features/tickets/components/TicketDetailDialog"
 import {
   TicketApiError,
   listarTodosLosTickets,
-  obtenerTicket,
 } from "@/features/tickets/services/ticket.service"
 import {
   ESTADOS,
@@ -39,10 +36,7 @@ import {
   reqClasses,
   tipoLabels,
 } from "@/features/tickets/data/ticket-display"
-import type {
-  Ticket,
-  TicketDetalle,
-} from "@/features/tickets/types/ticket"
+import type { Ticket } from "@/features/tickets/types/ticket"
 
 function formatDate(isoString: string | null): string {
   if (!isoString) return "—"
@@ -243,8 +237,6 @@ export function TicketsListView() {
 
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const [ticketDetail, setTicketDetail] = useState<TicketDetalle | null>(null)
-  const [detailLoading, setDetailLoading] = useState(false)
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -280,30 +272,6 @@ export function TicketsListView() {
       cancelado = true
     }
   }, [])
-
-  useEffect(() => {
-    if (!isDetailOpen || !selectedTicket) return
-
-    let cancelado = false
-
-    async function cargarDetalle() {
-      setDetailLoading(true)
-      try {
-        const detalle = await obtenerTicket(selectedTicket!.id)
-        if (!cancelado) setTicketDetail(detalle)
-      } catch (error) {
-        if (!cancelado) toast.error(getErrorMessage(error))
-      } finally {
-        if (!cancelado) setDetailLoading(false)
-      }
-    }
-
-    void cargarDetalle()
-
-    return () => {
-      cancelado = true
-    }
-  }, [isDetailOpen, selectedTicket])
 
   const filtros = useMemo<FiltrosLista>(
     () => ({
@@ -416,140 +384,8 @@ export function TicketsListView() {
 
   const handleOpenDetails = (ticket: Ticket) => {
     setSelectedTicket(ticket)
-    setTicketDetail(null)
     setIsDetailOpen(true)
   }
-
-  const detailSections: DetailSection[] = selectedTicket
-    ? [
-        {
-          title: "Información General",
-          color: "primary",
-          fields: [
-            { key: "id", label: "ID Ticket", value: `#${selectedTicket.id}` },
-            {
-              key: "originalId",
-              label: "ID Original / Referencia",
-              value: selectedTicket.originalId ?? "N/A",
-            },
-            {
-              key: "titulo",
-              label: "Título de la Incidencia",
-              value: selectedTicket.titulo,
-              colSpan: "sm:col-span-2",
-            },
-            {
-              key: "estado",
-              label: "Estado Actual",
-              value: (
-                <Badge className={estadoClasses[selectedTicket.estado]}>
-                  {estadoLabels[selectedTicket.estado]}
-                </Badge>
-              ),
-            },
-            {
-              key: "prioridad",
-              label: "Prioridad",
-              value: (
-                <Badge className={prioridadClasses[selectedTicket.prioridad]}>
-                  {prioridadLabels[selectedTicket.prioridad]}
-                </Badge>
-              ),
-            },
-            {
-              key: "tipoRequerimiento",
-              label: "Tipo de Requerimiento",
-              value: (
-                <Badge className={reqClasses[selectedTicket.tipoRequerimiento]}>
-                  {tipoLabels[selectedTicket.tipoRequerimiento]}
-                </Badge>
-              ),
-            },
-            {
-              key: "descripcion",
-              label: "Descripción",
-              value: detailLoading
-                ? "Cargando..."
-                : (ticketDetail?.descripcion ?? "—"),
-              colSpan: "sm:col-span-2",
-            },
-            {
-              key: "evidenciaUrl",
-              label: "Evidencia",
-              value: ticketDetail?.evidenciaUrl ?? "—",
-            },
-          ],
-        },
-        {
-          title: "Solicitante y Asignación",
-          color: "cyan",
-          fields: [
-            {
-              key: "solicitanteNombre",
-              label: "Solicitante",
-              value: selectedTicket.solicitante.nombre,
-            },
-            {
-              key: "solicitanteEmail",
-              label: "Correo Solicitante",
-              value: selectedTicket.solicitante.email ?? "—",
-            },
-            {
-              key: "asignadoNombre",
-              label: "Técnico Asignado",
-              value: selectedTicket.asignadoA
-                ? selectedTicket.asignadoA.nombre
-                : "Sin asignar",
-            },
-            {
-              key: "asignadoEmail",
-              label: "Correo Asignado",
-              value: selectedTicket.asignadoA?.email ?? "—",
-            },
-            {
-              key: "departamento",
-              label: "Departamento",
-              value: selectedTicket.departamento?.nombre ?? "No especificado",
-            },
-          ],
-        },
-        {
-          title: "Fechas y Registro",
-          color: "violet",
-          fields: [
-            {
-              key: "fechaNotificacion",
-              label: "Fecha de Notificación",
-              value: formatDate(selectedTicket.fechaNotificacion),
-            },
-            {
-              key: "fechaResolucion",
-              label: "Fecha de Resolución",
-              value: formatDate(selectedTicket.fechaResolucion),
-            },
-            {
-              key: "totalActualizaciones",
-              label: "Actualizaciones",
-              value: String(selectedTicket.totalActualizaciones),
-            },
-          ],
-        },
-        ...(ticketDetail && ticketDetail.actualizaciones.length > 0
-          ? [
-              {
-                title: "Seguimiento",
-                color: "emerald" as const,
-                fields: ticketDetail.actualizaciones.map((actualizacion) => ({
-                  key: `actualizacion-${actualizacion.id}`,
-                  label: formatDate(actualizacion.creadaEn),
-                  value: actualizacion.texto,
-                  colSpan: "sm:col-span-2",
-                })),
-              },
-            ]
-          : []),
-      ]
-    : []
 
   return (
     <div className="space-y-6">
@@ -621,16 +457,11 @@ export function TicketsListView() {
         }
       />
 
-      {selectedTicket && (
-        <DetailDialog
-          open={isDetailOpen}
-          onOpenChange={setIsDetailOpen}
-          title={`Ticket #${selectedTicket.id}`}
-          description="Consulta detallada de la incidencia o solicitud."
-          icon={<TicketIcon className="size-6 text-white" />}
-          sections={detailSections}
-        />
-      )}
+      <TicketDetailDialog
+        ticket={selectedTicket}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+      />
     </div>
   )
 }
