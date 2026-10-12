@@ -170,6 +170,20 @@ Es el diálogo obligatorio para mostrar el resultado de cualquier **importación
 
 ---
 
+### 6. `FacetedFilter` (`src/components/ui/faceted-filter.tsx`)
+
+Es el componente base recomendado para el **filtrado facetado multi-selección** (estilo Jira/Linear) de listados y tableros.
+
+- **Objetivo:** Unificar la experiencia de filtrado (dimensiones + búsqueda + selección múltiple) y eliminar los selects sueltos o los filtros ad-hoc con criterio `"ALL"` por módulo.
+- **Características de diseño y comportamiento:**
+  - Botón disparador "Filtro" con `Popover` (radix, `src/components/ui/popover.tsx`) y badge con el total de opciones seleccionadas en todas las dimensiones.
+  - Panel de dos columnas: izquierda = dimensiones (`FacetDimension[]`) con badge de conteo por dimensión; derecha = buscador propio + lista de opciones con `Checkbox` (`FacetOption[]`).
+  - Acciones **Borrar** (por sección) y **Borrar todo**; el consumidor controla el estado con `selections: Record<string, string[]>` y `onChange(dimensionId, values)`.
+  - **Convención de filtrado:** arreglo vacío = sin filtro; con valores, el registro debe incluir el valor (`.includes(...)`).
+- **Regla de uso:** Este es el **filtro estándar del sistema**. Debe usarse en todo listado nuevo y adoptarse progresivamente en **las tablas ya existentes** (Inventario, Licencias, Proyectos, Usuarios, Auditoría, etc.) en lugar de selects sueltos o de un `"ALL"` por criterio. Ya promovido a `src/components/ui/` tras reutilizarse en el tablero Kanban y en la lista de Tickets.
+
+---
+
 ## 1. Base y Configuración del Proyecto
 
 ### Infraestructura y Entorno
@@ -295,29 +309,54 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 
 ## 5. Módulo de Tickets y Mesa de Ayuda
 
-- [x] Implementar la pantalla principal de listado de tickets utilizando obligatoriamente el componente base `DataTable`.
-- [x] Incorporar filtros interactivos por estado (Nuevo, En Proceso, Resuelto, Cerrado, Cancelado), prioridad (Baja, Normal, Alta, Urgente), tipo de requerimiento y búsqueda global.
-- [x] Crear la vista detallada de ticket mediante `DetailDialog` con desplegado completo de solicitante, técnico asignado, departamento y fechas.
+- [x] Implementar la pantalla principal de listado de tickets utilizando obligatoriamente el componente base `DataTable`, **conectada a `GET /api/incidencias`** (paginación server-side y filtros `estado`/`prioridad` + búsqueda `q`).
+- [x] Incorporar filtros interactivos por estado (`NUEVO`, `EN_ANALISIS`, `EN_CURSO`, `COMPLETADO`, `DUPLICADO`), prioridad (`BAJA`, `NORMAL`, `ALTA`, `CRITICA`), tipo de requerimiento y búsqueda por título/solicitante. **Los valores coinciden con los enums del backend.**
+- [x] Migrar la vista de lista al filtro facetado estándar (`FacetedFilter`) con dimensiones de Estado, Prioridad y Tipo de requerimiento (multi-selección, arreglo vacío = sin filtro) y búsqueda por título/#id/solicitante. El listado pasó a **filtrado y paginación en cliente** sobre `listarTodosLosTickets` (consistente con el tablero); se conserva `DataTable` con paginación controlada y el `DetailDialog`.
+- [x] Crear la vista detallada de ticket mediante `DetailDialog`, cargando el detalle desde `GET /api/incidencias/:id` (descripción, evidencia, seguimiento/actualizaciones).
+- [x] Unificar las vistas de Tickets y Kanban en un mismo apartado (`/tickets`) con conmutador de formato (`Tabs` **Lista | Kanban**) sincronizado en la URL (`?vista=kanban`). La lista se extrajo a `TicketsListView` (`features/tickets/components`) y el tablero sigue en `KanbanPage`; la ruta `/kanban` redirige a `/tickets?vista=kanban` y se retiró el ítem de navegación independiente del sidebar.
+- [x] Extraer la consulta de detalle a un componente compartido `TicketDetailDialog` (`features/tickets/components`, envuelve `DetailDialog` + `obtenerTicket`) y habilitar la apertura del detalle con **doble clic sobre la tarjeta del Kanban** (además del doble clic en la fila de la lista), con pista visible **"Doble clic"** en la tarjeta; el arrastre de la tarjeta sigue funcionando.
 - [ ] Diseñar el modal de creación y edición de tickets construyendo un wrapper `TicketFormDialog` basado en `FormDialog`.
 - [ ] Incorporar soporte para registro de subtareas o checklist de resolución técnica interna.
 - [ ] Desarrollar el flujo para agregar notas públicas e internas con soporte para carga de evidencias o archivos adjuntos.
 - [ ] Añadir confirmación de eliminación o cancelación de tickets mediante el componente base `ConfirmDeleteDialog`.
-- [ ] Conectar los formularios y consultas con los endpoints de la API REST del backend.
+- [ ] Reactivar la edición de estado inline (dropdown en la tabla) cuando exista `PATCH /api/incidencias/:id/estado`.
 - [ ] Implementar el flujo de transición de estados y actualización de tiempos de respuesta (SLA).
+
+### Endpoints / cambios pendientes en el backend (Incidencias)
+
+Referencia: **2026-10-12**. Archivos: `backend_gestion_TI/src/{routes,controllers,services,models}/incidencia.*`.
+Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en cliente** (multi-selección con `FacetedFilter`) sobre `listarTodosLosTickets`, por lo que `q`/`tipoRequerimiento` del backend **dejaron de ser bloqueantes**. Se conserva como mejora opcional para una futura paginación server-side con filtros.
+
+**A. Opcional/futuro — filtros de listado (`q`, `tipoRequerimiento`):**
+- [ ] `GET /api/incidencias`: agregar query params opcionales **`q`** (texto: buscar en `titulo` y nombre del solicitante) y **`tipoRequerimiento`** (valor de `TIPOS_REQUERIMIENTO_VALIDOS`).
+  - `models/incidencia.model.ts`: añadir `q?: string` y `tipoRequerimiento?: TipoRequerimiento` a `ParametrosListadoIncidencias`.
+  - `controllers/incidencia.controller.ts`: parsear `req.query.q` y validar `req.query.tipoRequerimiento` con `validarOpcion(...)`.
+  - `services/incidencia.service.ts` (`listar`): agregar `tipoRequerimiento` a `filtros` y `q` como `OR: [{ titulo: { contains: q } }, { solicitante: { nombre: { contains: q } } }]`.
+  - Documentar en `src/docs/openapi.yaml` y `bruno/Incidencias/listarFiltrado.bru`.
+
+**B. Requerido para la edición de estado — `PATCH /api/incidencias/:id/estado`:**
+- [ ] Nuevo permiso **`incidencias:editar`** en `models/rol.model.ts` (`PERMISOS_DISPONIBLES`) y en `scripts/seedAdmin.ts`.
+- [ ] Ruta `PATCH /:id/estado` con `verificarPermiso('incidencias:editar')`.
+- [ ] Controller/servicio: validar `estado` contra `ESTADOS_VALIDOS`; actualizar `estado` y `fechaResolucion` (p. ej. al pasar a `COMPLETADO`); definir transiciones permitidas.
+
+**C. Futuro — alta completa y seguimiento:**
+- [ ] `POST /api/incidencias`: aceptar `prioridad` (y opcional `asignadoAId`) para asignar prioridad/responsable desde el formulario.
+- [ ] Endpoint para registrar `ActualizacionIncidencia` (notas/seguimiento) y evidencias.
 
 ---
 
 ## 6. Tablero Kanban y Flujo Operativo Ágil
 
 - [x] Diseñar y construir la estructura del tablero visual distribuido por columnas de estado.
-- [x] Implementar la interacción de Drag and Drop fluida entre columnas con `@hello-pangea/dnd`.
+- [x] Conectar las tarjetas del tablero con la base de datos real de tickets (solo lectura): las columnas se agrupan por `estado` desde `GET /api/incidencias` (paginado, vía `listarTodosLosTickets`); cada tarjeta muestra `#id`, título, tipo de requerimiento, prioridad y responsable (iniciales de `asignadoA` o "Sin asignar"). Se muestran las 4 prioridades del backend (Baja, Normal, Alta, Crítica). Estados de carga, error y vacío incluidos.
+- [x] Implementar el Drag and Drop para cambiar el estado y reordenar dentro de la columna con `@hello-pangea/dnd`, persistiendo con `PATCH /api/incidencias/:id/estado` (permiso `incidencias:editar`), que ahora acepta `estado` y `orden` (posición 0-based en la columna destino). El backend tiene el campo `Incidencia.orden` por columna (migración `add_orden_incidencia`) y reindexa origen/destino en una transacción.
 - [ ] Optimizar la gestión de estado local con persistencia y sincronización inmediata frente a caídas de red.
-- [ ] Conectar las tarjetas del tablero con la base de datos real de tickets.
-- [ ] Incorporar indicadores sutiles de carga mientras se actualiza la posición de una tarjeta en el servidor.
-- [x] Implementar la sincronización en tiempo real de movimientos y modificaciones mediante WebSockets (`socket.io-client`).
-- [ ] Agregar buscador rápido por título/código y filtros directos por prioridad y asignado sobre el tablero.
+- [x] Incorporar indicadores sutiles de carga mientras se actualiza la posición de una tarjeta en el servidor (opacidad + `aria-busy` + arrastre deshabilitado por tarjeta mientras hay una mutación en curso).
+- [x] Implementar la sincronización en tiempo real de movimientos y modificaciones mediante WebSockets (`socket.io-client`), escuchando `incidencias:estado-cambiado` desde la conexión única de notificaciones.
+- [x] Agregar buscador rápido por título/#id/solicitante y filtro facetado multi-selección (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`, con `Popover` + lista buscable propia y `Checkbox`) sobre el tablero, con dimensiones de Persona asignada (incluye "Sin asignar"), Prioridad y Tipo de requerimiento, badges por dimensión, "Borrar" por sección y "Borrar todo"; botón/indicador "Borrar filtros" a nivel de página. Estado en arrays (vacío = sin filtro), filtrado en cliente sobre los tickets ya cargados; reorden exacto aun con filtros activos.
 - [ ] Optimizar el comportamiento táctil y responsivo del Drag and Drop en dispositivos móviles y tablets.
-- [ ] Implementar rollback visual con mensaje de error si una actualización de estado falla en el backend.
+- [x] Homogeneizar la cabecera del tablero con la de la Lista usando `ModuleHeader` (eyebrow "Mesa de Ayuda TI", título "Tablero Kanban", filtros + resumen con badge violeta y acción "Actualizar"); se retiró el `PagePlaceholder` y su descripción.
+- [x] Implementar rollback visual con mensaje de error si una actualización de estado falla en el backend (update optimista + reversión + `toast.error`).
 
 ---
 
@@ -345,6 +384,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 
 - [x] Definir el modelo de datos para licencias de software: claves, vigencia, tipo (suscripción, perpetua), responsable y equipos asignados.
 - [x] Implementar la vista principal de licencias utilizando obligatoriamente el componente base `DataTable`.
+- [x] Migrar los filtros de licencias al filtro facetado estándar `FacetedFilter` (dimensiones **Estado** [Activas/Inactivas] y **Clave** [Con/Sin clave], multi-selección) con búsqueda integrada y botón **Borrar filtros**.
 - [x] Crear el modal de registro y modificación de licencias construyendo un wrapper `LicenseFormDialog` basado en `FormDialog`.
 - [x] Integrar el diálogo de confirmación para revocar o dar de baja licencias con `ConfirmDeleteDialog`.
 - [x] Desarrollar alertas visuales preventivas para licencias próximas a expirar y vencidas.
@@ -568,17 +608,14 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 - [ ] Permitir la personalización del dashboard principal con widgets arrastrables según el rol del usuario.
 - [ ] Integrar sistema de notificaciones push para asignaciones urgentes de tickets.
 - [ ] Evaluar virtualización de filas con `@tanstack/react-virtual` para tablas con volúmenes superiores a 10,000 registros.
-<<<<<<< Updated upstream
-=======
-- [ ] **Recordatorio:** Adoptar el filtro facetado estándar (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`) en las tablas ya existentes (Licencias, Proyectos, Usuarios, Auditoría, etc.) en sustitución de los selects sueltos por criterio. *(Ya adoptado en Tickets, Kanban e Inventario.)*
->>>>>>> Stashed changes
+- [ ] **Recordatorio:** Adoptar el filtro facetado estándar (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`) en las tablas ya existentes (Proyectos, Usuarios, Auditoría, etc.) en sustitución de los selects sueltos por criterio. *(Ya adoptado en Tickets, Kanban, Inventario y Licencias.)*
 
 ---
 
 ## 23. Checklist de Cierre de Sprint
 
 - [ ] Verificar las tareas marcadas como completadas (`[x]`) contra las evidencias reales en el código.
-- [ ] Confirmar que cada pantalla desarrollada use estrictamente los componentes base (`DataTable`, `DetailDialog`, `FormDialog`, `ConfirmDeleteDialog`) y el flujo común de consulta/edición.
+- [ ] Confirmar que cada pantalla desarrollada use estrictamente los componentes base (`DataTable`, `DetailDialog`, `FormDialog`, `ConfirmDeleteDialog`, `FacetedFilter`) y el flujo común de consulta/edición.
 - [ ] Validar que la compilación (`npm run build`) y el linter (`npm run lint`) pasen satisfactoriamente sin advertencias críticas.
 - [ ] Comprobar el recorrido completo del usuario (End-to-End básico) desde el acceso hasta la operación en módulos activos.
 - [ ] Respaldar y documentar los cambios implementados para la entrega formal.

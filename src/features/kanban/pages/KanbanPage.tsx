@@ -1,412 +1,652 @@
-import { Fragment, useState, type DragEvent } from "react"
-import { GripVertical } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd"
+import type { DropResult } from "@hello-pangea/dnd"
+import {
+  Flag,
+  LayoutGrid,
+  Loader2,
+  MousePointerClick,
+  RefreshCw,
+  Search,
+  Tag,
+  User,
+  X,
+} from "lucide-react"
+import { toast } from "sonner"
 
-import { PagePlaceholder } from "@/components/common/PagePlaceholder"
+import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { FacetedFilter } from "@/components/ui/faceted-filter"
+import type {
+  FacetDimension,
+  FacetOption,
+  FacetSelections,
+} from "@/components/ui/faceted-filter"
+import { TicketDetailDialog } from "@/features/tickets/components/TicketDetailDialog"
+import { useIncidenciasSyncStore } from "@/features/kanban/store/incidenciasSyncStore"
+import {
+  PRIORIDADES,
+  TIPOS,
+  estadoLabels,
+  prioridadClasses,
+  prioridadLabels,
+  reqClasses,
+  tipoLabels,
+} from "@/features/tickets/data/ticket-display"
+import {
+  actualizarEstadoTicket,
+  TicketApiError,
+  listarTodosLosTickets,
+} from "@/features/tickets/services/ticket.service"
+import type { Ticket, TicketEstado } from "@/features/tickets/types/ticket"
 
-// ─── Columnas ─────────────────────────────────────────────────────────────────
-
-const columns = [
-  { title: "Nuevo", statusColor: "bg-info" },
-    { title: "En análisis", statusColor: "bg-primary" },
-  { title: "En curso", statusColor: "bg-warning" },
-  { title: "Duplicado", statusColor: "bg-destructive" },
-   { title: "Completado", statusColor: "bg-success" },
-] as const
-
-type TicketStatus = (typeof columns)[number]["title"]
-type TicketPriority = "Alta" | "Media" | "Baja"
-
-interface KanbanTicket {
-  id: string
-  title: string
-  category: string
-  priority: TicketPriority
-  owner: string
-  status: TicketStatus
-}
-
-interface DropTarget {
-  status: TicketStatus
-  /** Índice de inserción relativo a todos los tickets visibles de la columna. */
-  index: number
-}
-
-// ─── Datos de muestra ─────────────────────────────────────────────────────────
-
-const sampleTickets: KanbanTicket[] = [
-  {
-    id: "TI-1042",
-    title: "Restablecer acceso al correo",
-    category: "Cuentas y accesos",
-    priority: "Alta",
-    owner: "LM",
-    status: "Nuevo",
-  },
-  {
-    id: "TI-1043",
-    title: "Preparar equipo para nueva incorporación",
-    category: "Equipos",
-    priority: "Media",
-    owner: "CR",
-    status: "En curso",
-  },
-  {
-    id: "TI-1038",
-    title: "Actualizar cliente VPN",
-    category: "Software",
-    priority: "Baja",
-    owner: "AS",
-    status: "Completado",
-  },
-  {
-    id: "TI-1044",
-    title: "Revisar lentitud en la red de oficina",
-    category: "Redes",
-    priority: "Alta",
-    owner: "JP",
-    status: "Duplicado",
-  },
-  {
-    id: "TI-1045",
-    title: "Validar permisos de carpeta compartida",
-    category: "Cuentas y accesos",
-    priority: "Media",
-    owner: "EG",
-    status: "En análisis",
-  },
-  {
-    id: "TI-1046",
-    title: "Instalar actualizaciones de seguridad",
-    category: "Software",
-    priority: "Alta",
-    owner: "MR",
-    status: "Nuevo",
-  },
-  {
-    id: "TI-1047",
-    title: "Configurar impresora del área de Finanzas",
-    category: "Periféricos",
-    priority: "Baja",
-    owner: "DV",
-    status: "En curso",
-  },
-  {
-    id: "TI-1048",
-    title: "Crear respaldo de archivos del equipo",
-    category: "Respaldo",
-    priority: "Media",
-    owner: "SL",
-    status: "En curso",
-  },
-  {
-    id: "TI-1049",
-    title: "Resolver error de conexión a intranet",
-    category: "Redes",
-    priority: "Alta",
-    owner: "AC",
-    status: "En análisis",
-  },
-  {
-    id: "TI-1050",
-    title: "Revisar solicitud repetida de acceso a sistema",
-    category: "Cuentas y accesos",
-    priority: "Baja",
-    owner: "JP",
-    status: "Duplicado",
-  },
+const columns: { estado: TicketEstado; statusColor: string }[] = [
+  { estado: "NUEVO", statusColor: "bg-info" },
+  { estado: "EN_ANALISIS", statusColor: "bg-primary" },
+  { estado: "EN_CURSO", statusColor: "bg-warning" },
+  { estado: "DUPLICADO", statusColor: "bg-destructive" },
+  { estado: "COMPLETADO", statusColor: "bg-success" },
 ]
 
-// ─── Estilos de prioridad ─────────────────────────────────────────────────────
+const ESTADOS: TicketEstado[] = columns.map(({ estado }) => estado)
+const ESTADOS_VALIDOS = new Set<string>(ESTADOS)
 
-const priorityStyles: Record<TicketPriority, string> = {
-  Alta: "border-destructive/30 bg-destructive/10 text-destructive",
-  Media:
-    "border-warning-300 bg-warning-100 text-warning-800 dark:border-warning-700 dark:bg-warning-1000/60 dark:text-warning-300",
-  Baja: "border-border bg-muted text-muted-foreground",
+type Tablero = Record<TicketEstado, Ticket[]>
+
+function crearTableroVacio(): Tablero {
+  return ESTADOS.reduce<Tablero>((acc, estado) => {
+    acc[estado] = []
+    return acc
+  }, {} as Tablero)
 }
 
-// ─── Indicador de posición de drop ───────────────────────────────────────────
-
-function DropIndicator() {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none flex animate-in fade-in items-center gap-1.5 duration-100"
-    >
-      <span className="size-2 shrink-0 rounded-full bg-primary dark:bg-accent" />
-      <span className="h-0.5 flex-1 rounded-full bg-primary dark:bg-accent" />
-      <span className="size-2 shrink-0 rounded-full bg-primary dark:bg-accent" />
-    </div>
-  )
+function clonarTablero(tablero: Tablero): Tablero {
+  return ESTADOS.reduce<Tablero>((acc, estado) => {
+    acc[estado] = [...tablero[estado]]
+    return acc
+  }, {} as Tablero)
 }
 
-// ─── Página Kanban ────────────────────────────────────────────────────────────
+function getInitials(nombre: string): string {
+  const parts = nombre.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "—"
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof TicketApiError) {
+    if (error.status === 403) {
+      return "No tienes permiso para consultar incidencias (incidencias:leer)."
+    }
+    return error.message
+  }
+  if (error instanceof Error) return error.message
+  return "No se pudieron cargar las incidencias."
+}
+
+function getUpdateErrorMessage(error: unknown): string {
+  if (error instanceof TicketApiError && error.status === 403) {
+    return "No tienes permiso para cambiar el estado (incidencias:editar)."
+  }
+  if (error instanceof TicketApiError) return error.message
+  if (error instanceof Error) return error.message
+  return "No se pudo actualizar el estado de la incidencia."
+}
+
+const RESPONSABLE_SIN_ASIGNAR = "SIN_ASIGNAR"
+
+interface Filtros {
+  prioridades: string[]
+  tipos: string[]
+  responsables: string[]
+  texto: string
+}
+
+const controlBase =
+  "h-10 rounded-2xl border border-border/80 bg-background/80 text-xs font-medium text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+
+function coincideConFiltros(ticket: Ticket, filtros: Filtros): boolean {
+  if (
+    filtros.prioridades.length > 0 &&
+    !filtros.prioridades.includes(ticket.prioridad)
+  ) {
+    return false
+  }
+
+  if (
+    filtros.tipos.length > 0 &&
+    !filtros.tipos.includes(ticket.tipoRequerimiento)
+  ) {
+    return false
+  }
+
+  if (filtros.responsables.length > 0) {
+    const responsableId = ticket.asignadoA?.id ?? RESPONSABLE_SIN_ASIGNAR
+    if (!filtros.responsables.includes(responsableId)) {
+      return false
+    }
+  }
+
+  const texto = filtros.texto.trim().toLowerCase()
+  if (texto) {
+    const coincideTitulo = ticket.titulo.toLowerCase().includes(texto)
+    const coincideId =
+      String(ticket.id).includes(texto) || `#${ticket.id}`.includes(texto)
+    const coincideSolicitante = ticket.solicitante.nombre
+      .toLowerCase()
+      .includes(texto)
+
+    if (!coincideTitulo && !coincideId && !coincideSolicitante) {
+      return false
+    }
+  }
+
+  return true
+}
 
 function KanbanPage() {
-  const [tickets, setTickets] = useState(sampleTickets)
-  const [draggedTicketId, setDraggedTicketId] = useState<string | null>(null)
-  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null)
+  const [tablero, setTablero] = useState<Tablero>(crearTableroVacio)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [pendingIds, setPendingIds] = useState<number[]>([])
+  const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [prioridadesSeleccionadas, setPrioridadesSeleccionadas] = useState<
+    string[]
+  >([])
+  const [tiposSeleccionados, setTiposSeleccionados] = useState<string[]>([])
+  const [responsablesSeleccionados, setResponsablesSeleccionados] = useState<
+    string[]
+  >([])
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
 
-  // Inicia el arrastre
-  function handleDragStart(event: DragEvent<HTMLElement>, ticketId: string) {
-    event.dataTransfer.effectAllowed = "move"
-    event.dataTransfer.setData("text/plain", ticketId)
-    setDraggedTicketId(ticketId)
-  }
+  const pendingIdsRef = useRef<number[]>([])
 
-  /**
-   * Detecta si el cursor está en la mitad superior o inferior del card.
-   * stopPropagation evita que el handler del contenedor sobreescriba el índice.
-   */
-  function handleCardDragOver(
-    event: DragEvent<HTMLElement>,
-    status: TicketStatus,
-    cardIndex: number,
-  ) {
-    event.preventDefault()
-    event.stopPropagation()
-    const { top, height } = event.currentTarget.getBoundingClientRect()
-    const isUpperHalf = event.clientY < top + height / 2
-    setDropTarget({ status, index: isUpperHalf ? cardIndex : cardIndex + 1 })
-  }
+  useEffect(() => {
+    pendingIdsRef.current = pendingIds
+  }, [pendingIds])
 
-  /**
-   * Handler del contenedor: solo se activa cuando el cursor está sobre el
-   * espacio vacío de la columna (las cards paran la propagación).
-   * Establece el índice al final de la columna.
-   */
-  function handleColumnDragOver(
-    event: DragEvent<HTMLElement>,
-    status: TicketStatus,
-    totalCards: number,
-  ) {
-    event.preventDefault()
-    setDropTarget({ status, index: totalCards })
-  }
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+    }, 300)
+    return () => window.clearTimeout(id)
+  }, [search])
 
-  // Limpia el indicador al salir de la columna
-  function handleColumnDragLeave(event: DragEvent<HTMLElement>) {
-    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-      setDropTarget(null)
+  useEffect(() => {
+    let cancelado = false
+
+    async function cargarTickets() {
+      setLoading(true)
+      setLoadError(null)
+
+      try {
+        const lista = await listarTodosLosTickets()
+        if (cancelado) return
+
+        const siguiente = crearTableroVacio()
+        for (const ticket of lista) {
+          siguiente[ticket.estado].push(ticket)
+        }
+        for (const estado of ESTADOS) {
+          siguiente[estado].sort((a, b) => a.orden - b.orden || a.id - b.id)
+        }
+
+        setTablero(siguiente)
+      } catch (error) {
+        if (cancelado) return
+        setLoadError(getErrorMessage(error))
+        setTablero(crearTableroVacio())
+      } finally {
+        if (!cancelado) setLoading(false)
+      }
     }
-  }
 
-  // Suelta el ticket en la posición calculada
-  function handleDrop(event: DragEvent<HTMLElement>, status: TicketStatus) {
-    event.preventDefault()
-    const ticketId =
-      event.dataTransfer.getData("text/plain") || draggedTicketId
+    void cargarTickets()
 
-    if (ticketId) {
-      setTickets((currentTickets) => {
-        const ticket = currentTickets.find((t) => t.id === ticketId)
-        if (!ticket) return currentTickets
+    return () => {
+      cancelado = true
+    }
+  }, [reloadKey])
 
-        // Array sin el ticket arrastrado
-        const withoutDragged = currentTickets.filter((t) => t.id !== ticketId)
-        // Tickets de la columna destino (sin el arrastrado)
-        const columnTickets = withoutDragged.filter((t) => t.status === status)
+  useEffect(() => {
+    const unsubscribe = useIncidenciasSyncStore.subscribe((state, prevState) => {
+      if (state.lastChange === prevState.lastChange) return
 
-        // Si se mueve dentro de la misma columna, el índice puede estar desplazado
-        // porque el card arrastrado sigue en el DOM mientras se calcula la posición.
-        let adjustedIndex = dropTarget?.index ?? columnTickets.length
-        if (ticket.status === status) {
-          const draggedColIdx = currentTickets
-            .filter((t) => t.status === status)
-            .findIndex((t) => t.id === ticketId)
-          if (draggedColIdx < adjustedIndex) {
-            adjustedIndex = Math.max(0, adjustedIndex - 1)
-          }
-        }
+      const change = state.lastChange
+      if (!change || !ESTADOS_VALIDOS.has(change.estado)) return
 
-        const clampedIndex = Math.min(adjustedIndex, columnTickets.length)
+      const id = Number(change.id)
+      if (!Number.isInteger(id) || pendingIdsRef.current.includes(id)) return
 
-        // Columna vacía: agregar al final del array
-        if (columnTickets.length === 0) {
-          return [...withoutDragged, { ...ticket, status }]
-        }
+      const destino = change.estado as TicketEstado
 
-        if (clampedIndex >= columnTickets.length) {
-          // Insertar después del último ticket de esta columna
-          const lastTicket = columnTickets[columnTickets.length - 1]
-          const globalIdx = withoutDragged.findIndex(
-            (t) => t.id === lastTicket.id,
-          )
-          const result = [...withoutDragged]
-          result.splice(globalIdx + 1, 0, { ...ticket, status })
-          return result
-        }
-
-        // Insertar antes del ticket en clampedIndex
-        const beforeTicket = columnTickets[clampedIndex]
-        const globalIdx = withoutDragged.findIndex(
-          (t) => t.id === beforeTicket.id,
+      setTablero((prev) => {
+        const origen = ESTADOS.find((estado) =>
+          prev[estado].some((ticket) => ticket.id === id),
         )
-        const result = [...withoutDragged]
-        result.splice(globalIdx, 0, { ...ticket, status })
-        return result
+        if (!origen || origen === destino) return prev
+
+        const siguiente = clonarTablero(prev)
+        const indice = siguiente[origen].findIndex((ticket) => ticket.id === id)
+        const [movido] = siguiente[origen].splice(indice, 1)
+        if (!movido) return prev
+
+        siguiente[destino] = [
+          ...siguiente[destino],
+          { ...movido, estado: destino },
+        ]
+        return siguiente
       })
+    })
+
+    return unsubscribe
+  }, [])
+
+  const filtros = useMemo<Filtros>(
+    () => ({
+      prioridades: prioridadesSeleccionadas,
+      tipos: tiposSeleccionados,
+      responsables: responsablesSeleccionados,
+      texto: debouncedSearch,
+    }),
+    [
+      prioridadesSeleccionadas,
+      tiposSeleccionados,
+      responsablesSeleccionados,
+      debouncedSearch,
+    ],
+  )
+
+  const ticketsVisibles = useMemo<Tablero>(() => {
+    return ESTADOS.reduce<Tablero>((acc, estado) => {
+      acc[estado] = tablero[estado].filter((ticket) =>
+        coincideConFiltros(ticket, filtros),
+      )
+      return acc
+    }, {} as Tablero)
+  }, [tablero, filtros])
+
+  const responsablesDisponibles = useMemo<FacetOption[]>(() => {
+    const porId = new Map<string, string>()
+    let haySinAsignar = false
+
+    for (const estado of ESTADOS) {
+      for (const ticket of tablero[estado]) {
+        if (ticket.asignadoA) {
+          porId.set(ticket.asignadoA.id, ticket.asignadoA.nombre)
+        } else {
+          haySinAsignar = true
+        }
+      }
     }
 
-    setDraggedTicketId(null)
-    setDropTarget(null)
+    const opciones = [...porId.entries()]
+      .map<FacetOption>(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "es"))
+
+    if (haySinAsignar) {
+      opciones.push({ value: RESPONSABLE_SIN_ASIGNAR, label: "Sin asignar" })
+    }
+
+    return opciones
+  }, [tablero])
+
+  const facetDimensions = useMemo<FacetDimension[]>(
+    () => [
+      {
+        id: "responsables",
+        label: "Persona asignada",
+        icon: User,
+        options: responsablesDisponibles,
+      },
+      {
+        id: "prioridades",
+        label: "Prioridad",
+        icon: Flag,
+        options: PRIORIDADES.map<FacetOption>((value) => ({
+          value,
+          label: prioridadLabels[value],
+        })),
+      },
+      {
+        id: "tipos",
+        label: "Tipo de requerimiento",
+        icon: Tag,
+        options: TIPOS.map<FacetOption>((value) => ({
+          value,
+          label: tipoLabels[value],
+        })),
+      },
+    ],
+    [responsablesDisponibles],
+  )
+
+  const facetSelecciones = useMemo<FacetSelections>(
+    () => ({
+      responsables: responsablesSeleccionados,
+      prioridades: prioridadesSeleccionadas,
+      tipos: tiposSeleccionados,
+    }),
+    [responsablesSeleccionados, prioridadesSeleccionadas, tiposSeleccionados],
+  )
+
+  function handleFacetChange(dimensionId: string, values: string[]) {
+    if (dimensionId === "responsables") {
+      setResponsablesSeleccionados(values)
+    } else if (dimensionId === "prioridades") {
+      setPrioridadesSeleccionadas(values)
+    } else if (dimensionId === "tipos") {
+      setTiposSeleccionados(values)
+    }
   }
 
-  function handleDragEnd() {
-    setDraggedTicketId(null)
-    setDropTarget(null)
+  const hayFiltros =
+    filtros.prioridades.length > 0 ||
+    filtros.tipos.length > 0 ||
+    filtros.responsables.length > 0 ||
+    filtros.texto !== ""
+
+  const totalTickets = useMemo(
+    () => ESTADOS.reduce((total, estado) => total + tablero[estado].length, 0),
+    [tablero],
+  )
+
+  const totalVisibles = useMemo(
+    () =>
+      ESTADOS.reduce(
+        (total, estado) => total + ticketsVisibles[estado].length,
+        0,
+      ),
+    [ticketsVisibles],
+  )
+
+  function borrarFacetas() {
+    setPrioridadesSeleccionadas([])
+    setTiposSeleccionados([])
+    setResponsablesSeleccionados([])
+  }
+
+  function limpiarFiltros() {
+    setSearch("")
+    setDebouncedSearch("")
+    borrarFacetas()
+  }
+
+  function abrirDetalle(ticket: Ticket) {
+    setSelectedTicket(ticket)
+    setIsDetailOpen(true)
+  }
+
+  async function handleDragEnd(result: DropResult) {
+    const { draggableId, source, destination } = result
+    if (!destination) return
+
+    const origen = source.droppableId as TicketEstado
+    const destino = destination.droppableId as TicketEstado
+    if (!ESTADOS_VALIDOS.has(origen) || !ESTADOS_VALIDOS.has(destino)) return
+
+    const id = Number(draggableId)
+    if (pendingIdsRef.current.includes(id)) return
+
+    if (origen === destino && source.index === destination.index) return
+
+    const snapshot = tablero
+    const siguiente = clonarTablero(tablero)
+
+    const indiceOrigen = siguiente[origen].findIndex(
+      (ticket) => ticket.id === id,
+    )
+    if (indiceOrigen < 0) return
+    const [movido] = siguiente[origen].splice(indiceOrigen, 1)
+    if (!movido) return
+
+    const columnaDestino = siguiente[destino]
+    const visiblesDestino = columnaDestino.filter((ticket) =>
+      coincideConFiltros(ticket, filtros),
+    )
+    const vecinoPosterior = visiblesDestino[destination.index]
+    const ordenDestino = vecinoPosterior
+      ? columnaDestino.findIndex((ticket) => ticket.id === vecinoPosterior.id)
+      : columnaDestino.length
+
+    siguiente[destino].splice(ordenDestino, 0, { ...movido, estado: destino })
+
+    setTablero(siguiente)
+    setPendingIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+
+    try {
+      const actualizado = await actualizarEstadoTicket(id, destino, ordenDestino)
+      setTablero((prev) => {
+        const next = clonarTablero(prev)
+        next[destino] = next[destino].map((ticket) =>
+          ticket.id === id ? actualizado : ticket,
+        )
+        return next
+      })
+    } catch (error) {
+      setTablero(snapshot)
+      toast.error("No se pudo mover la incidencia", {
+        description: getUpdateErrorMessage(error),
+      })
+    } finally {
+      setPendingIds((prev) => prev.filter((pendingId) => pendingId !== id))
+    }
   }
 
   return (
-    <PagePlaceholder
-      title="Tablero Kanban"
-      description="Arrastra los tickets entre columnas para cambiar su estado. Son datos de prueba y no se guardan."
-      className="overflow-hidden"
-    >
-      <div
-        role="region"
-        aria-label="Columnas del tablero Kanban"
-        className="-mx-1 flex min-h-0 flex-1 overflow-hidden px-1 pb-3"
-      >
-        <div className="flex h-full min-h-0 min-w-0 flex-1 gap-4">
-          {columns.map(({ title, statusColor }) => {
-            const headingId = `kanban-column-${title
-              .toLowerCase()
-              .replaceAll(" ", "-")}`
-            const columnTickets = tickets.filter((t) => t.status === title)
-            const isDropTarget = dropTarget?.status === title
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <ModuleHeader
+        eyebrow="Mesa de Ayuda TI"
+        title="Tablero Kanban"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setReloadKey((key) => key + 1)}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            Actualizar
+          </Button>
+        }
+        filters={
+          <>
+            <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar por título, #id o solicitante..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className={`${controlBase} w-full pl-10 pr-4`}
+              />
+            </div>
 
-            return (
-              <section
-                key={title}
-                aria-labelledby={headingId}
-                className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card"
+            <FacetedFilter
+              dimensions={facetDimensions}
+              selections={facetSelecciones}
+              onChange={handleFacetChange}
+              onClearAll={borrarFacetas}
+            />
+
+            {hayFiltros && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limpiarFiltros}
+                className="text-muted-foreground"
               >
-                {/* Cabecera de columna */}
-                <header className="flex min-h-16 items-center gap-3 border-b border-border px-4">
-                  <span
-                    aria-hidden="true"
-                    className={`size-2.5 shrink-0 rounded-full ${statusColor}`}
-                  />
-                  <h2
-                    id={headingId}
-                    className="font-heading text-sm font-semibold text-card-foreground"
-                  >
-                    {title}
-                  </h2>
-                  <span
-                    aria-label={`${columnTickets.length} tickets`}
-                    className="ml-auto text-xs tabular-nums text-muted-foreground"
-                  >
-                    {columnTickets.length}
-                  </span>
-                </header>
+                <X />
+                Borrar filtros
+              </Button>
+            )}
+          </>
+        }
+        summary={
+          <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
+            <LayoutGrid className="size-3.5 text-violet-700 dark:text-violet-200" />
+            {loading
+              ? "Cargando..."
+              : (loadError ??
+                (hayFiltros
+                  ? `${totalVisibles} de ${totalTickets} tickets`
+                  : `${totalTickets} tickets`))}
+          </span>
+        }
+      />
 
-                {/* Área de cards */}
-                <div
-                  onDragOver={(e) =>
-                    handleColumnDragOver(e, title, columnTickets.length)
-                  }
-                  onDragLeave={handleColumnDragLeave}
-                  onDrop={(e) => handleDrop(e, title)}
-                  className={[
-                    "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3 transition-colors duration-150",
-                    isDropTarget
-                      ? "bg-primary/5"
-                      : draggedTicketId
-                        ? "bg-muted/40"
-                        : "",
-                  ].join(" ")}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div
+          role="region"
+          aria-label="Columnas del tablero Kanban"
+          className="-mx-1 flex min-h-0 flex-1 overflow-hidden px-1 pb-3"
+        >
+          <div className="flex h-full min-h-0 min-w-0 flex-1 gap-4">
+            {columns.map(({ estado, statusColor }) => {
+              const headingId = `kanban-column-${estado.toLowerCase()}`
+              const columnTickets = ticketsVisibles[estado]
+
+              return (
+                <section
+                  key={estado}
+                  aria-labelledby={headingId}
+                  className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card"
                 >
-                  {columnTickets.map((ticket, index) => (
-                    <Fragment key={ticket.id}>
-                      {/* Indicador antes de este ticket */}
-                      {isDropTarget && dropTarget.index === index && (
-                        <DropIndicator />
-                      )}
+                  {/* Cabecera de columna */}
+                  <header className="flex min-h-16 items-center gap-3 border-b border-border px-4">
+                    <span
+                      aria-hidden="true"
+                      className={`size-2.5 shrink-0 rounded-full ${statusColor}`}
+                    />
+                    <h2
+                      id={headingId}
+                      className="font-heading text-sm font-semibold text-card-foreground"
+                    >
+                      {estadoLabels[estado]}
+                    </h2>
+                    <span
+                      aria-label={`${columnTickets.length} tickets`}
+                      className="ml-auto text-xs tabular-nums text-muted-foreground"
+                    >
+                      {columnTickets.length}
+                    </span>
+                  </header>
 
-                      <article
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, ticket.id)}
-                        onDragOver={(e) =>
-                          handleCardDragOver(e, title, index)
-                        }
-                        onDragEnd={handleDragEnd}
-                        aria-label={`${ticket.id}: ${ticket.title}. Arrastrar para cambiar de columna.`}
-                        className={[
-                          "group cursor-grab rounded-lg border border-border bg-background p-3 shadow-sm",
-                          "transition-[border-color,box-shadow,opacity,transform] duration-150",
-                          "hover:border-primary/40 hover:shadow-md",
-                          "active:cursor-grabbing",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          draggedTicketId === ticket.id
-                            ? "scale-[0.97] opacity-40 shadow-none"
-                            : "",
-                        ].join(" ")}
+                  {/* Área de tarjetas */}
+                  <Droppable droppableId={estado}>
+                    {(dropProvided, dropSnapshot) => (
+                      <div
+                        ref={dropProvided.innerRef}
+                        {...dropProvided.droppableProps}
+                        className={`flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3 transition-colors ${
+                          dropSnapshot.isDraggingOver ? "bg-accent/40" : ""
+                        }`}
                       >
-                        <div className="flex items-start gap-2">
-                          <GripVertical
-                            aria-hidden="true"
-                            className="mt-0.5 size-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-primary"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium text-muted-foreground">
-                              {ticket.id}
-                            </p>
-                            <h3 className="mt-1 text-sm font-medium leading-snug text-card-foreground">
-                              {ticket.title}
-                            </h3>
-                          </div>
-                        </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className="h-6 rounded-md px-2 text-[11px] font-normal"
+                        {columnTickets.map((ticket, index) => (
+                          <Draggable
+                            key={ticket.id}
+                            draggableId={String(ticket.id)}
+                            index={index}
+                            isDragDisabled={loading || pendingIds.includes(ticket.id)}
                           >
-                            {ticket.category}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className={`h-6 rounded-md px-2 text-[11px] ${priorityStyles[ticket.priority]}`}
-                          >
-                            Prioridad {ticket.priority.toLowerCase()}
-                          </Badge>
-                        </div>
-                        <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
-                          <span className="text-xs text-muted-foreground">
-                            Asignado a
-                          </span>
-                          <span
-                            aria-label={`Responsable: ${ticket.owner}`}
-                            className="inline-flex size-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary"
-                          >
-                            {ticket.owner}
-                          </span>
-                        </div>
-                      </article>
-                    </Fragment>
-                  ))}
+                            {(dragProvided, dragSnapshot) => (
+                              <article
+                                ref={dragProvided.innerRef}
+                                {...dragProvided.draggableProps}
+                                {...dragProvided.dragHandleProps}
+                                style={dragProvided.draggableProps.style}
+                                onDoubleClick={() => abrirDetalle(ticket)}
+                                title="Doble clic para ver el detalle"
+                                aria-label={`#${ticket.id}: ${ticket.titulo}`}
+                                aria-busy={pendingIds.includes(ticket.id)}
+                                className={`rounded-lg border border-border bg-background p-3 shadow-sm transition-[border-color,box-shadow,opacity] duration-150 hover:border-primary/40 hover:shadow-md ${
+                                  pendingIds.includes(ticket.id)
+                                    ? "cursor-wait opacity-60"
+                                    : "cursor-grab active:cursor-grabbing"
+                                } ${
+                                  dragSnapshot.isDragging
+                                    ? "border-primary/60 shadow-lg ring-2 ring-primary/30"
+                                    : ""
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="font-mono text-xs font-medium text-muted-foreground">
+                                    #{ticket.id}
+                                  </p>
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/70">
+                                    <MousePointerClick
+                                      className="size-3"
+                                      aria-hidden="true"
+                                    />
+                                    Doble clic
+                                  </span>
+                                </div>
+                                <h3 className="mt-1 text-sm font-medium leading-snug text-card-foreground">
+                                  {ticket.titulo}
+                                </h3>
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                  <Badge
+                                    className={`h-6 rounded-md px-2 text-[11px] ${reqClasses[ticket.tipoRequerimiento]}`}
+                                  >
+                                    {tipoLabels[ticket.tipoRequerimiento]}
+                                  </Badge>
+                                  <Badge
+                                    className={`h-6 rounded-md px-2 text-[11px] ${prioridadClasses[ticket.prioridad]}`}
+                                  >
+                                    Prioridad{" "}
+                                    {prioridadLabels[ticket.prioridad].toLowerCase()}
+                                  </Badge>
+                                </div>
+                                <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
+                                  <span className="text-xs text-muted-foreground">
+                                    Asignado a
+                                  </span>
+                                  {ticket.asignadoA ? (
+                                    <span
+                                      aria-label={`Responsable: ${ticket.asignadoA.nombre}`}
+                                      className="inline-flex size-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary"
+                                    >
+                                      {getInitials(ticket.asignadoA.nombre)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs italic text-muted-foreground">
+                                      Sin asignar
+                                    </span>
+                                  )}
+                                </div>
+                              </article>
+                            )}
+                          </Draggable>
+                        ))}
 
-                  {/* Indicador al final de la columna */}
-                  {isDropTarget &&
-                    dropTarget.index === columnTickets.length && (
-                      <DropIndicator />
+                        {dropProvided.placeholder}
+
+                        {columnTickets.length === 0 && !loading && (
+                          <p className="flex flex-1 items-center justify-center px-3 py-8 text-center text-sm text-muted-foreground">
+                            {hayFiltros ? "Sin coincidencias" : "Sin tickets"}
+                          </p>
+                        )}
+                      </div>
                     )}
-
-                  {/* Mensaje columna vacía */}
-                  {columnTickets.length === 0 && !draggedTicketId && (
-                    <p className="flex flex-1 items-center justify-center px-3 py-8 text-center text-sm text-muted-foreground">
-                      Suelta un ticket aquí
-                    </p>
-                  )}
-                </div>
-              </section>
-            )
-          })}
+                  </Droppable>
+                </section>
+              )
+            })}
+          </div>
         </div>
-      </div>
-    </PagePlaceholder>
+      </DragDropContext>
+
+      <TicketDetailDialog
+        ticket={selectedTicket}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+      />
+    </div>
   )
 }
 
