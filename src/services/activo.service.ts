@@ -92,6 +92,36 @@ export async function listarActivos(
   }
 }
 
+const LIMITE_EXPORTACION = 100
+const MAX_PAGINAS_EXPORTACION = 100
+
+export async function listarTodosLosActivos(
+  filtros: Omit<ParametrosListadoActivos, "page" | "limit"> = {},
+): Promise<ActivoResumen[]> {
+  const primera = await listarActivos({
+    ...filtros,
+    page: 1,
+    limit: LIMITE_EXPORTACION,
+  })
+
+  const activos = [...primera.activos]
+  const totalPaginas = Math.min(
+    primera.meta.totalPages,
+    MAX_PAGINAS_EXPORTACION,
+  )
+
+  for (let page = 2; page <= totalPaginas; page += 1) {
+    const siguiente = await listarActivos({
+      ...filtros,
+      page,
+      limit: LIMITE_EXPORTACION,
+    })
+    activos.push(...siguiente.activos)
+  }
+
+  return activos
+}
+
 export async function validarImportacionActivos(
   filas: ActivoImportRow[],
 ): Promise<ResultadoValidacionImportacion> {

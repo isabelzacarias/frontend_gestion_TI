@@ -27,10 +27,12 @@ import {
   downloadAssetImportErrors,
   transformDraftsToImportRows,
 } from "@/features/inventory/utils/asset-import"
+import { exportActivosToCsv } from "@/features/inventory/utils/asset-export"
 import {
   ActivoApiError,
   confirmarImportacionActivos,
   listarActivos,
+  listarTodosLosActivos,
   validarImportacionActivos,
 } from "@/services/activo.service"
 import type {
@@ -79,7 +81,7 @@ function toConfirmationRows(
     }))
 }
 
-function getImportErrorMessage(error: unknown): string {
+function getApiErrorMessage(error: unknown): string {
   if (error instanceof ActivoApiError) {
     if (error.status === 403) {
       return "No tienes permiso para importar activos (activos:crear)."
@@ -272,6 +274,7 @@ function InventoryPage() {
   const [selectedBranch, setSelectedBranch] = useState<"ALL" | string>("ALL")
   const [currentPage, setCurrentPage] = useState(1)
   const [reloadKey, setReloadKey] = useState(0)
+  const [exporting, setExporting] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
@@ -364,7 +367,7 @@ function InventoryPage() {
         setMeta(metaRespuesta)
       } catch (error) {
         if (cancelado) return
-        setLoadError(getImportErrorMessage(error))
+        setLoadError(getApiErrorMessage(error))
         setActivos([])
       } finally {
         if (!cancelado) setLoading(false)
@@ -382,6 +385,39 @@ function InventoryPage() {
 
   const handlePageChange = (nextPage: number) => {
     setCurrentPage(Math.min(Math.max(nextPage, 1), meta.totalPages))
+  }
+
+  const handleExport = async () => {
+    if (exporting) return
+
+    setExporting(true)
+    const toastId = toast.loading("Preparando la exportación...")
+
+    try {
+      const activosExportables = await listarTodosLosActivos({
+        ...(selectedState !== "ALL" ? { estado: selectedState } : {}),
+        ...(selectedBranch !== "ALL" ? { sucursal: selectedBranch } : {}),
+        ...(debouncedSearch ? { q: debouncedSearch } : {}),
+      })
+
+      if (activosExportables.length === 0) {
+        toast.info(
+          "No hay registros para exportar con los filtros actuales.",
+          { id: toastId },
+        )
+        return
+      }
+
+      exportActivosToCsv(activosExportables)
+      toast.success(
+        `${activosExportables.length} registro(s) exportados a CSV.`,
+        { id: toastId },
+      )
+    } catch (error) {
+      toast.error(getApiErrorMessage(error), { id: toastId })
+    } finally {
+      setExporting(false)
+    }
   }
 
   const handleDraftChange = <K extends keyof AssetFormDraft>(field: K, value: AssetFormDraft[K]) => {
@@ -433,7 +469,7 @@ function InventoryPage() {
             : undefined,
       })
     } catch (error) {
-      toast.error(getImportErrorMessage(error), { id: toastId })
+      toast.error(getApiErrorMessage(error), { id: toastId })
     }
   }
 
@@ -473,7 +509,7 @@ function InventoryPage() {
 
       await confirmarLote(records, filas)
     } catch (error) {
-      toast.error(getImportErrorMessage(error), { id: toastId })
+      toast.error(getApiErrorMessage(error), { id: toastId })
     }
   }
 
@@ -557,11 +593,12 @@ function InventoryPage() {
           <>
             <Button
               type="button"
-              variant="outline"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-4 py-2 text-sm font-semibold text-foreground shadow-[0_10px_20px_rgba(15,23,42,0.05)] backdrop-blur-md hover:bg-white/90 dark:border-violet-400/30 dark:bg-slate-900/70 dark:text-violet-100 dark:hover:bg-slate-800/90"
+              onClick={handleExport}
+              disabled={exporting || loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-4 py-2 text-sm font-semibold text-foreground shadow-[0_10px_20px_rgba(15,23,42,0.05)] backdrop-blur-md hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-violet-400/30 dark:bg-slate-900/70 dark:text-violet-100 dark:hover:bg-slate-800/90"
             >
               <Download className="size-4" />
-              Exportar
+              {exporting ? "Exportando..." : "Exportar"}
             </Button>
 
             <Button
