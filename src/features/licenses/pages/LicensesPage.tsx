@@ -1,13 +1,12 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import {
   ArrowUpDown,
   CircleDot,
-  Copy,
-  Eye,
-  EyeOff,
   KeyRound,
   Plus,
+  RefreshCw,
+  RotateCcw,
   Search,
   ShieldCheck,
   UserCheck,
@@ -27,12 +26,23 @@ import type {
   FacetSelections,
 } from "@/components/ui/faceted-filter"
 import { LicenseFormDialog } from "@/features/licenses/components/LicenseFormDialog"
-import { sampleLicenses } from "@/features/licenses/data/licensesData"
+import {
+  LicenseApiError,
+  actualizarLicencia,
+  crearLicencia,
+  desactivarLicencia,
+  listarTodasLasLicencias,
+} from "@/features/licenses/services/license.service"
 import type {
-  AsignadaA,
+  DatosCreacionLicencia,
+  DatosEdicionLicencia,
   License,
   LicenseFormDraft,
 } from "@/features/licenses/types/license"
+import {
+  listarTodosLosUsuarios,
+  type UsuarioLista,
+} from "@/services/usuario.service"
 
 function formatDate(isoString: string | null): string {
   if (!isoString) return "—"
@@ -48,22 +58,28 @@ function formatDate(isoString: string | null): string {
   }
 }
 
+const datePattern = /^\d{4}-\d{2}-\d{2}$/
+
+const esFechaValida = (value: string): boolean => datePattern.test(value)
+
 const createEmptyLicenseDraft = (): LicenseFormDraft => ({
   software: "",
   clave: "",
   proveedor: "",
   fechaCompra: new Date().toISOString().slice(0, 10),
   fechaVencimiento: "",
-  asignadaAId: "ADMIN",
+  asignadaAId: "",
   activa: true,
 })
 
 const toLicenseDraft = (item: License): LicenseFormDraft => ({
   software: item.software,
-  clave: item.clave ?? "",
+  clave: "",
   proveedor: item.proveedor ?? "",
   fechaCompra: item.fechaCompra ? item.fechaCompra.slice(0, 10) : "",
-  fechaVencimiento: item.fechaVencimiento ? item.fechaVencimiento.slice(0, 10) : "",
+  fechaVencimiento: item.fechaVencimiento
+    ? item.fechaVencimiento.slice(0, 10)
+    : "",
   asignadaAId: item.asignadaA?.id ?? "",
   activa: item.activa,
 })
@@ -71,37 +87,18 @@ const toLicenseDraft = (item: License): LicenseFormDraft => ({
 const ITEMS_PER_PAGE = 10
 const cellBase = "border-b border-border/70 px-4 py-3 text-foreground/90"
 
-const resolveAssignee = (id: string): AsignadaA | null => {
-  if (id === "ADMIN") {
-    return { id: "ADMIN", nombre: "Administrador", email: "admin@horbismex.com" }
-  }
-  if (id === "TECH-01") {
-    return { id: "TECH-01", nombre: "Carlos Ramírez", email: "carlos.ramirez@horbismex.com" }
-  }
-  if (id === "TECH-02") {
-    return { id: "TECH-02", nombre: "Daniel Valdés", email: "daniel.valdes@horbismex.com" }
-  }
-  return null
-}
-
-const createLicenseFromDraft = (draft: LicenseFormDraft, id: number): License => {
-  const tieneClave = Boolean(draft.clave && draft.clave.trim().length > 0)
-
-  return {
-    id,
-    software: draft.software.trim() || `Licencia #${id}`,
-    tieneClave,
-    clave: tieneClave ? draft.clave.trim() : null,
-    proveedor: draft.proveedor.trim() || null,
-    fechaCompra: draft.fechaCompra ? `${draft.fechaCompra}T00:00:00.000Z` : null,
-    fechaVencimiento: draft.fechaVencimiento ? `${draft.fechaVencimiento}T00:00:00.000Z` : null,
-    activa: String(draft.activa) === "true",
-    asignadaA: resolveAssignee(draft.asignadaAId),
-  }
+function mensajeDeError(error: unknown): string {
+  if (error instanceof LicenseApiError) return error.message
+  return "No se pudo completar la operación."
 }
 
 function LicensesPage() {
-  const [licenses, setLicenses] = useState<License[]>(sampleLicenses)
+  const [licenses, setLicenses] = useState<License[]>([])
+  const [usuarios, setUsuarios] = useState<UsuarioLista[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+
   const [search, setSearch] = useState("")
   const [activaSeleccionada, setActivaSeleccionada] = useState<string[]>([])
   const [claveSeleccionada, setClaveSeleccionada] = useState<string[]>([])
@@ -113,8 +110,40 @@ function LicensesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
-  const [isDetailKeyVisible, setIsDetailKeyVisible] = useState(false)
   const [draft, setDraft] = useState<LicenseFormDraft>(createEmptyLicenseDraft())
+
+  const recargar = () => setReloadKey((key) => key + 1)
+
+  useEffect(() => {
+    let cancelado = false
+
+    async function cargarLicencias() {
+      setIsLoading(true)
+
+      try {
+        const [licencias, usuariosActivos] = await Promise.all([
+          listarTodasLasLicencias(),
+          listarTodosLosUsuarios({ activo: true }).catch(
+            () => [] as UsuarioLista[],
+          ),
+        ])
+        if (cancelado) return
+        setLicenses(licencias)
+        setUsuarios(usuariosActivos)
+      } catch (error) {
+        if (cancelado) return
+        toast.error(mensajeDeError(error))
+      } finally {
+        if (!cancelado) setIsLoading(false)
+      }
+    }
+
+    void cargarLicencias()
+
+    return () => {
+      cancelado = true
+    }
+  }, [reloadKey])
 
   const selectedLicense = useMemo(
     () => licenses.find((item) => item.id === selectedLicenseId) ?? null,
@@ -137,7 +166,7 @@ function LicensesPage() {
           : item.software.toLowerCase().includes(term) ||
             (item.proveedor?.toLowerCase().includes(term) ?? false) ||
             (item.asignadaA?.nombre.toLowerCase().includes(term) ?? false) ||
-            (item.asignadaA?.email.toLowerCase().includes(term) ?? false))
+            (item.asignadaA?.email?.toLowerCase().includes(term) ?? false))
 
       const matchActiva =
         activaSeleccionada.length === 0 ||
@@ -215,12 +244,6 @@ function LicensesPage() {
     return filteredLicenses.slice(start, start + ITEMS_PER_PAGE)
   }, [filteredLicenses, activePage])
 
-  const copyToClipboard = (text: string, label: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    navigator.clipboard.writeText(text)
-    toast.success(`${label} copiada al portapapeles`)
-  }
-
   const handleDraftChange = <K extends keyof LicenseFormDraft>(
     field: K,
     value: LicenseFormDraft[K],
@@ -241,65 +264,169 @@ function LicensesPage() {
     setIsEditDialogOpen(true)
   }
 
-  const handleCreateLicense = (e: FormEvent<HTMLFormElement>) => {
+  const validarDraft = (): boolean => {
+    if (!draft.software.trim()) {
+      toast.error("El nombre del software es obligatorio.")
+      return false
+    }
+    if (!esFechaValida(draft.fechaVencimiento)) {
+      toast.error("La fecha de vencimiento debe tener formato AAAA-MM-DD.")
+      return false
+    }
+    if (draft.fechaCompra && !esFechaValida(draft.fechaCompra)) {
+      toast.error("La fecha de compra debe tener formato AAAA-MM-DD.")
+      return false
+    }
+    return true
+  }
+
+  const handleCreateLicense = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const nextId = Math.max(...licenses.map((l) => l.id), 0) + 1
-    const newLicense = createLicenseFromDraft(draft, nextId)
+    if (isSaving || !validarDraft()) return
 
-    setLicenses((prev) => [newLicense, ...prev])
-    setIsAddDialogOpen(false)
-    toast.success(`Licencia "${newLicense.software}" creada exitosamente.`)
+    const datos: DatosCreacionLicencia = {
+      software: draft.software.trim(),
+      clave: draft.clave.trim() ? draft.clave.trim() : null,
+      proveedor: draft.proveedor.trim() ? draft.proveedor.trim() : null,
+      fechaCompra: draft.fechaCompra ? draft.fechaCompra : null,
+      fechaVencimiento: draft.fechaVencimiento,
+      asignadaAId: draft.asignadaAId ? draft.asignadaAId : null,
+    }
+
+    setIsSaving(true)
+    try {
+      const creada = await crearLicencia(datos)
+      if (String(draft.activa) === "false") {
+        await actualizarLicencia(creada.id, { activa: false })
+      }
+      toast.success(`Licencia "${creada.software}" creada exitosamente.`)
+      setIsAddDialogOpen(false)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleImportLicenses = (records: LicenseFormDraft[]) => {
-    const idBase = Math.max(...licenses.map((l) => l.id), 0)
-    const importedLicenses = records.map((record, index) =>
-      createLicenseFromDraft(record, idBase + index + 1),
-    )
+  const handleImportLicenses = async (records: LicenseFormDraft[]) => {
+    if (records.length === 0 || isSaving) return
 
-    setLicenses((prev) => [...importedLicenses, ...prev])
+    setIsSaving(true)
+    let exitos = 0
+    const fallos: string[] = []
+
+    for (const record of records) {
+      const software = record.software.trim()
+      if (!software || !esFechaValida(record.fechaVencimiento)) {
+        fallos.push(software || "(sin nombre)")
+        continue
+      }
+
+      const asignada = record.asignadaAId.trim()
+      const usuarioId = asignada
+        ? usuarios.find(
+            (usuario) =>
+              usuario.id.toLowerCase() === asignada.toLowerCase() ||
+              usuario.nombre.toLowerCase() === asignada.toLowerCase() ||
+              (usuario.email?.toLowerCase() ?? "") === asignada.toLowerCase(),
+          )?.id ?? null
+        : null
+
+      try {
+        const creada = await crearLicencia({
+          software,
+          clave: record.clave.trim() ? record.clave.trim() : null,
+          proveedor: record.proveedor.trim() ? record.proveedor.trim() : null,
+          fechaCompra: record.fechaCompra ? record.fechaCompra : null,
+          fechaVencimiento: record.fechaVencimiento,
+          asignadaAId: usuarioId,
+        })
+        if (String(record.activa) === "false") {
+          await actualizarLicencia(creada.id, { activa: false })
+        }
+        exitos += 1
+      } catch {
+        fallos.push(software)
+      }
+    }
+
+    setIsSaving(false)
     setIsAddDialogOpen(false)
-    setCurrentPage(1)
-    toast.success(
-      `${importedLicenses.length} ${importedLicenses.length === 1 ? "licencia registrada" : "licencias registradas"} correctamente.`,
-    )
+    recargar()
+
+    if (fallos.length === 0) {
+      toast.success(
+        `${exitos} ${exitos === 1 ? "licencia registrada" : "licencias registradas"} correctamente.`,
+      )
+    } else {
+      toast.warning(
+        `${exitos} registradas y ${fallos.length} con error: ${fallos.join(", ")}.`,
+      )
+    }
   }
 
-  const handleUpdateLicense = (e: FormEvent<HTMLFormElement>) => {
+  const handleUpdateLicense = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (selectedLicenseId === null) return
+    if (selectedLicenseId === null || isSaving || !validarDraft()) return
 
-    const tieneClave = Boolean(draft.clave && draft.clave.trim().length > 0)
-    const asignadaAObj = resolveAssignee(draft.asignadaAId)
+    const datos: DatosEdicionLicencia = {
+      software: draft.software.trim(),
+      proveedor: draft.proveedor.trim() ? draft.proveedor.trim() : null,
+      fechaCompra: draft.fechaCompra ? draft.fechaCompra : null,
+      fechaVencimiento: draft.fechaVencimiento,
+      asignadaAId: draft.asignadaAId ? draft.asignadaAId : null,
+      activa: String(draft.activa) === "true",
+    }
+    if (draft.clave.trim()) {
+      datos.clave = draft.clave.trim()
+    }
 
-    setLicenses((prev) =>
-      prev.map((item) =>
-        item.id === selectedLicenseId
-          ? {
-              ...item,
-              software: draft.software.trim() || item.software,
-              tieneClave,
-              clave: tieneClave ? draft.clave.trim() : item.clave,
-              proveedor: draft.proveedor.trim() || null,
-              fechaCompra: draft.fechaCompra ? `${draft.fechaCompra}T00:00:00.000Z` : null,
-              fechaVencimiento: draft.fechaVencimiento ? `${draft.fechaVencimiento}T00:00:00.000Z` : null,
-              activa: String(draft.activa) === "true",
-              asignadaA: asignadaAObj,
-            }
-          : item,
-      ),
-    )
-    setIsEditDialogOpen(false)
-    toast.success("Licencia actualizada correctamente.")
+    setIsSaving(true)
+    try {
+      await actualizarLicencia(selectedLicenseId, datos)
+      toast.success("Licencia actualizada correctamente.")
+      setIsEditDialogOpen(false)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleDeleteLicense = () => {
-    if (selectedLicenseId === null) return
-    setLicenses((prev) => prev.filter((l) => l.id !== selectedLicenseId))
-    setIsConfirmDeleteOpen(false)
-    setIsEditDialogOpen(false)
-    setIsDetailDialogOpen(false)
-    toast.success("Licencia eliminada exitosamente.")
+  const handleReactivarLicense = async () => {
+    if (selectedLicenseId === null || isSaving) return
+
+    setIsSaving(true)
+    try {
+      await actualizarLicencia(selectedLicenseId, { activa: true })
+      toast.success("Licencia reactivada correctamente.")
+      setIsDetailDialogOpen(false)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDeleteLicense = async () => {
+    if (selectedLicenseId === null || isSaving) return
+
+    setIsSaving(true)
+    try {
+      await desactivarLicencia(selectedLicenseId)
+      toast.success("Licencia desactivada correctamente.")
+      setIsConfirmDeleteOpen(false)
+      setIsEditDialogOpen(false)
+      setIsDetailDialogOpen(false)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Columnas para DataTable
@@ -380,7 +507,7 @@ function LicensesPage() {
                 {item.asignadaA.nombre}
               </div>
               <div className="truncate text-[11px] text-muted-foreground">
-                {item.asignadaA.email}
+                {item.asignadaA.email ?? "—"}
               </div>
             </div>
           </div>
@@ -415,44 +542,26 @@ function LicensesPage() {
             {
               key: "tieneClave",
               label: "Clave Secreta",
-              value:
-                selectedLicense.tieneClave && selectedLicense.clave ? (
-                  <div className="flex min-h-8 items-center gap-2">
-                    <span className="break-all py-1 font-mono text-sm text-foreground">
-                      {isDetailKeyVisible ? selectedLicense.clave : "••••-••••-••••"}
-                    </span>
-                    <button
-                      type="button"
-                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      aria-label={isDetailKeyVisible ? "Ocultar clave" : "Mostrar clave"}
-                      aria-pressed={isDetailKeyVisible}
-                      onClick={() => setIsDetailKeyVisible((current) => !current)}
-                    >
-                      {isDetailKeyVisible ? (
-                        <EyeOff aria-hidden="true" className="size-4" />
-                      ) : (
-                        <Eye aria-hidden="true" className="size-4" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      aria-label="Copiar clave"
-                      onClick={(e) =>
-                        copyToClipboard(selectedLicense.clave!, "Clave de licencia", e)
-                      }
-                    >
-                      <Copy aria-hidden="true" className="size-4" />
-                    </button>
-                  </div>
-                ) : (
+              value: selectedLicense.tieneClave ? (
+                <div className="flex min-h-8 items-center gap-2">
+                  <span className="break-all py-1 font-mono text-sm text-foreground">
+                    ••••-••••-••••
+                  </span>
                   <Badge
                     variant="outline"
-                    className="border-slate-400/30 bg-slate-400/10 text-slate-500"
+                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                   >
-                    Sin clave
+                    Cifrada en el servidor
                   </Badge>
-                ),
+                </div>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="border-slate-400/30 bg-slate-400/10 text-slate-500"
+                >
+                  Sin clave
+                </Badge>
+              ),
             },
           ],
         },
@@ -481,7 +590,7 @@ function LicensesPage() {
             {
               key: "asignadaEmail",
               label: "Correo Asignado",
-              value: selectedLicense.asignadaA ? selectedLicense.asignadaA.email : "—",
+              value: selectedLicense.asignadaA ? (selectedLicense.asignadaA.email ?? "—") : "—",
             },
           ],
         },
@@ -502,14 +611,27 @@ function LicensesPage() {
         eyebrow="Inventario de Software"
         title="Gestión de Licencias"
         actions={
-          <Button
-            type="button"
-            onClick={handleOpenAddDialog}
-            className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(91,36,128,0.24)] hover:brightness-110"
-          >
-            <Plus className="size-4" />
-            Agregar Licencia
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={recargar}
+              disabled={isLoading}
+              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
+            >
+              <RefreshCw className={isLoading ? "size-4 animate-spin" : "size-4"} />
+              Actualizar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleOpenAddDialog}
+              disabled={isSaving}
+              className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(91,36,128,0.24)] hover:brightness-110"
+            >
+              <Plus className="size-4" />
+              Agregar Licencia
+            </Button>
+          </div>
         }
         filters={
           <div className="flex flex-1 flex-wrap items-center gap-3">
@@ -574,22 +696,33 @@ function LicensesPage() {
         }}
         onRowClick={(license) => setSelectedLicenseId(license.id)}
         selectedRowKey={selectedLicenseId}
-        emptyMessage="No se encontraron licencias con los criterios de búsqueda seleccionados."
+        emptyMessage={
+          isLoading
+            ? "Cargando licencias..."
+            : "No se encontraron licencias con los criterios de búsqueda seleccionados."
+        }
       />
 
       {/* Modal de Detalle */}
       {selectedLicense && (
         <DetailDialog
           open={isDetailDialogOpen}
-          onOpenChange={(open) => {
-            setIsDetailDialogOpen(open)
-            if (!open) setIsDetailKeyVisible(false)
-          }}
+          onOpenChange={setIsDetailDialogOpen}
           title={selectedLicense.software}
           description={`Detalle de la licencia #${selectedLicense.id}`}
           icon={<KeyRound className="size-6 text-white" />}
           sections={detailSections}
-          onEdit={() => handleOpenEditDialog(selectedLicense)}
+          onEdit={
+            selectedLicense.activa
+              ? () => handleOpenEditDialog(selectedLicense)
+              : () => void handleReactivarLicense()
+          }
+          editLabel={selectedLicense.activa ? "Editar" : "Reactivar"}
+          editIcon={
+            selectedLicense.activa ? undefined : (
+              <RotateCcw aria-hidden="true" />
+            )
+          }
         />
       )}
 
@@ -598,10 +731,11 @@ function LicensesPage() {
         open={isAddDialogOpen}
         draft={draft}
         mode="create"
+        usuarios={usuarios}
         onOpenChange={setIsAddDialogOpen}
         onChange={handleDraftChange}
-        onSubmit={handleCreateLicense}
-        onImport={handleImportLicenses}
+        onSubmit={(event) => void handleCreateLicense(event)}
+        onImport={(records) => void handleImportLicenses(records)}
       />
 
       {/* Modal de Edición */}
@@ -609,20 +743,21 @@ function LicensesPage() {
         open={isEditDialogOpen}
         draft={draft}
         mode="edit"
+        usuarios={usuarios}
         onOpenChange={setIsEditDialogOpen}
         onChange={handleDraftChange}
-        onSubmit={handleUpdateLicense}
+        onSubmit={(event) => void handleUpdateLicense(event)}
         onDelete={() => setIsConfirmDeleteOpen(true)}
       />
 
-      {/* Diálogo de Confirmación de Borrado */}
+      {/* Diálogo de Confirmación de Baja */}
       <ConfirmDeleteDialog
         open={isConfirmDeleteOpen}
-        title="Eliminar licencia"
+        title="Desactivar licencia"
         itemName={selectedLicense?.software ?? "esta licencia"}
-        description="¿Estás seguro de eliminar esta licencia del sistema? Esta acción no se puede deshacer."
-        confirmLabel="Eliminar Licencia"
-        onConfirm={handleDeleteLicense}
+        description="La licencia pasará a estado inactivo (baja lógica). Podrás reactivarla más adelante."
+        confirmLabel="Desactivar Licencia"
+        onConfirm={() => void handleDeleteLicense()}
         onCancel={() => setIsConfirmDeleteOpen(false)}
       />
     </div>
