@@ -384,6 +384,7 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 
 - [x] Definir el modelo de datos para licencias de software: claves, vigencia, tipo (suscripción, perpetua), responsable y equipos asignados.
 - [x] Implementar la vista principal de licencias utilizando obligatoriamente el componente base `DataTable`.
+- [x] Migrar los filtros de licencias al filtro facetado estándar `FacetedFilter` (dimensiones **Estado** [Activas/Inactivas] y **Clave** [Con/Sin clave], multi-selección) con búsqueda integrada y botón **Borrar filtros**.
 - [x] Crear el modal de registro y modificación de licencias construyendo un wrapper `LicenseFormDialog` basado en `FormDialog`.
 - [x] Integrar el diálogo de confirmación para revocar o dar de baja licencias con `ConfirmDeleteDialog`.
 - [x] Desarrollar alertas visuales preventivas para licencias próximas a expirar y vencidas.
@@ -607,7 +608,7 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 - [ ] Permitir la personalización del dashboard principal con widgets arrastrables según el rol del usuario.
 - [ ] Integrar sistema de notificaciones push para asignaciones urgentes de tickets.
 - [ ] Evaluar virtualización de filas con `@tanstack/react-virtual` para tablas con volúmenes superiores a 10,000 registros.
-- [ ] **Recordatorio:** Adoptar el filtro facetado estándar (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`) en las tablas ya existentes (Licencias, Proyectos, Usuarios, Auditoría, etc.) en sustitución de los selects sueltos por criterio. *(Ya adoptado en Tickets, Kanban e Inventario.)*
+- [ ] **Recordatorio:** Adoptar el filtro facetado estándar (`FacetedFilter`, `src/components/ui/faceted-filter.tsx`) en las tablas ya existentes (Proyectos, Usuarios, Auditoría, etc.) en sustitución de los selects sueltos por criterio. *(Ya adoptado en Tickets, Kanban, Inventario y Licencias.)*
 
 ---
 
