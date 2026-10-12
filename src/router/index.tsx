@@ -1,11 +1,10 @@
-import { createBrowserRouter } from "react-router"
+import { createBrowserRouter, Navigate } from "react-router"
 
 import DashboardPage from "@/features/dashboard/pages/DashboardPage"
 import NotFoundPage from "@/components/common/NotFoundPage"
 import AppLayout from "@/components/layout/AppLayout"
 import { LoginRoute, RequireAuth } from "@/features/auth/components/AuthGuards"
 import InventoryPage from "@/features/inventory/pages/InventoryPage"
-import KanbanPage from "@/features/kanban/pages/KanbanPage"
 import LicensesPage from "@/features/licenses/pages/LicensesPage"
 import PasswordsPage from "@/features/passwords/pages/PasswordsPage"
 import AssignmentsPage from "@/features/assignments/pages/AssignmentsPage"
@@ -36,7 +35,10 @@ const router = createBrowserRouter([
           { index: true, element: <HomeRedirect /> },
           { path: "home", element: <DashboardPage /> },
           { path: "tickets", element: <TicketsPage /> },
-          { path: "kanban", element: <KanbanPage /> },
+          {
+            path: "kanban",
+            element: <Navigate to="/tickets?vista=kanban" replace />,
+          },
           { path: "inventory", element: <InventoryPage /> },
           { path: "licenses", element: <LicensesPage /> },
           { path: "projects", element: <ProjectsPage /> },

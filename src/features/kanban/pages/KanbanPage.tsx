@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd"
 import type { DropResult } from "@hello-pangea/dnd"
-import { Flag, Loader2, RefreshCw, Search, Tag, User, X } from "lucide-react"
+import { Flag, LayoutGrid, Loader2, RefreshCw, Search, Tag, User, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { PagePlaceholder } from "@/components/common/PagePlaceholder"
+import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { KanbanFacetedFilter } from "@/features/kanban/components/KanbanFacetedFilter"
@@ -421,60 +421,66 @@ function KanbanPage() {
   }
 
   return (
-    <PagePlaceholder
-      title="Tablero Kanban"
-      description="Incidencias agrupadas por estado. Arrastra una tarjeta para cambiar su estado o reordenarla dentro de la columna."
-      className="overflow-hidden"
-    >
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Buscar por título, #id o solicitante..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className={`${controlBase} w-full pl-10 pr-4`}
-          />
-        </div>
-
-        <KanbanFacetedFilter
-          dimensions={facetDimensions}
-          selections={facetSelecciones}
-          onChange={handleFacetChange}
-          onClearAll={borrarFacetas}
-        />
-
-        {hayFiltros && (
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <ModuleHeader
+        eyebrow="Mesa de Ayuda TI"
+        title="Tablero Kanban"
+        actions={
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={limpiarFiltros}
-            className="text-muted-foreground"
+            onClick={() => setReloadKey((key) => key + 1)}
+            disabled={loading}
           >
-            <X />
-            Borrar filtros
+            {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            Actualizar
           </Button>
-        )}
+        }
+        filters={
+          <>
+            <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar por título, #id o solicitante..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className={`${controlBase} w-full pl-10 pr-4`}
+              />
+            </div>
 
-        <span className="ml-auto text-xs font-medium text-muted-foreground">
-          {loading
-            ? "Cargando..."
-            : (loadError ??
-              (hayFiltros
-                ? `${totalVisibles} de ${totalTickets} tickets`
-                : `${totalTickets} tickets`))}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setReloadKey((key) => key + 1)}
-          disabled={loading}
-        >
-          {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-          Actualizar
-        </Button>
-      </div>
+            <KanbanFacetedFilter
+              dimensions={facetDimensions}
+              selections={facetSelecciones}
+              onChange={handleFacetChange}
+              onClearAll={borrarFacetas}
+            />
+
+            {hayFiltros && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limpiarFiltros}
+                className="text-muted-foreground"
+              >
+                <X />
+                Borrar filtros
+              </Button>
+            )}
+          </>
+        }
+        summary={
+          <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
+            <LayoutGrid className="size-3.5 text-violet-700 dark:text-violet-200" />
+            {loading
+              ? "Cargando..."
+              : (loadError ??
+                (hayFiltros
+                  ? `${totalVisibles} de ${totalTickets} tickets`
+                  : `${totalTickets} tickets`))}
+          </span>
+        }
+      />
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div
@@ -605,7 +611,7 @@ function KanbanPage() {
           </div>
         </div>
       </DragDropContext>
-    </PagePlaceholder>
+    </div>
   )
 }
 

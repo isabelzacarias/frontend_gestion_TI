@@ -10,7 +10,6 @@ import {
   Laptop,
   Lock,
   Menu,
-  SquareKanban,
   Ticket,
   Wrench,
   type LucideIcon,
@@ -45,7 +44,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: "/home", label: "Home", icon: Home },
   { to: "/tickets", label: "Tickets", icon: Ticket },
-  { to: "/kanban", label: "Tablero Kanban", icon: SquareKanban },
   { to: "/inventory", label: "Inventario", icon: Boxes },
   { to: "/licenses", label: "Licencias", icon: KeyRound },
   { to: "/projects", label: "Proyectos", icon: FolderKanban },
