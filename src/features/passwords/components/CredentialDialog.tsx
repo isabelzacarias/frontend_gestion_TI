@@ -1,5 +1,5 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react"
-import { Download, ExternalLink, Eye, EyeOff, Upload } from "lucide-react"
+import { useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from "react"
+import { Check, Copy, Download, ExternalLink, Eye, EyeOff, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
@@ -36,6 +36,49 @@ interface CredentialDialogProps {
 interface CustomStringFieldProps {
   value: string
   onChange: (value: string) => void
+}
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      toast.success(`Se copió ${label} al portapapeles`)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      toast.error("No se pudo copiar. Copia el valor manualmente.")
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={`Copiar ${label}`}
+      title={`Copiar ${label}`}
+      onClick={(event) => void handleCopy(event)}
+    >
+      {copied ? (
+        <Check aria-hidden="true" className="size-4 text-emerald-600" />
+      ) : (
+        <Copy aria-hidden="true" className="size-4" />
+      )}
+    </button>
+  )
+}
+
+function CredentialTextDisplay({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="flex min-h-8 items-center gap-2">
+      <span className="break-all py-1 text-sm text-foreground">{value || "—"}</span>
+      {value ? <CopyButton value={value} label={label} /> : null}
+    </div>
+  )
 }
 
 function CredentialPasswordField({ value, onChange }: CustomStringFieldProps) {
@@ -99,6 +142,7 @@ function CredentialPasswordDisplay({ value }: { value: string }) {
           <Eye aria-hidden="true" className="size-4" />
         )}
       </button>
+      <CopyButton value={value} label="la contraseña" />
     </div>
   )
 }
@@ -225,7 +269,16 @@ function CredentialDialog({
       title: "Datos de acceso",
       color: "cyan",
       fields: [
-        { key: "account", label: "Cuenta / correo", value: draft.account },
+        {
+          key: "account",
+          label: "Cuenta / correo",
+          value: (
+            <CredentialTextDisplay
+              value={draft.account}
+              label="la cuenta / correo"
+            />
+          ),
+        },
         { key: "username", label: "Nombre de usuario", value: draft.username },
         {
           key: "password",

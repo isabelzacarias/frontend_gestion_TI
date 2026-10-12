@@ -332,14 +332,9 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Implementar badges cromáticos para estados operativos (Activo, Mantenimiento, Baja) y condiciones físicas (Excelente, Bueno, Regular, Malo).
 - [ ] Conectar las operaciones CRUD del inventario con la API REST del backend de gestión de TI.
 - [x] Integrar validaciones de datos requeridos y notificaciones toast de éxito o error al guardar/eliminar.
-<<<<<<< Updated upstream
 - [x] Importacion masiva de activos: flujo en dos fases (`validar` -> `confirmar`) contra `/api/activos/importaciones/*`, con importacion **parcial** (crea las filas validas y rechaza el resto sin abortar). El frontend parsea localmente la plantilla `plantilla_registro_activos.csv` (BOM UTF-8, delimitador `;`, encabezados acentuados, campos entre comillas, limite de 500 registros) y conserva la fila de origen. Los datos **no guardados** (filas con `errores`) se muestran por fila en `ImportResultDialog` y se pueden **descargar como CSV** (`activos_rechazados_<timestamp>.csv`, re-importable); las **advertencias** no bloquean. Ver el patron completo en la seccion "Importaciones masivas".
-=======
-- [x] Importacion masiva: el frontend lee y parsea localmente la plantilla `plantilla_registro_activos.csv` y envía las filas como JSON; el archivo no se sube ni se almacena en el backend. El parser del frontend soporta BOM UTF-8, delimitador `;`, encabezados acentuados, campos entre comillas, límite de 500 registros y conserva la fila de origen para reportar resultados.
-- [x] Validar la persistencia de datos y el refresco reactivo de la tabla tras cada mutación.
-- [x] Integrar registro masivo de activos por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`AssetFormDialog` + `asset-import.ts`).
 - [x] Exportación CSV del inventario filtrado (todos los registros que cumplen búsqueda y filtros, no solo la página), con valores de estado legibles (`asset-export.ts` + `listarTodosLosActivos`).
->>>>>>> Stashed changes
+
 
 ---
 
@@ -352,6 +347,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Desarrollar alertas visuales preventivas para licencias próximas a expirar y vencidas.
 - [x] Diseñar el panel de visualización y detalle con conteo de asientos utilizados versus disponibles y barra de uso relativo.
 - [x] Diseñar la gestión segura de contraseñas y credenciales de servicios tecnológicos con ofuscación visual y permisos de visualización.
+- [x] Incorporar registro masivo de licencias por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`LicenseFormDialog` + `license-import.ts`).
 - [ ] Conectar las consultas y mutaciones de licencias con los servicios del backend.
 
 ---
@@ -366,6 +362,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [x] Añadir indicador visual de fortaleza de contraseña con criterios de longitud, mayúsculas, minúsculas, números y caracteres especiales.
 - [x] Agregar alternancia de visibilidad de contraseña y mensajes de contexto para entorno demo sin conexión a API.
 - [x] Diseñar la experiencia con datos ficticios para validar la interacción del módulo antes de conectarlo al backend.
+- [x] Integrar registro masivo de credenciales por plantilla CSV/Excel con descarga de plantilla y confirmación de lote (`CredentialDialog` + `credential-import.ts`).
 - [ ] Conectar el módulo de contraseñas con la API real y persistencia del backend.
 - [ ] Implementar almacenamiento seguro de secretos con enmascarado, control de permisos y trazabilidad de acceso.
 - [ ] Añadir filtros avanzados por categoría, servicio, responsable y estado de uso.
@@ -445,9 +442,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 
 ---
 
-<<<<<<< Updated upstream
 ## 16. Backlog de Mejoras Futuras
-=======
 ## 16. Registro Masivo de Datos mediante Plantillas CSV/Excel
 
 Estandariza la carga masiva de registros en los módulos del sistema. La plantilla se genera y descarga en formato CSV codificado en UTF-8 con BOM y separador `;`, de modo que Excel la abra correctamente en español.
@@ -564,7 +559,6 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 ---
 
 ## 22. Backlog de Mejoras Futuras
->>>>>>> Stashed changes
 
 - [ ] Implementar exportación nativa de reportes a formatos PDF y hojas de cálculo Excel/CSV con filtros aplicados.
 - [ ] Desarrollar búsqueda global unificada (Command Palette tipo `Ctrl + K`) para saltar a cualquier activo, ticket o proyecto.
@@ -574,7 +568,7 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 
 ---
 
-## 17. Checklist de Cierre de Sprint
+## 23. Checklist de Cierre de Sprint
 
 - [ ] Verificar las tareas marcadas como completadas (`[x]`) contra las evidencias reales en el código.
 - [ ] Confirmar que cada pantalla desarrollada use estrictamente los componentes base (`DataTable`, `DetailDialog`, `FormDialog`, `ConfirmDeleteDialog`) y el flujo común de consulta/edición.

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import {
   ChevronDown,
@@ -63,20 +63,37 @@ function PasswordsPage() {
   const pageSize = 10
   const [credentials, setCredentials] = useState(sampleCredentials)
   const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedCredentialId, setSelectedCredentialId] = useState<string | null>(null)
   const [draft, setDraft] = useState<CredentialDraft>(createEmptyCredentialDraft())
   const [dialogMode, setDialogMode] = useState<CredentialFormMode | null>(null)
 
+  const categoryOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    credentials.forEach((credential) => {
+      const key = credential.category.toLocaleLowerCase("es")
+      if (!seen.has(key)) seen.set(key, credential.category)
+    })
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, "es"))
+  }, [credentials])
+
   const normalizedSearch = searchTerm.trim().toLocaleLowerCase("es")
-  const filteredCredentials = credentials.filter((credential) =>
-    [
+  const normalizedCategory = categoryFilter.toLocaleLowerCase("es")
+  const filteredCredentials = credentials.filter((credential) => {
+    const matchesCategory =
+      categoryFilter === "all" ||
+      credential.category.toLocaleLowerCase("es") === normalizedCategory
+
+    if (!matchesCategory) return false
+
+    return [
       credential.service,
       credential.account,
       credential.category,
       credential.username,
-    ].some((value) => value.toLocaleLowerCase("es").includes(normalizedSearch)),
-  )
+    ].some((value) => value.toLocaleLowerCase("es").includes(normalizedSearch))
+  })
   const pageCount = Math.max(1, Math.ceil(filteredCredentials.length / pageSize))
   const activePage = Math.min(currentPage, pageCount)
   const pageStartIndex = (activePage - 1) * pageSize
@@ -140,6 +157,11 @@ function PasswordsPage() {
     setCurrentPage(1)
   }
 
+  function changeCategory(value: string) {
+    setCategoryFilter(value)
+    setCurrentPage(1)
+  }
+
   function changePage(page: number) {
     setCurrentPage(Math.min(Math.max(page, 1), pageCount))
   }
@@ -198,6 +220,7 @@ function PasswordsPage() {
     setCredentials((current) => [...importedCredentials, ...current])
     setDraft(createEmptyCredentialDraft())
     setSearchTerm("")
+    setCategoryFilter("all")
     setCurrentPage(1)
     setDialogMode(null)
     toast.success(
@@ -292,15 +315,17 @@ function PasswordsPage() {
 
             <div className="relative inline-flex min-w-[180px] items-center">
               <select
-                defaultValue="all"
+                value={categoryFilter}
+                onChange={(event) => changeCategory(event.target.value)}
                 className="w-full appearance-none rounded-xl border border-white/60 bg-white/60 px-3 py-2.5 pr-9 text-sm font-medium text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.05)] outline-none backdrop-blur-md transition focus:border-primary dark:border-white/10 dark:bg-slate-900/55"
                 aria-label="Filtrar por categoría"
               >
                 <option value="all">Todas las categorías</option>
-                <option value="cloud">Cloud</option>
-                <option value="correo">Correo</option>
-                <option value="administracion">Administración</option>
-                <option value="base-de-datos">Base de datos</option>
+                {categoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 size-4 text-muted-foreground" />
             </div>
@@ -338,7 +363,11 @@ function PasswordsPage() {
         onPageChange={changePage}
         onRowDoubleClick={openViewDialog}
         selectedRowKey={selectedCredentialId}
-        emptyMessage={`No encontramos credenciales que coincidan con “${searchTerm}”.`}
+        emptyMessage={
+          searchTerm.trim()
+            ? `No encontramos credenciales que coincidan con “${searchTerm}”.`
+            : "No hay credenciales en la categoría seleccionada."
+        }
       />
 
       <CredentialDialog
