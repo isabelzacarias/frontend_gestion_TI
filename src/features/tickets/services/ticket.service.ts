@@ -89,6 +89,36 @@ export async function listarTickets(
   }
 }
 
+const LIMITE_KANBAN = 100
+const MAX_PAGINAS_KANBAN = 50
+
+export async function listarTodosLosTickets(
+  parametros: Omit<ParametrosListadoTickets, "page" | "limit"> = {},
+): Promise<Ticket[]> {
+  const primera = await listarTickets({
+    ...parametros,
+    page: 1,
+    limit: LIMITE_KANBAN,
+  })
+
+  const tickets = [...primera.tickets]
+  const totalPaginas = Math.min(
+    primera.meta.totalPages,
+    MAX_PAGINAS_KANBAN,
+  )
+
+  for (let page = 2; page <= totalPaginas; page += 1) {
+    const siguiente = await listarTickets({
+      ...parametros,
+      page,
+      limit: LIMITE_KANBAN,
+    })
+    tickets.push(...siguiente.tickets)
+  }
+
+  return tickets
+}
+
 export async function obtenerTicket(id: number): Promise<TicketDetalle> {
   try {
     const response = await api.get<RespuestaApi<TicketDetalle>>(

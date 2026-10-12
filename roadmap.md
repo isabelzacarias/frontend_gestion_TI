@@ -331,11 +331,11 @@ El frontend ya envía `q` y `tipoRequerimiento`, pero **el backend hoy los ignor
 ## 6. Tablero Kanban y Flujo Operativo Ágil
 
 - [x] Diseñar y construir la estructura del tablero visual distribuido por columnas de estado.
-- [x] Implementar la interacción de Drag and Drop fluida entre columnas con `@hello-pangea/dnd`.
+- [x] Conectar las tarjetas del tablero con la base de datos real de tickets (solo lectura): las columnas se agrupan por `estado` desde `GET /api/incidencias` (paginado, vía `listarTodosLosTickets`); cada tarjeta muestra `#id`, título, tipo de requerimiento, prioridad y responsable (iniciales de `asignadoA` o "Sin asignar"). Se muestran las 4 prioridades del backend (Baja, Normal, Alta, Crítica). Estados de carga, error y vacío incluidos.
+- [ ] Implementar el Drag and Drop para cambiar el estado desde el tablero; requiere `PATCH /api/incidencias/:id/estado` en el backend (ver §5). Nota: el arrastre existente usa HTML5 nativo, no `@hello-pangea/dnd`; el orden dentro de una columna no es persistible porque el backend no tiene campo de orden (ordena por `fechaNotificacion desc, id desc`).
 - [ ] Optimizar la gestión de estado local con persistencia y sincronización inmediata frente a caídas de red.
-- [ ] Conectar las tarjetas del tablero con la base de datos real de tickets.
 - [ ] Incorporar indicadores sutiles de carga mientras se actualiza la posición de una tarjeta en el servidor.
-- [x] Implementar la sincronización en tiempo real de movimientos y modificaciones mediante WebSockets (`socket.io-client`).
+- [ ] Implementar la sincronización en tiempo real de movimientos y modificaciones mediante WebSockets (`socket.io-client`).
 - [ ] Agregar buscador rápido por título/código y filtros directos por prioridad y asignado sobre el tablero.
 - [ ] Optimizar el comportamiento táctil y responsivo del Drag and Drop en dispositivos móviles y tablets.
 - [ ] Implementar rollback visual con mensaje de error si una actualización de estado falla en el backend.
