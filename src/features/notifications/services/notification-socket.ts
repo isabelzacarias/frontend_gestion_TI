@@ -145,7 +145,8 @@ function getSocketUrl(): string {
   }
 
   const apiUrl =
-    import.meta.env.VITE_API_URL ?? "http://localhost:3000/api"
+    import.meta.env.VITE_API_URL ??
+    `http://${window.location.hostname}:3000/api`
   try {
     return new URL(apiUrl, window.location.origin).origin
   } catch (error) {

@@ -30,3 +30,4 @@ dist-ssr
 .github
 agent/skills/
 .venv
+.env
