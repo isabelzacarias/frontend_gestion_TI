@@ -439,7 +439,7 @@ function KanbanPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       <ModuleHeader
         eyebrow="Mesa de Ayuda TI"
         title="Tablero Kanban"
@@ -456,7 +456,7 @@ function KanbanPage() {
         }
         filters={
           <>
-            <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
+            <div className="relative w-full min-w-0 flex-1 sm:max-w-xs">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
@@ -504,7 +504,7 @@ function KanbanPage() {
         <div
           role="region"
           aria-label="Columnas del tablero Kanban"
-          className="-mx-1 flex min-h-0 flex-1 overflow-hidden px-1 pb-3"
+          className="-mx-1 flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-1 pb-3"
         >
           <div className="flex h-full min-h-0 min-w-0 flex-1 gap-4">
             {columns.map(({ estado, statusColor }) => {
@@ -515,7 +515,7 @@ function KanbanPage() {
                 <section
                   key={estado}
                   aria-labelledby={headingId}
-                  className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card"
+                  className="flex h-full min-h-0 min-w-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card"
                 >
                   {/* Cabecera de columna */}
                   <header className="flex min-h-16 items-center gap-3 border-b border-border px-4">

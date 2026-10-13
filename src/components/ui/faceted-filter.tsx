@@ -101,9 +101,9 @@ export function FacetedFilter({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent align="start" sideOffset={6} className="w-[460px] p-0">
+      <PopoverContent align="start" sideOffset={6} className="w-[min(460px,calc(100vw-2rem))] p-0">
         <div className="flex min-h-0">
-          <div className="flex w-44 shrink-0 flex-col gap-0.5 border-r border-border p-2">
+          <div className="flex w-36 shrink-0 flex-col gap-0.5 border-r border-border p-2 sm:w-44">
             <span className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Filtrar por
             </span>

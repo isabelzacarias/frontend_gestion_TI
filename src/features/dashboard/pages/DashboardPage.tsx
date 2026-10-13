@@ -54,9 +54,10 @@ function DashboardPage() {
   }, [sucursal, cargarResumen])
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full min-h-0 flex-col gap-4 lg:gap-5">
       {/* ═══ HEADER con Filtro por Sucursal (5) ═══ */}
       <ModuleHeader
+        className="shrink-0"
         eyebrow="PANEL PRINCIPAL"
         title="Dashboard de Control Operativo"
         actions={
@@ -97,7 +98,7 @@ function DashboardPage() {
 
       {/* Banner de error con botón de reintentar si falla la API */}
       {error && (
-        <div className="flex items-center justify-between rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-xs text-destructive">
+        <div className="flex shrink-0 items-center justify-between rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-xs text-destructive">
           <div className="flex items-center gap-2">
             <AlertCircle className="size-4 shrink-0" />
             <span>{error}</span>
@@ -113,7 +114,7 @@ function DashboardPage() {
       )}
 
       {/* ═══ FILA DE KPIs: (1) Tickets · (4) Total Activos · (6) Equipos Asignados ═══ */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+      <div className="grid shrink-0 grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3">
         {/* (1) Total de Tickets Pendientes */}
         <KpiCard
           title="Tickets Pendientes"
@@ -152,9 +153,9 @@ function DashboardPage() {
       </div>
 
       {/* ═══ FILA INFERIOR: (2) Licencias + (7) Recordatorios | (3) Gráfica ═══ */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto lg:grid-cols-2 lg:gap-5 lg:overflow-hidden">
         {/* Columna izquierda: (2) y (7) apilados */}
-        <div className="flex flex-col gap-5">
+        <div className="flex min-h-0 flex-col gap-4 lg:gap-5">
           {/* (2) Licencias por Vencer */}
           <LicenciasVencerCard
             licencias={data?.licenciasPorVencer ?? []}

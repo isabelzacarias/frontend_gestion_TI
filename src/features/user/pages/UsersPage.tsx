@@ -442,7 +442,7 @@ function UsersPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       <ModuleHeader
         eyebrow="Administración TI"
         title="Usuarios"
@@ -472,7 +472,7 @@ function UsersPage() {
         }
         filters={
           <div className="flex flex-1 flex-wrap items-center gap-3">
-            <div className="relative min-w-[240px] flex-1 sm:max-w-md">
+            <div className="relative w-full min-w-0 flex-1 sm:max-w-md">
               <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"

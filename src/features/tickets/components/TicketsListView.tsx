@@ -388,13 +388,13 @@ export function TicketsListView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6">
       <ModuleHeader
         eyebrow="Mesa de Ayuda TI"
         title="Gestión de Tickets e Incidencias"
         filters={
           <div className="flex flex-1 flex-wrap items-center gap-3">
-            <div className="relative min-w-[240px] flex-1 sm:max-w-md">
+            <div className="relative w-full min-w-0 flex-1 sm:max-w-md">
               <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"

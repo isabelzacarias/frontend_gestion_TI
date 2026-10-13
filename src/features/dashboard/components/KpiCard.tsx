@@ -53,12 +53,12 @@ export function KpiCard({
 
   const content = (
     <div
-      className={`group relative overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-card/60 ${styles.hoverBorder}`}
+      className={`group relative overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-card/60 xl:p-5 ${styles.hoverBorder}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
-            className={`flex size-11 items-center justify-center rounded-xl border transition-transform duration-300 group-hover:scale-105 ${styles.bg} ${styles.text} ${styles.border}`}
+            className={`flex size-10 items-center justify-center rounded-xl border transition-transform duration-300 group-hover:scale-105 xl:size-11 ${styles.bg} ${styles.text} ${styles.border}`}
           >
             {icon}
           </div>
@@ -83,12 +83,12 @@ export function KpiCard({
         )}
       </div>
 
-      <div className="mt-4">
+      <div className="mt-3 xl:mt-4">
         {loading ? (
           <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
         ) : (
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-foreground">
+            <span className="text-2xl font-extrabold tracking-tight text-foreground xl:text-3xl">
               {value}
             </span>
           </div>
