@@ -214,13 +214,13 @@ const modeConfig = {
   create: {
     title: "Registrar activo",
     description: "Completa los datos para agregar un equipo nuevo al inventario TI.",
-    submitLabel: "Guardar activo",
+    submitLabel: "Crear Activo",
     icon: <span className="text-lg font-bold">+</span>,
   },
   edit: {
     title: "Editar activo",
     description: "Modifica los datos del equipo seleccionado.",
-    submitLabel: "Actualizar",
+    submitLabel: "Guardar Cambios",
     icon: <span className="text-lg font-bold text-white">+</span>,
   },
 }

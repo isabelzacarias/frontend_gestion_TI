@@ -38,7 +38,8 @@ interface CredentialDialogProps {
   editLabel?: string
   editIcon?: ReactNode
   onImport?: (records: CredentialDraft[]) => void
-  onDelete?: () => void
+  /** Acción para cambiar el estado de la credencial (baja/alta lógica) */
+  onToggleState?: () => void
   onReveal?: () => Promise<string>
 }
 
@@ -250,13 +251,13 @@ const modeConfig = {
   create: {
     title: "Registrar credencial",
     description: "Completa los datos para agregar una nueva credencial al módulo de seguridad.",
-    submitLabel: "Guardar credencial",
+    submitLabel: "Crear Contraseña",
     icon: <span className="text-lg font-bold">+</span>,
   },
   edit: {
     title: "Editar credencial",
     description: "Actualiza la información de la credencial seleccionada.",
-    submitLabel: "Guardar cambios",
+    submitLabel: "Guardar Cambios",
     icon: <span className="text-lg font-bold text-white">+</span>,
   },
 } as const
@@ -272,7 +273,7 @@ function CredentialDialog({
   editLabel,
   editIcon,
   onImport,
-  onDelete,
+  onToggleState,
   onReveal,
 }: CredentialDialogProps) {
   const config = mode === "edit" ? modeConfig.edit : modeConfig.create
@@ -338,14 +339,14 @@ function CredentialDialog({
     onSubmit(event)
   }
 
-  const handleDeleteClick = () => {
-    if (mode === "edit" && onDelete) {
+  const handleDeactivateClick = () => {
+    if (mode === "edit" && onToggleState) {
       setIsConfirmOpen(true)
     }
   }
 
-  const handleConfirmDelete = () => {
-    onDelete?.()
+  const handleConfirmDeactivate = () => {
+    onToggleState?.()
     setIsConfirmOpen(false)
   }
 
@@ -404,8 +405,10 @@ function CredentialDialog({
           submitLabel={config.submitLabel}
           icon={config.icon}
           sections={sections}
-          onDelete={isEdit ? handleDeleteClick : undefined}
-          deleteLabel="Desactivar"
+          deleteDisabled={isEdit}
+          deleteLabel="Eliminar"
+          onToggleState={isEdit ? handleDeactivateClick : undefined}
+          toggleStateLabel="Desactivar"
           formActions={
             mode === "create" && onImport ? (
               <>
@@ -473,7 +476,7 @@ function CredentialDialog({
         itemName={draft.nombre || "esta credencial"}
         description={`¿Deseas desactivar la credencial de ${draft.nombre || "este servicio"}? Pasará a estado inactivo (baja lógica) y podrás reactivarla más adelante.`}
         confirmLabel="Desactivar"
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleConfirmDeactivate}
         onCancel={() => setIsConfirmOpen(false)}
       />
     </>

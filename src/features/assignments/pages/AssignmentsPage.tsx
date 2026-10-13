@@ -6,7 +6,6 @@ import {
   Download,
   Laptop,
   Plus,
-  RefreshCw,
   RotateCcw,
   Search,
   UserRound,
@@ -689,17 +688,6 @@ function AssignmentsPage() {
             >
               <Download className="size-4" />
               Exportar
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={recargar}
-              disabled={isLoading}
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
-            >
-              <RefreshCw className={isLoading ? "size-4 animate-spin" : "size-4"} />
-              Actualizar
             </Button>
 
             <Button

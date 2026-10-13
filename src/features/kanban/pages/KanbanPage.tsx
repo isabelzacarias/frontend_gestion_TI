@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd"
 import type { DropResult } from "@hello-pangea/dnd"
 import {
   Flag,
   LayoutGrid,
-  Loader2,
   MousePointerClick,
-  RefreshCw,
   Search,
   Tag,
   User,
@@ -146,11 +144,10 @@ function coincideConFiltros(ticket: Ticket, filtros: Filtros): boolean {
   return true
 }
 
-function KanbanPage() {
+function KanbanPage({ viewSwitcher }: { viewSwitcher?: ReactNode }) {
   const [tablero, setTablero] = useState<Tablero>(crearTableroVacio)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
   const [pendingIds, setPendingIds] = useState<number[]>([])
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -211,7 +208,7 @@ function KanbanPage() {
     return () => {
       cancelado = true
     }
-  }, [reloadKey])
+  }, [])
 
   useEffect(() => {
     const unsubscribe = useIncidenciasSyncStore.subscribe((state, prevState) => {
@@ -443,17 +440,7 @@ function KanbanPage() {
       <ModuleHeader
         eyebrow="Mesa de Ayuda TI"
         title="Tablero Kanban"
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setReloadKey((key) => key + 1)}
-            disabled={loading}
-          >
-            {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-            Actualizar
-          </Button>
-        }
+        actions={viewSwitcher}
         filters={
           <>
             <div className="relative w-full min-w-0 flex-1 sm:max-w-xs">

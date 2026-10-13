@@ -3,7 +3,6 @@ import {
   AlertCircle,
   Inbox,
   Monitor,
-  RefreshCw,
   UserCheck,
 } from "lucide-react"
 
@@ -62,19 +61,6 @@ function DashboardPage() {
         title="Dashboard de Control Operativo"
         actions={
           <div className="flex items-center gap-3">
-            {/* Botón de refrescar */}
-            <button
-              type="button"
-              onClick={() => cargarResumen(sucursal)}
-              disabled={loading}
-              title="Recargar datos"
-              className="flex size-9 items-center justify-center rounded-xl border border-white/60 bg-white/70 text-muted-foreground shadow-sm backdrop-blur-md transition-all hover:text-foreground disabled:opacity-50 dark:border-white/10 dark:bg-card/60"
-            >
-              <RefreshCw
-                className={`size-4 ${loading ? "animate-spin text-primary" : ""}`}
-              />
-            </button>
-
             {/* (5) Filtro Segmentado por Sucursal */}
             <div className="flex rounded-2xl border border-white/60 bg-white/70 p-1 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-card/60">
               {(Object.keys(sucursalLabels) as Sucursal[]).map((key) => (

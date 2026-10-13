@@ -224,7 +224,7 @@ export function AssignmentFormDialog({
             ? "Actualiza los datos de la asignación de equipo."
             : "Registra la asignación de un activo a un usuario."
         }
-        submitLabel={isEdit ? "Guardar cambios" : "Registrar asignación"}
+        submitLabel={isEdit ? "Guardar Cambios" : "Crear Asignación"}
         icon={<Laptop className="size-6 text-white" />}
         sections={sections}
         onOpenChange={onOpenChange}

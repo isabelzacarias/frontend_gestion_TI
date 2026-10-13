@@ -725,7 +725,7 @@ function InventoryPage() {
               className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(91,36,128,0.24)] hover:brightness-110"
             >
               <Plus className="size-4" />
-              Agregar
+              Agregar Activo
             </Button>
           </>
         }

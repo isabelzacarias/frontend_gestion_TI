@@ -5,7 +5,6 @@ import {
   CircleDot,
   Download,
   MapPin,
-  RefreshCw,
   Search,
   ShieldCheck,
   Tag,
@@ -70,7 +69,6 @@ function opcionesDesdeDatos(
 function UsersPage() {
   const [usuarios, setUsuarios] = useState<UsuarioLista[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [reloadKey, setReloadKey] = useState(0)
 
   const [search, setSearch] = useState("")
   const [searchTexto, setSearchTexto] = useState("")
@@ -88,8 +86,6 @@ function UsersPage() {
 
   const [selectedUsuarioId, setSelectedUsuarioId] = useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
-
-  const recargar = () => setReloadKey((key) => key + 1)
 
   useEffect(() => {
     let cancelado = false
@@ -115,7 +111,7 @@ function UsersPage() {
     return () => {
       cancelado = true
     }
-  }, [reloadKey])
+  }, [])
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -457,16 +453,6 @@ function UsersPage() {
             >
               <Download className="size-4" />
               Exportar
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={recargar}
-              disabled={isLoading}
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
-            >
-              <RefreshCw className={isLoading ? "size-4 animate-spin" : "size-4"} />
-              Actualizar
             </Button>
           </div>
         }

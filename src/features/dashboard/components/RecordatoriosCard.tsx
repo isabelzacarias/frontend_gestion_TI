@@ -65,7 +65,7 @@ export function RecordatoriosCard({
           className="inline-flex items-center gap-1 rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
         >
           <Plus className="size-3.5" />
-          Agregar
+          Agregar Recordatorio
         </button>
       </div>
 
@@ -83,7 +83,7 @@ export function RecordatoriosCard({
             type="submit"
             className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:opacity-90"
           >
-            Guardar
+            Crear Recordatorio
           </button>
         </form>
       )}

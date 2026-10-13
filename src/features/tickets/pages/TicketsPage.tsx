@@ -22,39 +22,34 @@ function TicketsPage() {
     setSearchParams(params, { replace: true })
   }
 
+  const viewSwitcher = (
+    <TabsList aria-label="Formato de la vista de tickets">
+      <TabsTrigger value="lista">
+        <List />
+        Lista
+      </TabsTrigger>
+      <TabsTrigger value="kanban">
+        <SquareKanban />
+        Kanban
+      </TabsTrigger>
+    </TabsList>
+  )
+
   return (
     <Tabs
       value={vista}
       onValueChange={cambiarVista}
       className="min-h-0 flex-1"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <TabsList aria-label="Formato de la vista de tickets">
-          <TabsTrigger value="lista">
-            <List />
-            Lista
-          </TabsTrigger>
-          <TabsTrigger value="kanban">
-            <SquareKanban />
-            Kanban
-          </TabsTrigger>
-        </TabsList>
-        <span className="hidden text-xs text-muted-foreground sm:inline">
-          {vista === "lista"
-            ? "Tabla con filtros, paginación y detalle del ticket."
-            : "Tablero con arrastrar y soltar para cambiar de estado."}
-        </span>
-      </div>
-
       <TabsContent
         value="lista"
         className="flex min-h-0 flex-1 flex-col overflow-hidden"
       >
-        <TicketsListView />
+        <TicketsListView viewSwitcher={viewSwitcher} />
       </TabsContent>
 
       <TabsContent value="kanban" className="flex min-h-0 flex-1 flex-col">
-        <KanbanPage />
+        <KanbanPage viewSwitcher={viewSwitcher} />
       </TabsContent>
     </Tabs>
   )

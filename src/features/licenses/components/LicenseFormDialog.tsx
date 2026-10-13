@@ -232,7 +232,7 @@ export function LicenseFormDialog({
         onChange={onChange}
         onSubmit={onSubmit}
         onDelete={onDelete}
-        deleteLabel="Eliminar Licencia"
+        deleteLabel="Eliminar"
         submitLabel={isEdit ? "Guardar Cambios" : "Crear Licencia"}
         formActions={
           mode === "create" && onImport ? (

@@ -185,6 +185,31 @@ Es el componente base recomendado para el **filtrado facetado multi-selección**
 
 ---
 
+### 7. Estructura y etiquetas de acciones por registro (Convención obligatoria)
+
+Define cómo deben **nombrarse los botones** de todo módulo que tenga formulario, para que registros presentes y futuros (Tickets, Proyectos, Usuarios, Mantenimiento, etc.) sean predecibles e idénticos en estructura. Referencia de implementación completa: módulo **Inventario / Activos**.
+
+- **Botón del apartado (barra superior): `Agregar + nombre del registro` (singular).**
+  - Ejemplos: `Agregar Activo`, `Agregar Licencia`, `Agregar Contraseña`, `Agregar Asignación`, `Agregar Recordatorio`.
+  - Prohibido: botones genéricos (`Agregar`, `Nuevo`, `Registrar`) y botones de refresco (`Actualizar`) en la cabecera.
+- **Botón del formulario en modo creación: `Crear + nombre del registro`.**
+  - Ejemplos: `Crear Activo`, `Crear Licencia`, `Crear Contraseña`, `Crear Asignación`.
+- **Al consultar un registro (`DetailDialog`): botón `Editar`.**
+  - El doble clic en la fila abre la consulta; **Editar** abre el formulario en modo edición con los datos del registro.
+- **Botón del formulario en modo edición: `Guardar Cambios`.** Siempre el mismo texto, en todos los módulos.
+- **Botón de eliminar del formulario: `Eliminar`** (solo la palabra, sin el nombre del registro). Ubicado a la izquierda en tonalidad destructiva.
+  - **Eliminar vs. Desactivar (Licencias y Contraseñas):**
+    - La **baja lógica** según el módulo:
+      - **Licencias:** el botón **`Eliminar`** dispara `ConfirmDeleteDialog` y aplica la baja lógica; el estado también puede cambiarse con el campo **Estado de la Licencia** (`Activa`/`Inactiva`) del formulario.
+      - **Contraseñas:** con el botón **`Desactivar`** (dispara `ConfirmDeleteDialog`); su `Eliminar` se muestra **deshabilitado y sin acción**.
+    - La **eliminación definitiva** (`Eliminar`) queda **pendiente de endpoint** (`DELETE` real) en ambos módulos.
+    - En el `DetailDialog` el registro inactivo muestra `Reactivar`/`Activar`.
+    - *Dependencia backend:* hoy Licencias y Contraseñas usan un endpoint de baja lógica; para habilitar `Eliminar` se requiere un `DELETE` de **eliminación real** además del cambio de estado.
+
+**Regla de uso:** Todo módulo nuevo con formulario debe nacer con esta estructura. Estado actual: Inventario, Licencias, Contraseñas, Asignaciones y Recordatorios ya usan `Agregar X` / `Crear X` / `Guardar Cambios`. **Pendiente:** habilitar `Eliminar` (borrado real) cuando exista el endpoint.
+
+---
+
 ## 1. Base y Configuración del Proyecto
 
 ### Infraestructura y Entorno

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   ArrowUpDown,
   CircleDot,
@@ -221,7 +221,11 @@ const columns: DataTableColumn<Ticket>[] = [
   },
 ]
 
-export function TicketsListView() {
+export function TicketsListView({
+  viewSwitcher,
+}: {
+  viewSwitcher?: ReactNode
+}) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -392,6 +396,7 @@ export function TicketsListView() {
       <ModuleHeader
         eyebrow="Mesa de Ayuda TI"
         title="Gestión de Tickets e Incidencias"
+        actions={viewSwitcher}
         filters={
           <div className="flex flex-1 flex-wrap items-center gap-3">
             <div className="relative w-full min-w-0 flex-1 sm:max-w-md">

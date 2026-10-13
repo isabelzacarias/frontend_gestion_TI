@@ -116,6 +116,12 @@ export interface FormDialogProps<T extends Record<string, unknown>> {
   onDelete?: () => void
   /** Texto del botón de eliminar — por defecto "Eliminar" */
   deleteLabel?: string
+  /** Muestra el botón de eliminar deshabilitado (p. ej. mientras no exista un endpoint de borrado real) */
+  deleteDisabled?: boolean
+  /** Callback opcional para cambiar el estado del registro (baja/alta lógica) */
+  onToggleState?: () => void
+  /** Texto del botón de estado — por defecto "Desactivar" */
+  toggleStateLabel?: string
   /** Deshabilita el envío cuando el formulario aún no es válido */
   submitDisabled?: boolean
 }
@@ -138,6 +144,9 @@ export function FormDialog<T extends Record<string, unknown>>({
   formActions,
   onDelete,
   deleteLabel = "Eliminar",
+  deleteDisabled = false,
+  onToggleState,
+  toggleStateLabel = "Desactivar",
   submitDisabled = false,
 }: FormDialogProps<T>) {
   return (
@@ -242,34 +251,61 @@ export function FormDialog<T extends Record<string, unknown>>({
           {/* ─── Footer ─── */}
           <DialogFooter className="m-0 shrink-0 rounded-none border-t border-border/80 bg-transparent p-0">
             <div className="flex w-full items-center px-5 py-4 sm:px-6">
-              {/* Botón de eliminar (lado izquierdo, solo si onDelete existe) */}
-              {onDelete ? (
-                <Button
-                  type="button"
-                  onClick={onDelete}
-                  className="h-9 rounded-xl border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-600 shadow-sm transition hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-1.5 size-3.5"
+              {/* Acciones sobre el registro (lado izquierdo): eliminar + cambiar estado */}
+              <div className="flex items-center gap-2">
+                {onDelete || deleteDisabled ? (
+                  <Button
+                    type="button"
+                    onClick={onDelete}
+                    disabled={deleteDisabled}
+                    title={
+                      deleteDisabled ? "Disponible próximamente" : undefined
+                    }
+                    className="h-9 rounded-xl border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-600 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:hover:bg-rose-50 disabled:hover:text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 dark:disabled:hover:bg-rose-500/10 dark:disabled:hover:text-rose-400"
                   >
-                    <path d="M3 6h18" />
-                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                    <line x1="10" x2="10" y1="11" y2="17" />
-                    <line x1="14" x2="14" y1="11" y2="17" />
-                  </svg>
-                  {deleteLabel}
-                </Button>
-              ) : (
-                <div />
-              )}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-1.5 size-3.5"
+                    >
+                      <path d="M3 6h18" />
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                      <line x1="10" x2="10" y1="11" y2="17" />
+                      <line x1="14" x2="14" y1="11" y2="17" />
+                    </svg>
+                    {deleteLabel}
+                  </Button>
+                ) : null}
+
+                {onToggleState ? (
+                  <Button
+                    type="button"
+                    onClick={onToggleState}
+                    className="h-9 rounded-xl border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-700 shadow-sm transition hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-1.5 size-3.5"
+                    >
+                      <path d="M12 2v10" />
+                      <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
+                    </svg>
+                    {toggleStateLabel}
+                  </Button>
+                ) : null}
+              </div>
 
               {/* Cancelar + Submit (lado derecho) */}
               <div className="ml-auto flex gap-2 sm:gap-2.5">

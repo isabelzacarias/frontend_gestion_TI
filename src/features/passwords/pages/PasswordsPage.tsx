@@ -11,7 +11,6 @@ import {
   KeyRound,
   Mail,
   Plus,
-  RefreshCw,
   RotateCcw,
   Search,
   Server,
@@ -435,7 +434,7 @@ function PasswordsPage() {
     }
   }
 
-  async function deleteCredential() {
+  async function deactivateCredential() {
     if (selectedCredentialId === null || isSaving) return
 
     setIsSaving(true)
@@ -510,22 +509,12 @@ function PasswordsPage() {
             </Button>
             <Button
               type="button"
-              variant="outline"
-              onClick={recargar}
-              disabled={isLoading}
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
-            >
-              <RefreshCw className={isLoading ? "size-4 animate-spin" : "size-4"} />
-              Actualizar
-            </Button>
-            <Button
-              type="button"
               onClick={openCreateDialog}
               disabled={isSaving}
               className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(91,36,128,0.24)] hover:brightness-110"
             >
               <Plus className="size-4" />
-              Agregar
+              Agregar Contraseña
             </Button>
           </div>
         }
@@ -610,7 +599,7 @@ function PasswordsPage() {
           selectedCredential?.activo ? undefined : <RotateCcw aria-hidden="true" />
         }
         onImport={dialogMode === "create" ? (records) => void importCredentials(records) : undefined}
-        onDelete={dialogMode === "edit" ? () => void deleteCredential() : undefined}
+        onToggleState={dialogMode === "edit" ? () => void deactivateCredential() : undefined}
         onReveal={selectedCredential?.activo ? revealPassword : undefined}
       />
     </div>
