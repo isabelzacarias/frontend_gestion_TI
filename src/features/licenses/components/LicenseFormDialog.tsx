@@ -131,6 +131,7 @@ const buildSections = (
         required: true,
         render: (value, onChange) => (
           <select
+            id="activa"
             value={String(value)}
             onChange={(e) => onChange(e.target.value === "true")}
             className="h-8 w-full rounded-xl border border-white/70 bg-white/80 px-3 text-[13px] text-foreground shadow-sm outline-none transition focus:border-primary dark:border-white/10 dark:bg-slate-900/55 cursor-pointer"

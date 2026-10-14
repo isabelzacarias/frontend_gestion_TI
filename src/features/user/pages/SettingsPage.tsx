@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 
 import { PagePlaceholder } from "@/components/common/PagePlaceholder"
 import { Checkbox } from "@/components/ui/checkbox"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { useTheme } from "@/hooks/useTheme"
 import { useAppPreferences } from "@/hooks/useAppPreferences"
 import {
@@ -155,22 +156,17 @@ function SettingsPage() {
             title="Página inicial"
             description="Se abrirá cuando ingreses al sistema."
             control={
-              <select
-                aria-label="Página inicial"
+              <SearchableSelect
+                ariaLabel="Página inicial"
                 className={selectClassName}
                 value={preferences.homeRoute}
-                onChange={(event) => {
-                  if (isHomeRoute(event.target.value)) {
-                    updatePreference("homeRoute", event.target.value)
+                onChange={(value) => {
+                  if (isHomeRoute(value)) {
+                    updatePreference("homeRoute", value)
                   }
                 }}
-              >
-                {homeRouteOptions.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                options={homeRouteOptions}
+              />
             }
           />
         </section>

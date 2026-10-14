@@ -124,7 +124,7 @@ Es el componente base mandatorio para formularios modales de creación y edició
   - **Estética Glassmorphism Premium:** Ventana modal amplia (`max-w-[980px]`, `rounded-[28px]`) con fondos radiales translúcidos, desenfoque de fondo (`backdrop-blur-xl`) y borde sutil adaptado tanto a tema claro como oscuro.
   - **Cabecera destacada:** Barra superior de acento con gradiente, badge distintivo con contenedor de icono (`size-12`, gradiente primario y sombra de elevación), título nítido y descripción de contexto.
   - **Estructura por secciones agrupadas (`FormSection<T>`):** Cada grupo de campos se aloja en tarjetas translúcidas con bullet de color temático (`primary`, `cyan`, `violet`, `emerald`, `amber`, `rose`), título en mayúsculas pequeñas con tracking espaciado y rejilla configurable (`gridCols`, por ejemplo `sm:grid-cols-2` o `sm:grid-cols-3`).
-  - **Campos estandarizados (`FormField<T>`):** Soporta inputs de tipo texto, email, número, teléfono, URL, password, selects estilizados con chevron y textareas redimensionables con alturas y espaciados simétricos (`h-8`, tipografía de 13px).
+  - **Campos estandarizados (`FormField<T>`):** Soporta inputs de tipo texto, email, número, teléfono, URL, password, **selects estilizados con chevron que pasan a ser escribibles (búsqueda al teclear) cuando la lista es larga** (≥ `SEARCHABLE_SELECT_MIN_OPTIONS` = 8 opciones, o forzado con `searchable: true`; componente `SearchableSelect`, `src/components/ui/searchable-select.tsx`) y textareas redimensionables con alturas y espaciados simétricos (`h-8`, tipografía de 13px). Las listas cortas conservan el `<select>` nativo.
   - **Footer ergonómico:**
     - Botón destructivo opcional (`onDelete`) situado a la izquierda en tonalidad `rose`, para eliminar el registro si el modal está en modo edición.
     - Botones de acción a la derecha: Cancelar con contorno neutro y botón de guardar con gradiente primario y hover reactivo.
@@ -651,6 +651,8 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 - [x] Implementar el CRUD (alta/edición/baja lógica) con `UserFormDialog` + `ConfirmDeleteDialog`, usando `GET /api/catalogos` para los selects.
 - [x] Asignación de rol (`PATCH /api/usuarios/:id/rol`, permiso `roles:administrar`) integrada en el `UserFormDialog`.
 - [x] Cambio de contraseña (`PATCH /api/usuarios/:id/password`) desde el `UserFormDialog` en modo edición (campo opcional) y contraseña obligatoria al crear.
+- [x] Correo electrónico obligatorio al **registrar** un usuario: es el identificador de acceso (`POST /api/auth/login` valida `email` + contraseña). En edición permanece opcional. Campos obligatorios del alta: `id`, `nombre`, `email` y `password`.
+- [x] Gestionar las excepciones de permisos del usuario (`permisosExtra` / `permisosRevocados`) desde el `UserFormDialog` con `MultiSelect` + catálogo `PERMISO_OPTIONS` (`src/features/user/data/permissions.ts`), persistidas con `PATCH /api/usuarios/:id/permisos` (permiso `roles:administrar`). El alta las aplica tras crear al usuario; la edición envía solo el diferencial (`agregar`/`quitar`).
 - [ ] Registro masivo por plantilla CSV/Excel.
 
 ---

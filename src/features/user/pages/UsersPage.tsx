@@ -34,6 +34,7 @@ import { exportUsuariosToCsv } from "@/features/user/utils/user-export"
 import { catalogoNombre, formatearFecha } from "@/features/user/utils/user-format"
 import {
   UsuarioApiError,
+  actualizarPermisosUsuario,
   actualizarUsuario,
   asignarRolUsuario,
   cambiarPasswordUsuario,
@@ -76,6 +77,8 @@ const createEmptyUserDraft = (): UserFormDraft => ({
   activo: true,
   fechaInicio: "",
   fechaFin: "",
+  permisosExtra: [],
+  permisosRevocados: [],
 })
 
 const toUserDraft = (usuario: UsuarioLista): UserFormDraft => ({
@@ -91,6 +94,8 @@ const toUserDraft = (usuario: UsuarioLista): UserFormDraft => ({
   activo: usuario.activo,
   fechaInicio: usuario.fechaInicio ? usuario.fechaInicio.slice(0, 10) : "",
   fechaFin: usuario.fechaFin ? usuario.fechaFin.slice(0, 10) : "",
+  permisosExtra: usuario.permisosExtra ?? [],
+  permisosRevocados: usuario.permisosRevocados ?? [],
 })
 
 function mensajeDeError(error: unknown): string {
@@ -528,6 +533,12 @@ function UsersPage() {
       toast.error("La contraseña de acceso es obligatoria.")
       return false
     }
+    if (mode === "create" && !draft.email.trim()) {
+      toast.error(
+        "El correo electrónico es obligatorio para que el usuario pueda iniciar sesión.",
+      )
+      return false
+    }
     if (draft.password && draft.password.length < 8) {
       toast.error("La contraseña debe tener al menos 8 caracteres.")
       return false
@@ -573,6 +584,21 @@ function UsersPage() {
         } catch {
           toast.warning(
             "El usuario se creó, pero no se pudo asignar el rol (requiere permiso roles:administrar).",
+          )
+        }
+      }
+      if (
+        draft.permisosExtra.length > 0 ||
+        draft.permisosRevocados.length > 0
+      ) {
+        try {
+          await actualizarPermisosUsuario(creado.id, {
+            agregar: draft.permisosExtra,
+            quitar: draft.permisosRevocados,
+          })
+        } catch {
+          toast.warning(
+            "El usuario se creó, pero no se pudieron asignar los permisos (requiere permiso roles:administrar).",
           )
         }
       }
@@ -626,6 +652,27 @@ function UsersPage() {
         } catch {
           toast.warning(
             "Los datos se guardaron, pero no se pudo actualizar el rol (requiere permiso roles:administrar).",
+          )
+        }
+      }
+
+      const extraActual = selectedUsuario?.permisosExtra ?? []
+      const revocadosActual = selectedUsuario?.permisosRevocados ?? []
+      const permisosAgregar = draft.permisosExtra.filter(
+        (permiso) => !extraActual.includes(permiso),
+      )
+      const permisosQuitar = draft.permisosRevocados.filter(
+        (permiso) => !revocadosActual.includes(permiso),
+      )
+      if (permisosAgregar.length > 0 || permisosQuitar.length > 0) {
+        try {
+          await actualizarPermisosUsuario(selectedUsuarioId, {
+            agregar: permisosAgregar,
+            quitar: permisosQuitar,
+          })
+        } catch {
+          toast.warning(
+            "Los datos se guardaron, pero no se pudieron actualizar los permisos (requiere permiso roles:administrar).",
           )
         }
       }
@@ -693,15 +740,6 @@ function UsersPage() {
           <div className="flex items-center gap-2">
             <Button
               type="button"
-              onClick={handleOpenAddDialog}
-              disabled={isSaving}
-              className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(91,36,128,0.24)] hover:brightness-110"
-            >
-              <Plus className="size-4" />
-              Agregar Usuario
-            </Button>
-            <Button
-              type="button"
               variant="outline"
               onClick={handleExport}
               disabled={isLoading}
@@ -709,6 +747,15 @@ function UsersPage() {
             >
               <Download className="size-4" />
               Exportar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleOpenAddDialog}
+              disabled={isSaving}
+              className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(91,36,128,0.24)] hover:brightness-110"
+            >
+              <Plus className="size-4" />
+              Agregar Usuario
             </Button>
           </div>
         }

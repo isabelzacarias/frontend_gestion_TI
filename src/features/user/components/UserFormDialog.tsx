@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/form-dialog"
 import { Input } from "@/components/ui/input"
 import PasswordStrengthIndicator from "@/features/passwords/components/PasswordStrengthIndicator"
+import { UserPermissionsField } from "@/features/user/components/UserPermissionsField"
 import type { UserFormDraft } from "@/features/user/types/user"
 import type { Catalogos } from "@/services/usuario.service"
 
@@ -128,6 +129,8 @@ function buildSections(
       label: "Correo electrónico",
       type: "email",
       placeholder: "ana.martinez@empresa.com",
+      // Requerido al registrar: es el identificador de acceso (login email + contraseña).
+      required: !isEdit,
     },
   ]
 
@@ -265,10 +268,36 @@ export function UserFormDialog({
   submitDisabled = false,
 }: UserFormDialogProps) {
   const isEdit = mode === "edit"
-  const sections = useMemo(
-    () => buildSections(catalogs, isEdit),
-    [catalogs, isEdit],
-  )
+  const sections = useMemo<FormSection<UserFormDraft>[]>(() => {
+    const baseSections = buildSections(catalogs, isEdit)
+
+    const permisosSection: FormSection<UserFormDraft> = {
+      title: "Permisos",
+      color: "emerald",
+      gridCols: "sm:grid-cols-1",
+      fields: [
+        {
+          key: "permisosExtra",
+          label: "Excepciones sobre los permisos del rol",
+          colSpan: "sm:col-span-1",
+          render: () => (
+            <UserPermissionsField
+              value={{
+                extra: draft.permisosExtra,
+                revocados: draft.permisosRevocados,
+              }}
+              onChange={(next) => {
+                onChange("permisosExtra", next.extra)
+                onChange("permisosRevocados", next.revocados)
+              }}
+            />
+          ),
+        },
+      ],
+    }
+
+    return [...baseSections, permisosSection]
+  }, [catalogs, isEdit, draft.permisosExtra, draft.permisosRevocados, onChange])
 
   return (
     <FormDialog<UserFormDraft>

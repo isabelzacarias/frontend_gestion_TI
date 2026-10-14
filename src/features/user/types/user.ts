@@ -11,4 +11,6 @@ export interface UserFormDraft extends Record<string, unknown> {
   activo: boolean
   fechaInicio: string
   fechaFin: string
+  permisosExtra: string[]
+  permisosRevocados: string[]
 }

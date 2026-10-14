@@ -3,6 +3,7 @@ import {  Laptop } from "lucide-react"
 import { toast } from "sonner"
 import { FileDown, Import } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import { ImportConfirmDialog } from "@/components/ui/import-confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { FormDialog, type FormSection } from "@/components/ui/form-dialog"
@@ -38,6 +39,8 @@ interface AssignmentFormDialogProps {
   ) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onImport?: (records: AssignmentFormDraft[]) => void
+  /** Callback para eliminar — solo se usa en modo "edit" */
+  onDelete?: () => void
 }
 
 function buildSections(
@@ -165,8 +168,10 @@ export function AssignmentFormDialog({
   onChange,
   onSubmit,
   onImport,
+  onDelete,
 }: AssignmentFormDialogProps) {
   const isEdit = mode === "edit"
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false)
   const [pendingImport, setPendingImport] = useState<AssignmentFormDraft[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -213,6 +218,17 @@ export function AssignmentFormDialog({
     setIsImportConfirmOpen(false)
   }
 
+  const handleDeleteClick = () => {
+    if (mode === "edit" && onDelete) {
+      setIsConfirmOpen(true)
+    }
+  }
+
+  const handleConfirmDelete = () => {
+    onDelete?.()
+    setIsConfirmOpen(false)
+  }
+
   return (
     <>
       <FormDialog<AssignmentFormDraft>
@@ -230,6 +246,7 @@ export function AssignmentFormDialog({
         onOpenChange={onOpenChange}
         onChange={onChange}
         onSubmit={onSubmit}
+        onDelete={isEdit ? handleDeleteClick : undefined}
         formActions={
           mode === "create" && onImport ? (
             <>
@@ -285,6 +302,15 @@ export function AssignmentFormDialog({
           if (!nextOpen) setPendingImport([])
         }}
         onConfirm={handleConfirmImport}
+      />
+
+      <ConfirmDeleteDialog
+        open={isConfirmOpen}
+        title="Eliminar asignación"
+        itemName={draft.nombreEquipo || "esta asignación"}
+        description={`¿Deseas eliminar la asignación de ${draft.nombreEquipo || "este equipo"}? Esta acción no se puede deshacer.`}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
       />
     </>
   )
