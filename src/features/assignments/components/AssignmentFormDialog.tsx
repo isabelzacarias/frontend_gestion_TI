@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
 import { Download, Laptop, Upload } from "lucide-react"
 import { toast } from "sonner"
-
+import { FileDown, Import } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ImportConfirmDialog } from "@/components/ui/import-confirm-dialog"
 import { Input } from "@/components/ui/input"
@@ -255,7 +255,7 @@ export function AssignmentFormDialog({
                     className="h-9 rounded-xl px-3 text-xs font-semibold"
                     onClick={downloadAssignmentCsvTemplate}
                   >
-                    <Download aria-hidden="true" />
+                    <FileDown aria-hidden="true" />
                     Descargar plantilla de registro
                   </Button>
                   <Button
@@ -264,7 +264,7 @@ export function AssignmentFormDialog({
                     className="h-9 rounded-xl px-3 text-xs font-semibold"
                     onClick={handleImportClick}
                   >
-                    <Upload aria-hidden="true" />
+                    <Import aria-hidden="true" />
                     Importar
                   </Button>
                 </div>

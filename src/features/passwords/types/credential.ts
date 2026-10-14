@@ -53,4 +53,59 @@ export interface CredentialDraft extends Record<string, unknown> {
   usuario: string
   password: string
   comentario: string
+  filaOrigen?: number
+}
+
+export interface CredencialImportRow {
+  fila: number
+  Nombre: string
+  Tipo: string
+  Usuario: string
+  Contraseña: string
+  Comentario: string
+}
+
+export interface DatosFilaImportadaSecreto {
+  tipo: string | null
+  nombre: string
+  usuario: string | null
+  comentario: string | null
+}
+
+export interface ResumenValidacionImportacionSecretos {
+  total: number
+  validas: number
+  invalidas: number
+}
+
+export interface FilaValidacionImportacionSecretos {
+  fila: number
+  valido: boolean
+  errores: string[]
+  advertencias: string[]
+  datos: DatosFilaImportadaSecreto | null
+}
+
+export interface ResultadoValidacionImportacionSecretos {
+  resumen: ResumenValidacionImportacionSecretos
+  filas: FilaValidacionImportacionSecretos[]
+}
+
+export interface ResumenConfirmacionImportacionSecretos {
+  total: number
+  creadas: number
+  rechazadas: number
+}
+
+export interface FilaConfirmacionImportacionSecretos {
+  fila: number
+  creado: boolean
+  secretoId: number | null
+  errores: string[]
+  advertencias: string[]
+}
+
+export interface ResultadoConfirmacionImportacionSecretos {
+  resumen: ResumenConfirmacionImportacionSecretos
+  filas: FilaConfirmacionImportacionSecretos[]
 }

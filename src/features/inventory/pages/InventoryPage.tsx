@@ -29,7 +29,7 @@ import {
 import {
   ImportResultDialog,
   type ImportResultRow,
-} from "@/features/inventory/components/ImportResultDialog"
+} from "@/components/ui/import-result-dialog"
 import { type InventoryItem } from "@/features/inventory/data/inventoryData"
 import {
   downloadAssetImportErrors,

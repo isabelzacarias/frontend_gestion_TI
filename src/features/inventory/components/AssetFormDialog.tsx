@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
-import { Download, Upload } from "lucide-react"
+import { FileDown, Import } from "lucide-react"
+
 import { toast } from "sonner"
 
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
@@ -326,7 +327,7 @@ export function AssetFormDialog({
                     className="h-9 rounded-xl px-3 text-xs font-semibold"
                     onClick={downloadAssetCsvTemplate}
                   >
-                    <Download aria-hidden="true" />
+                    <FileDown aria-hidden="true" />
                     Descargar plantilla de registro
                   </Button>
                   <Button
@@ -335,7 +336,7 @@ export function AssetFormDialog({
                     className="h-9 rounded-xl px-3 text-xs font-semibold"
                     onClick={handleImportClick}
                   >
-                    <Upload aria-hidden="true" />
+                    <Import aria-hidden="true" />
                     Importar
                   </Button>
                 </div>

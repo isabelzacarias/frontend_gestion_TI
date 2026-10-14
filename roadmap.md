@@ -85,6 +85,10 @@ El diálogo de resultados debe ofrecer **"Descargar rechazadas"**: genera un CSV
 
 Cada módulo debe documentar aquí su propio mapeo de columnas.
 
+### Ejemplo de mapeo de columnas (Módulo Secretos / Contraseñas)
+
+`Nombre` → `nombre`; `Tipo` → `tipo`; `Usuario` → `usuario`; `Contraseña` → `password`; `Comentario` → `comentario`. Solo `Nombre` y `Contraseña` son obligatorios; el resto opcional (vacío → `null`). El `password` **no se trimea** y **nunca se devuelve** en `validar` ni en `confirmar`. Deduplicación por `(tipo, nombre, usuario)` case-insensitive. Permiso `secretos:importar`.
+
 ---
 
 ## ⭐️ Regla de Oro: Consistencia Visual y Componentes Base Obligatorios
@@ -156,7 +160,7 @@ Es el diálogo modal obligatorio para cualquier confirmación de eliminación o 
 
 ---
 
-### 5. `ImportResultDialog` (`src/features/inventory/components/ImportResultDialog.tsx`)
+### 5. `ImportResultDialog` (`src/components/ui/import-result-dialog.tsx`)
 
 Es el diálogo obligatorio para mostrar el resultado de cualquier **importación masiva** (fases `validar` y `confirmar`).
 
@@ -167,7 +171,6 @@ Es el diálogo obligatorio para mostrar el resultado de cualquier **importación
   - **Acción de descarga:** Botón "Descargar rechazadas" que exporta las filas no guardadas a CSV (con sus mensajes) para corrección y re-importación. Ver la sección "Importaciones masivas".
   - **Acción primaria opcional:** Atajo para confirmar solo las filas válidas cuando la validación previa detecta inválidas.
 - **Regla de uso:** Toda importación masiva debe usar el flujo `validar` → (`ImportResultDialog` de revisión) → `confirmar` → `ImportResultDialog` de resultado. Prohibido mostrar el resultado con `alert`, `toast` únicamente o tablas ad-hoc.
-- **Nota:** Si el patrón se reutiliza en varios módulos, promover este componente a `src/components/ui/` y referenciarlo desde ahí.
 
 ---
 
@@ -442,7 +445,7 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 - [x] Alinear el formulario a los campos reales de `Secreto` (**Nombre**, **Tipo**, **Usuario**, **Contraseña**, **Comentario**); se retiraron Cuenta y Sitio web y el mock `sample-credentials.ts`.
 - [x] Implementar el **revelado seguro** del password (`GET /secretos/:id/password`, permiso `secretos:revelar`, auditado); password write-only con opción de conservar el actual al editar.
 - [x] Implementar la baja lógica (`DELETE` → `activo=false`) con `ConfirmDeleteDialog` y la **reactivación** (`PATCH { activo: true }`); las inactivas quedan en solo lectura y sin revelado.
-- [x] Conectar la importación masiva CSV alineada a los campos reales (loop de `crearSecreto`) y la exportación CSV **sin contraseñas** (solo campos no sensibles).
+- [x] Conectar la importación masiva CSV con el flujo en dos fases del backend (`validar` → revisión → `confirmar` en `POST /secretos/importaciones/*`, permiso `secretos:importar`) y la exportación CSV **sin contraseñas** (solo campos no sensibles).
 - [ ] Implementar almacenamiento seguro de secretos con enmascarado, control de permisos y trazabilidad de acceso.
 - [ ] Añadir filtros avanzados por categoría, servicio, responsable y estado de uso.
 - [ ] Incorporar acciones de copia segura al portapapeles, historial de acceso y auditoría de cambios (existe `GET /secretos/:id/auditoria`).

@@ -8,7 +8,8 @@ import {
 } from "react"
 import { Check, Copy, Download, Eye, EyeOff, Loader2, Upload } from "lucide-react"
 import { toast } from "sonner"
-
+import { Import } from "lucide-react"
+import { FileDown } from "lucide-react"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
 import { ImportConfirmDialog } from "@/components/ui/import-confirm-dialog"
@@ -437,7 +438,7 @@ function CredentialDialog({
                       className="h-9 rounded-xl px-3 text-xs font-semibold"
                       onClick={downloadCredentialCsvTemplate}
                     >
-                      <Download aria-hidden="true" />
+                      <FileDown aria-hidden="true" />
                       Descargar plantilla de registro
                     </Button>
                     <Button
@@ -446,7 +447,7 @@ function CredentialDialog({
                       className="h-9 rounded-xl px-3 text-xs font-semibold"
                       onClick={() => importInputRef.current?.click()}
                     >
-                      <Upload aria-hidden="true" />
+                      <Import aria-hidden="true" />
                       Importar
                     </Button>
                   </div>

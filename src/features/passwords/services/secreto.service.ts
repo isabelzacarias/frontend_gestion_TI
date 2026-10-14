@@ -4,11 +4,14 @@ import { api } from "@/services/api"
 import type { RespuestaApi } from "@/types/auth"
 import type {
   Credential,
+  CredencialImportRow,
   DatosCreacionSecreto,
   DatosEdicionSecreto,
   MetadatosPaginacion,
   ParametrosListadoSecretos,
   RespuestaPaginada,
+  ResultadoConfirmacionImportacionSecretos,
+  ResultadoValidacionImportacionSecretos,
 } from "@/features/passwords/types/credential"
 
 export class SecretoApiError extends Error {
@@ -174,6 +177,50 @@ export async function desactivarSecreto(id: number): Promise<Credential> {
     const response = await api.delete<RespuestaApi<Credential>>(
       `/secretos/${id}`,
     )
+
+    if (!response.data.success || !response.data.data) {
+      throw new SecretoApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toSecretoApiError(error)
+  }
+}
+
+export async function validarImportacionSecretos(
+  filas: CredencialImportRow[],
+): Promise<ResultadoValidacionImportacionSecretos> {
+  try {
+    const response = await api.post<
+      RespuestaApi<ResultadoValidacionImportacionSecretos>
+    >("/secretos/importaciones/validar", { filas })
+
+    if (!response.data.success || !response.data.data) {
+      throw new SecretoApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toSecretoApiError(error)
+  }
+}
+
+export async function confirmarImportacionSecretos(
+  filas: CredencialImportRow[],
+): Promise<ResultadoConfirmacionImportacionSecretos> {
+  try {
+    const response = await api.post<
+      RespuestaApi<ResultadoConfirmacionImportacionSecretos>
+    >("/secretos/importaciones/confirmar", { filas })
 
     if (!response.data.success || !response.data.data) {
       throw new SecretoApiError(

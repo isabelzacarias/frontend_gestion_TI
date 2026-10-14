@@ -34,16 +34,29 @@ import type { CredentialFormMode } from "@/features/passwords/components/Credent
 import {
   SecretoApiError,
   actualizarSecreto,
+  confirmarImportacionSecretos,
   crearSecreto,
   desactivarSecreto,
   listarTodosLosSecretos,
   revelarPasswordSecreto,
+  validarImportacionSecretos,
 } from "@/features/passwords/services/secreto.service"
 import type {
   Credential,
+  CredencialImportRow,
   CredentialDraft,
   DatosEdicionSecreto,
+  FilaConfirmacionImportacionSecretos,
+  FilaValidacionImportacionSecretos,
 } from "@/features/passwords/types/credential"
+import {
+  downloadCredentialImportErrors,
+  transformDraftsToImportRows,
+} from "@/features/passwords/utils/credential-import"
+import {
+  ImportResultDialog,
+  type ImportResultRow,
+} from "@/components/ui/import-result-dialog"
 import { downloadCsv } from "@/lib/csv"
 
 const ITEMS_PER_PAGE = 10
@@ -84,6 +97,53 @@ function mensajeDeError(error: unknown): string {
   return "No se pudo completar la operación."
 }
 
+interface ImportDialogState {
+  title: string
+  description: string
+  total: number
+  okCount: number
+  errorCount: number
+  okLabel: string
+  errorLabel: string
+  rows: ImportResultRow[]
+  primaryAction?: { label: string; onClick: () => void }
+  onDownloadErrors?: () => void
+}
+
+function toValidationRows(
+  filas: FilaValidacionImportacionSecretos[],
+): ImportResultRow[] {
+  return filas
+    .filter((fila) => !fila.valido || fila.advertencias.length > 0)
+    .map((fila) => ({
+      fila: fila.fila,
+      status: fila.valido ? "warning" : "error",
+      mensajes: fila.valido ? fila.advertencias : fila.errores,
+    }))
+}
+
+function toConfirmationRows(
+  filas: FilaConfirmacionImportacionSecretos[],
+): ImportResultRow[] {
+  return filas
+    .filter((fila) => !fila.creado || fila.advertencias.length > 0)
+    .map((fila) => ({
+      fila: fila.fila,
+      status: fila.creado ? "warning" : "error",
+      mensajes: fila.creado ? fila.advertencias : fila.errores,
+    }))
+}
+
+function getImportErrorMessage(error: unknown): string {
+  if (error instanceof SecretoApiError) {
+    if (error.status === 403) {
+      return "No tienes permiso para importar secretos (secretos:importar)."
+    }
+    return error.message
+  }
+  return "No se pudo completar la importación masiva."
+}
+
 function PasswordsPage() {
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -98,6 +158,7 @@ function PasswordsPage() {
   const [selectedCredentialId, setSelectedCredentialId] = useState<number | null>(null)
   const [draft, setDraft] = useState<CredentialDraft>(createEmptyCredentialDraft())
   const [dialogMode, setDialogMode] = useState<CredentialFormMode | null>(null)
+  const [importDialog, setImportDialog] = useState<ImportDialogState | null>(null)
 
   const recargar = () => setReloadKey((key) => key + 1)
 
@@ -388,49 +449,94 @@ function PasswordsPage() {
     }
   }
 
+  const confirmarLote = async (
+    records: CredentialDraft[],
+    filas: CredencialImportRow[],
+  ) => {
+    const toastId = toast.loading(`Registrando ${filas.length} credencial(es)...`)
+
+    try {
+      const confirmacion = await confirmarImportacionSecretos(filas)
+
+      setDraft(createEmptyCredentialDraft())
+      setDialogMode(null)
+      setCurrentPage(1)
+      recargar()
+
+      if (confirmacion.resumen.creadas > 0) {
+        toast.success(
+          `${confirmacion.resumen.creadas} credencial(es) registradas${
+            confirmacion.resumen.rechazadas > 0
+              ? `; ${confirmacion.resumen.rechazadas} rechazadas`
+              : ""
+          }.`,
+          { id: toastId },
+        )
+      } else {
+        toast.error("No se registró ninguna credencial del lote.", {
+          id: toastId,
+        })
+      }
+
+      setImportDialog({
+        title: "Resultado de la importación",
+        description:
+          confirmacion.resumen.rechazadas > 0
+            ? "Algunas filas no se pudieron registrar. Revisa el detalle por fila."
+            : "Todas las filas se registraron correctamente.",
+        total: confirmacion.resumen.total,
+        okCount: confirmacion.resumen.creadas,
+        errorCount: confirmacion.resumen.rechazadas,
+        okLabel: "registradas",
+        errorLabel: "rechazadas",
+        rows: toConfirmationRows(confirmacion.filas),
+        onDownloadErrors:
+          confirmacion.resumen.rechazadas > 0
+            ? () => downloadCredentialImportErrors(records, confirmacion.filas)
+            : undefined,
+      })
+    } catch (error) {
+      toast.error(getImportErrorMessage(error), { id: toastId })
+    }
+  }
+
   async function importCredentials(records: CredentialDraft[]) {
     if (records.length === 0 || isSaving) return
 
-    setIsSaving(true)
-    let exitos = 0
-    const fallos: string[] = []
+    const toastId = toast.loading(`Validando ${records.length} credencial(es)...`)
 
-    for (const record of records) {
-      const nombre = record.nombre.trim()
-      if (!nombre) {
-        fallos.push(nombre || "(sin nombre)")
-        continue
-      }
+    try {
+      const filas = transformDraftsToImportRows(records)
+      const validacion = await validarImportacionSecretos(filas)
+      toast.dismiss(toastId)
 
-      try {
-        await crearSecreto({
-          nombre,
-          tipo: record.tipo.trim() || null,
-          usuario: record.usuario.trim() || null,
-          password: record.password,
-          comentario: record.comentario.trim() || null,
+      if (validacion.resumen.invalidas > 0) {
+        setImportDialog({
+          title: "Revisión del lote",
+          description:
+            "Hay filas con errores. Puedes importar solo las válidas o cerrar para corregir el archivo.",
+          total: validacion.resumen.total,
+          okCount: validacion.resumen.validas,
+          errorCount: validacion.resumen.invalidas,
+          okLabel: "válidas",
+          errorLabel: "con errores",
+          rows: toValidationRows(validacion.filas),
+          onDownloadErrors: () =>
+            downloadCredentialImportErrors(records, validacion.filas),
+          primaryAction: {
+            label: `Importar ${validacion.resumen.validas} válida(s)`,
+            onClick: () => {
+              setImportDialog(null)
+              void confirmarLote(records, filas)
+            },
+          },
         })
-        exitos += 1
-      } catch {
-        fallos.push(nombre)
+        return
       }
-    }
 
-    setIsSaving(false)
-    setDraft(createEmptyCredentialDraft())
-    setDialogMode(null)
-    setSearchTerm("")
-    borrarFacetas()
-    recargar()
-
-    if (fallos.length === 0) {
-      toast.success(
-        `${exitos} ${exitos === 1 ? "credencial registrada" : "credenciales registradas"} correctamente.`,
-      )
-    } else {
-      toast.warning(
-        `${exitos} registradas y ${fallos.length} con error: ${fallos.join(", ")}.`,
-      )
+      await confirmarLote(records, filas)
+    } catch (error) {
+      toast.error(getImportErrorMessage(error), { id: toastId })
     }
   }
 
@@ -602,6 +708,25 @@ function PasswordsPage() {
         onToggleState={dialogMode === "edit" ? () => void deactivateCredential() : undefined}
         onReveal={selectedCredential?.activo ? revealPassword : undefined}
       />
+
+      {importDialog && (
+        <ImportResultDialog
+          open
+          title={importDialog.title}
+          description={importDialog.description}
+          total={importDialog.total}
+          okCount={importDialog.okCount}
+          errorCount={importDialog.errorCount}
+          okLabel={importDialog.okLabel}
+          errorLabel={importDialog.errorLabel}
+          rows={importDialog.rows}
+          primaryAction={importDialog.primaryAction}
+          onDownloadErrors={importDialog.onDownloadErrors}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setImportDialog(null)
+          }}
+        />
+      )}
     </div>
   )
 }
