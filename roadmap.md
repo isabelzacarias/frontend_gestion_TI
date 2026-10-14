@@ -648,9 +648,9 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 - [x] Consultar el detalle del usuario con `DetailDialog` (doble clic).
 - [x] Exportar a CSV respetando los filtros aplicados (`user-export.ts`).
 - [x] Ampliar el tipo compartido `UsuarioLista` (catálogos, rol y fechas) en `src/services/usuario.service.ts`.
-- [ ] Implementar el CRUD (alta/edición/baja lógica) con `UserFormDialog` + `ConfirmDeleteDialog`, usando `GET /api/catalogos` para los selects.
-- [ ] Asignación de rol (`PATCH /api/usuarios/:id/rol`, permiso `roles:administrar`).
-- [ ] Cambio de contraseña (`PATCH /api/usuarios/:id/password`).
+- [x] Implementar el CRUD (alta/edición/baja lógica) con `UserFormDialog` + `ConfirmDeleteDialog`, usando `GET /api/catalogos` para los selects.
+- [x] Asignación de rol (`PATCH /api/usuarios/:id/rol`, permiso `roles:administrar`) integrada en el `UserFormDialog`.
+- [x] Cambio de contraseña (`PATCH /api/usuarios/:id/password`) desde el `UserFormDialog` en modo edición (campo opcional) y contraseña obligatoria al crear.
 - [ ] Registro masivo por plantilla CSV/Excel.
 
 ---

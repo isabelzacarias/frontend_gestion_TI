@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
+import type { FormEvent } from "react"
 import {
   Briefcase,
   Building2,
   CircleDot,
   Download,
   MapPin,
+  Plus,
+  RotateCcw,
   Search,
   ShieldCheck,
   Tag,
@@ -16,6 +19,7 @@ import { toast } from "sonner"
 import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { FacetedFilter } from "@/components/ui/faceted-filter"
 import type {
@@ -24,19 +28,70 @@ import type {
   FacetSelections,
 } from "@/components/ui/faceted-filter"
 import { UserDetailDialog } from "@/features/user/components/UserDetailDialog"
+import { UserFormDialog } from "@/features/user/components/UserFormDialog"
+import type { UserFormDraft } from "@/features/user/types/user"
 import { exportUsuariosToCsv } from "@/features/user/utils/user-export"
 import { catalogoNombre, formatearFecha } from "@/features/user/utils/user-format"
 import {
   UsuarioApiError,
+  actualizarUsuario,
+  asignarRolUsuario,
+  cambiarPasswordUsuario,
+  crearUsuario,
+  eliminarUsuario,
   listarTodosLosUsuarios,
+  obtenerCatalogos,
 } from "@/services/usuario.service"
 import type {
+  Catalogos,
+  DatosCreacionUsuario,
+  DatosEdicionUsuario,
   ResumenCatalogo,
   ResumenRol,
   UsuarioLista,
 } from "@/services/usuario.service"
 
 const ITEMS_PER_PAGE = 10
+const datePattern = /^\d{4}-\d{2}-\d{2}$/
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const EMPTY_CATALOGS: Catalogos = {
+  departamentos: [],
+  ubicaciones: [],
+  puestos: [],
+  tiposUsuario: [],
+  roles: [],
+}
+
+const createEmptyUserDraft = (): UserFormDraft => ({
+  id: "",
+  nombre: "",
+  email: "",
+  password: "",
+  departamentoId: "",
+  ubicacionId: "",
+  puestoId: "",
+  tipoUsuarioId: "",
+  rolId: "",
+  activo: true,
+  fechaInicio: "",
+  fechaFin: "",
+})
+
+const toUserDraft = (usuario: UsuarioLista): UserFormDraft => ({
+  id: usuario.id,
+  nombre: usuario.nombre,
+  email: usuario.email ?? "",
+  password: "",
+  departamentoId: usuario.departamento ? String(usuario.departamento.id) : "",
+  ubicacionId: usuario.ubicacion ? String(usuario.ubicacion.id) : "",
+  puestoId: usuario.puesto ? String(usuario.puesto.id) : "",
+  tipoUsuarioId: usuario.tipoUsuario ? String(usuario.tipoUsuario.id) : "",
+  rolId: usuario.rol ? String(usuario.rol.id) : "",
+  activo: usuario.activo,
+  fechaInicio: usuario.fechaInicio ? usuario.fechaInicio.slice(0, 10) : "",
+  fechaFin: usuario.fechaFin ? usuario.fechaFin.slice(0, 10) : "",
+})
 
 function mensajeDeError(error: unknown): string {
   if (error instanceof UsuarioApiError) {
@@ -68,7 +123,10 @@ function opcionesDesdeDatos(
 
 function UsersPage() {
   const [usuarios, setUsuarios] = useState<UsuarioLista[]>([])
+  const [catalogos, setCatalogos] = useState<Catalogos>(EMPTY_CATALOGS)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   const [search, setSearch] = useState("")
   const [searchTexto, setSearchTexto] = useState("")
@@ -86,6 +144,12 @@ function UsersPage() {
 
   const [selectedUsuarioId, setSelectedUsuarioId] = useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
+  const [draft, setDraft] = useState<UserFormDraft>(createEmptyUserDraft())
+
+  const recargar = () => setReloadKey((key) => key + 1)
 
   useEffect(() => {
     let cancelado = false
@@ -94,9 +158,13 @@ function UsersPage() {
       setIsLoading(true)
 
       try {
-        const lista = await listarTodosLosUsuarios()
+        const [lista, cats] = await Promise.all([
+          listarTodosLosUsuarios(),
+          obtenerCatalogos().catch(() => EMPTY_CATALOGS),
+        ])
         if (cancelado) return
         setUsuarios(lista)
+        setCatalogos(cats)
       } catch (error) {
         if (cancelado) return
         toast.error(mensajeDeError(error))
@@ -111,7 +179,7 @@ function UsersPage() {
     return () => {
       cancelado = true
     }
-  }, [])
+  }, [reloadKey])
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -427,6 +495,185 @@ function UsersPage() {
     setIsDetailOpen(true)
   }
 
+  const handleDraftChange = <K extends keyof UserFormDraft>(
+    field: K,
+    value: UserFormDraft[K],
+  ) => {
+    setDraft((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleOpenAddDialog = () => {
+    setDraft(createEmptyUserDraft())
+    setSelectedUsuarioId(null)
+    setIsAddDialogOpen(true)
+  }
+
+  const handleOpenEditDialog = (usuario: UsuarioLista) => {
+    setSelectedUsuarioId(usuario.id)
+    setDraft(toUserDraft(usuario))
+    setIsDetailOpen(false)
+    setIsEditDialogOpen(true)
+  }
+
+  const validarDraft = (mode: "create" | "edit"): boolean => {
+    if (!draft.nombre.trim()) {
+      toast.error("El nombre completo es obligatorio.")
+      return false
+    }
+    if (mode === "create" && !draft.id.trim()) {
+      toast.error("El ID / número de empleado es obligatorio.")
+      return false
+    }
+    if (mode === "create" && !draft.password) {
+      toast.error("La contraseña de acceso es obligatoria.")
+      return false
+    }
+    if (draft.password && draft.password.length < 8) {
+      toast.error("La contraseña debe tener al menos 8 caracteres.")
+      return false
+    }
+    if (draft.email.trim() && !emailPattern.test(draft.email.trim())) {
+      toast.error("El correo electrónico no tiene un formato válido.")
+      return false
+    }
+    if (draft.fechaInicio && !datePattern.test(draft.fechaInicio)) {
+      toast.error("La fecha de inicio debe tener formato AAAA-MM-DD.")
+      return false
+    }
+    if (draft.fechaFin && !datePattern.test(draft.fechaFin)) {
+      toast.error("La fecha de fin debe tener formato AAAA-MM-DD.")
+      return false
+    }
+    return true
+  }
+
+  const handleCreateUser = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (isSaving || !validarDraft("create")) return
+
+    const datos: DatosCreacionUsuario = {
+      id: draft.id.trim(),
+      nombre: draft.nombre.trim(),
+      email: draft.email.trim() || null,
+      password: draft.password ? draft.password : null,
+      departamentoId: draft.departamentoId ? Number(draft.departamentoId) : null,
+      ubicacionId: draft.ubicacionId ? Number(draft.ubicacionId) : null,
+      puestoId: draft.puestoId ? Number(draft.puestoId) : null,
+      tipoUsuarioId: draft.tipoUsuarioId ? Number(draft.tipoUsuarioId) : null,
+      fechaInicio: draft.fechaInicio || null,
+      fechaFin: draft.fechaFin || null,
+    }
+
+    setIsSaving(true)
+    try {
+      const creado = await crearUsuario(datos)
+      if (draft.rolId) {
+        try {
+          await asignarRolUsuario(creado.id, Number(draft.rolId))
+        } catch {
+          toast.warning(
+            "El usuario se creó, pero no se pudo asignar el rol (requiere permiso roles:administrar).",
+          )
+        }
+      }
+      toast.success(`Usuario "${creado.nombre}" creado exitosamente.`)
+      setIsAddDialogOpen(false)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleUpdateUser = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (selectedUsuarioId === null || isSaving || !validarDraft("edit")) return
+
+    const datos: DatosEdicionUsuario = {
+      nombre: draft.nombre.trim(),
+      email: draft.email.trim() || null,
+      activo: draft.activo,
+      departamentoId: draft.departamentoId ? Number(draft.departamentoId) : null,
+      ubicacionId: draft.ubicacionId ? Number(draft.ubicacionId) : null,
+      puestoId: draft.puestoId ? Number(draft.puestoId) : null,
+      tipoUsuarioId: draft.tipoUsuarioId ? Number(draft.tipoUsuarioId) : null,
+      fechaInicio: draft.fechaInicio || null,
+      fechaFin: draft.fechaFin || null,
+    }
+
+    setIsSaving(true)
+    try {
+      await actualizarUsuario(selectedUsuarioId, datos)
+
+      if (draft.password.trim()) {
+        try {
+          await cambiarPasswordUsuario(selectedUsuarioId, draft.password)
+        } catch {
+          toast.warning(
+            "Los datos se guardaron, pero no se pudo actualizar la contraseña.",
+          )
+        }
+      }
+
+      const rolActual = selectedUsuario?.rol ? String(selectedUsuario.rol.id) : ""
+      if (draft.rolId !== rolActual) {
+        try {
+          await asignarRolUsuario(
+            selectedUsuarioId,
+            draft.rolId ? Number(draft.rolId) : null,
+          )
+        } catch {
+          toast.warning(
+            "Los datos se guardaron, pero no se pudo actualizar el rol (requiere permiso roles:administrar).",
+          )
+        }
+      }
+
+      toast.success("Usuario actualizado correctamente.")
+      setIsEditDialogOpen(false)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleReactivarUser = async () => {
+    if (selectedUsuarioId === null || isSaving) return
+
+    setIsSaving(true)
+    try {
+      await actualizarUsuario(selectedUsuarioId, { activo: true })
+      toast.success("Usuario reactivado correctamente.")
+      setIsDetailOpen(false)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDeleteUser = async () => {
+    if (selectedUsuarioId === null || isSaving) return
+
+    setIsSaving(true)
+    try {
+      await eliminarUsuario(selectedUsuarioId)
+      toast.success("Usuario dado de baja correctamente.")
+      setIsConfirmDeleteOpen(false)
+      setIsEditDialogOpen(false)
+      setIsDetailOpen(false)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   function handleExport() {
     if (filteredUsuarios.length === 0) {
       toast.info("No hay usuarios para exportar con los filtros actuales.")
@@ -444,6 +691,15 @@ function UsersPage() {
         title="Usuarios"
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={handleOpenAddDialog}
+              disabled={isSaving}
+              className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,var(--primary-600),var(--primary-500))] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(91,36,128,0.24)] hover:brightness-110"
+            >
+              <Plus className="size-4" />
+              Agregar Usuario
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -522,6 +778,54 @@ function UsersPage() {
         usuario={selectedUsuario}
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
+        onEdit={
+          selectedUsuario
+            ? selectedUsuario.activo
+              ? () => handleOpenEditDialog(selectedUsuario)
+              : () => void handleReactivarUser()
+            : undefined
+        }
+        editLabel={
+          selectedUsuario && !selectedUsuario.activo ? "Reactivar" : "Editar"
+        }
+        editIcon={
+          selectedUsuario && !selectedUsuario.activo ? (
+            <RotateCcw aria-hidden="true" />
+          ) : undefined
+        }
+      />
+
+      <UserFormDialog
+        open={isAddDialogOpen}
+        draft={draft}
+        mode="create"
+        catalogs={catalogos}
+        onOpenChange={setIsAddDialogOpen}
+        onChange={handleDraftChange}
+        onSubmit={(event) => void handleCreateUser(event)}
+        submitDisabled={isSaving}
+      />
+
+      <UserFormDialog
+        open={isEditDialogOpen}
+        draft={draft}
+        mode="edit"
+        catalogs={catalogos}
+        onOpenChange={setIsEditDialogOpen}
+        onChange={handleDraftChange}
+        onSubmit={(event) => void handleUpdateUser(event)}
+        onDelete={() => setIsConfirmDeleteOpen(true)}
+        submitDisabled={isSaving}
+      />
+
+      <ConfirmDeleteDialog
+        open={isConfirmDeleteOpen}
+        title="Dar de baja usuario"
+        itemName={selectedUsuario?.nombre ?? "este usuario"}
+        description="El usuario pasará a estado inactivo (baja lógica) y podrás reactivarlo más adelante."
+        confirmLabel="Dar de baja"
+        onConfirm={() => void handleDeleteUser()}
+        onCancel={() => setIsConfirmDeleteOpen(false)}
       />
     </div>
   )

@@ -35,6 +35,39 @@ export interface ParametrosListadoUsuarios {
   activo?: boolean
 }
 
+export interface Catalogos {
+  departamentos: ResumenCatalogo[]
+  ubicaciones: ResumenCatalogo[]
+  puestos: ResumenCatalogo[]
+  tiposUsuario: ResumenCatalogo[]
+  roles: ResumenRol[]
+}
+
+export interface DatosCreacionUsuario {
+  id: string
+  nombre: string
+  email: string | null
+  password: string | null
+  departamentoId: number | null
+  ubicacionId: number | null
+  puestoId: number | null
+  tipoUsuarioId: number | null
+  fechaInicio: string | null
+  fechaFin: string | null
+}
+
+export interface DatosEdicionUsuario {
+  nombre?: string
+  email?: string | null
+  activo?: boolean
+  departamentoId?: number | null
+  ubicacionId?: number | null
+  puestoId?: number | null
+  tipoUsuarioId?: number | null
+  fechaInicio?: string | null
+  fechaFin?: string | null
+}
+
 export class UsuarioApiError extends Error {
   readonly errors: unknown[]
   readonly status: number | undefined
@@ -150,4 +183,137 @@ export async function listarTodosLosUsuarios(
   }
 
   return usuarios
+}
+
+export async function obtenerCatalogos(): Promise<Catalogos> {
+  try {
+    const response = await api.get<RespuestaApi<Catalogos>>("/catalogos")
+
+    if (!response.data.success || !response.data.data) {
+      throw new UsuarioApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toUsuarioApiError(error)
+  }
+}
+
+export async function crearUsuario(
+  datos: DatosCreacionUsuario,
+): Promise<UsuarioLista> {
+  try {
+    const response = await api.post<RespuestaApi<UsuarioLista>>(
+      "/usuarios",
+      datos,
+    )
+
+    if (!response.data.success || !response.data.data) {
+      throw new UsuarioApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toUsuarioApiError(error)
+  }
+}
+
+export async function actualizarUsuario(
+  id: string,
+  datos: DatosEdicionUsuario,
+): Promise<UsuarioLista> {
+  try {
+    const response = await api.patch<RespuestaApi<UsuarioLista>>(
+      `/usuarios/${id}`,
+      datos,
+    )
+
+    if (!response.data.success || !response.data.data) {
+      throw new UsuarioApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toUsuarioApiError(error)
+  }
+}
+
+export async function asignarRolUsuario(
+  id: string,
+  rolId: number | null,
+): Promise<UsuarioLista> {
+  try {
+    const response = await api.patch<RespuestaApi<UsuarioLista>>(
+      `/usuarios/${id}/rol`,
+      { rolId },
+    )
+
+    if (!response.data.success || !response.data.data) {
+      throw new UsuarioApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toUsuarioApiError(error)
+  }
+}
+
+export async function cambiarPasswordUsuario(
+  id: string,
+  password: string,
+): Promise<UsuarioLista> {
+  try {
+    const response = await api.patch<RespuestaApi<UsuarioLista>>(
+      `/usuarios/${id}/password`,
+      { password },
+    )
+
+    if (!response.data.success || !response.data.data) {
+      throw new UsuarioApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toUsuarioApiError(error)
+  }
+}
+
+export async function eliminarUsuario(id: string): Promise<UsuarioLista> {
+  try {
+    const response = await api.delete<RespuestaApi<UsuarioLista>>(
+      `/usuarios/${id}`,
+    )
+
+    if (!response.data.success || !response.data.data) {
+      throw new UsuarioApiError(
+        response.data.message,
+        response.data.errors,
+        response.status,
+      )
+    }
+
+    return response.data.data
+  } catch (error) {
+    throw toUsuarioApiError(error)
+  }
 }

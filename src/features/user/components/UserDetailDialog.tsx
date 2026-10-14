@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { UserRound } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -10,12 +11,18 @@ interface UserDetailDialogProps {
   usuario: UsuarioLista | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onEdit?: () => void
+  editLabel?: string
+  editIcon?: ReactNode
 }
 
 export function UserDetailDialog({
   usuario,
   open,
   onOpenChange,
+  onEdit,
+  editLabel,
+  editIcon,
 }: UserDetailDialogProps) {
   if (!usuario) return null
 
@@ -103,6 +110,9 @@ export function UserDetailDialog({
       description="Consulta detallada del usuario."
       icon={<UserRound className="size-6 text-white" />}
       sections={sections}
+      onEdit={onEdit}
+      editLabel={editLabel}
+      editIcon={editIcon}
     />
   )
 }
