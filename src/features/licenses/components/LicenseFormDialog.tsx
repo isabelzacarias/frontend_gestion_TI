@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
-import { Download, Eye, EyeOff, KeyRound, Upload } from "lucide-react"
+import {  Eye, EyeOff, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 import { FileDown, Import } from "lucide-react"
 import { Button } from "@/components/ui/button"

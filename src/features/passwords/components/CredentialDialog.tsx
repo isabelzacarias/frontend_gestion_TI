@@ -6,7 +6,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react"
-import { Check, Copy, Download, Eye, EyeOff, Loader2, Upload } from "lucide-react"
+import { Check, Copy, Eye, EyeOff, Loader2,  } from "lucide-react"
 import { toast } from "sonner"
 import { Import } from "lucide-react"
 import { FileDown } from "lucide-react"
