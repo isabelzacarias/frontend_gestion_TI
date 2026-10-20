@@ -610,12 +610,12 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 
 ## 19. Módulo de Auditoría y Trazabilidad
 
-- [ ] Diseñar la bitácora de eventos (quién, qué, cuándo, desde qué IP) con `DataTable`.
-- [ ] Implementar filtros por usuario, módulo, tipo de acción y rango de fechas.
+- [x] Diseñar la bitácora de eventos (quién, qué, cuándo, desde qué IP) con `DataTable` — **simulado con datos mock**.
+- [x] Implementar filtros por usuario, módulo, tipo de acción y resultado — **simulado con datos mock** (rango de fechas pendiente).
 - [ ] Registrar automáticamente altas, ediciones, eliminaciones e importaciones masivas.
-- [ ] Consultar el detalle de cada evento con `DetailDialog` (valores anteriores y nuevos).
+- [x] Consultar el detalle de cada evento con `DetailDialog` (valores anteriores y nuevos) — **simulado con datos mock**.
 - [ ] Definir políticas de retención y exportación de la bitácora.
-- [ ] Conectar la auditoría con el backend y validar permisos de solo lectura.
+- [ ] Conectar la auditoría con el backend y validar permisos de solo lectura (**pendiente**).
 
 ---
 
