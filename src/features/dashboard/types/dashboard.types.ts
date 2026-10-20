@@ -1,3 +1,5 @@
+import type { RecordatorioDashboard } from "@/features/reminder/types/reminder"
+
 export type Sucursal = "AMBOS" | "CANCUN" | "PLAYA"
 
 export interface DashboardKPIs {
@@ -25,14 +27,7 @@ export interface LicenciaPorVencer {
   asignadaA?: UsuarioAsignadoLicencia | null
 }
 
-export interface RecordatorioItem {
-  id?: number | string
-  titulo: string
-  descripcion?: string
-  fecha?: string
-  completado?: boolean
-  prioridad?: "ALTA" | "MEDIA" | "BAJA"
-}
+export type RecordatorioItem = RecordatorioDashboard
 
 export interface DashboardData {
   kpis: DashboardKPIs

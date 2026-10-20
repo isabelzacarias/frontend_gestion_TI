@@ -53,7 +53,7 @@ const navItems: NavItem[] = [
   { to: "/assignments", label: "Asignacion de Equipo", icon: Laptop },
   { to: "/maintenance", label: "Mantenimiento", icon: Wrench },
   { to: "/audit", label: "Auditoría", icon: ShieldPlus },
-  { to: "/reminder", label: "Recordatorio", icon: CalendarDays},
+  { to: "/reminder", label: "Recordatorios", icon: CalendarDays},
   { to: "/user", label: "Usuarios", icon: BookText },
 ]
 

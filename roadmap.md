@@ -628,11 +628,20 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 
 ## 20. Módulo de Recordatorios de TI
 
-- [ ] Diseñar la vista de recordatorios y notas operativas con prioridad, fecha y estado.
-- [ ] Implementar el CRUD completo con `DataTable`, `FormDialog` y `ConfirmDeleteDialog`.
-- [ ] Integrar los recordatorios en el widget del Dashboard y en la bandeja de notificaciones.
+- [x] Diseñar la vista de recordatorios personales con prioridad, fecha y estado (`Pendiente`, `Completado`, `Vencido`).
+- [x] Implementar el CRUD completo con `DataTable`, `ReminderFormDialog` y `ConfirmDeleteDialog`, incluyendo completar/reabrir (`PATCH /:id/completar`) y eliminar (204).
+- [x] Integrar los 5 próximos recordatorios en el widget del Dashboard con enlace a la pantalla completa. **No** se integra en la bandeja de notificaciones (no existe soporte).
 - [ ] Añadir recordatorios automáticos (mantenimiento preventivo y renovación de licencias).
-- [ ] Conectar el módulo con la API REST y Socket.IO para sincronización en vivo.
+- [x] Conectar el módulo con la API REST (`/api/recordatorios`). Sin Socket.IO (el backend aún no emite eventos de recordatorios).
+
+### Integración implementada (2026-10-20)
+
+- Tipos: `src/features/reminder/types/reminder.ts` (`Recordatorio`, `RecordatorioDashboard`, `PrioridadRecordatorio`, drafts y parámetros).
+- Servicio: `src/features/reminder/services/recordatorio.service.ts` (`RecordatorioApiError`, `listarTodosLosRecordatorios`, `crearRecordatorio`, `actualizarRecordatorio`, `completarRecordatorio`, `eliminarRecordatorio`).
+- Página: `src/features/reminder/pages/ReminderPage.tsx` con carga completa y filtrado/paginación en cliente, patrón estándar de tablas (`FacetedFilter` con Estado/Prioridad, búsqueda con debounce, botón "Borrar filtros") y filtro personalizado "Fecha" dentro del mismo popover (Desde/Hasta + "Solo sin fecha").
+- Acciones: crear, editar, completar/reabrir y eliminar con confirmación. Al marcar una fecha se desactiva "Solo sin fecha" y viceversa.
+- Dashboard: `RecordatoriosCard` ahora es de solo lectura; muestra hasta 5 pendientes con fecha y enlace a `/reminder`.
+- Permisos: el perfil del usuario no expone permisos efectivos, así que la UI no puede ocultar acciones por permiso individual. Si el listado devuelve 403 se muestra un estado de acceso denegado y se oculta "Nuevo"; las mutaciones manejan 403 con toast. Las reglas de propiedad las aplica el backend (404 para recordatorios de otros usuarios).
 
 ---
 

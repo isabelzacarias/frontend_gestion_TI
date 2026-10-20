@@ -60,7 +60,7 @@ export interface FormField<T> {
   /** Etiqueta visible */
   label: string
   /** Tipo de campo — por defecto "text" */
-  type?: "text" | "email" | "number" | "tel" | "url" | "password" | "select" | "textarea"
+  type?: "text" | "email" | "number" | "tel" | "url" | "password" | "select" | "textarea" | "date"
   /** Placeholder del input */
   placeholder?: string
   /** Si es "select", las opciones disponibles */

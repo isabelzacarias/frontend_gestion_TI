@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   AlertCircle,
   Inbox,
@@ -31,26 +31,35 @@ function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-
-  const cargarResumen = useCallback(async (suc: Sucursal) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const resumen = await obtenerResumenDashboard(suc)
-      setData(resumen)
-    } catch (err) {
-      console.error("Error al cargar datos del dashboard:", err)
-      setError(
-        "No se pudo cargar la información del dashboard. Por favor intenta de nuevo.",
-      )
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
-    cargarResumen(sucursal)
-  }, [sucursal, cargarResumen])
+    let cancelado = false
+
+    async function cargarResumen() {
+      setLoading(true)
+      setError(null)
+      try {
+        const resumen = await obtenerResumenDashboard(sucursal)
+        if (!cancelado) setData(resumen)
+      } catch (err) {
+        console.error("Error al cargar datos del dashboard:", err)
+        if (!cancelado) {
+          setError(
+            "No se pudo cargar la información del dashboard. Por favor intenta de nuevo.",
+          )
+        }
+      } finally {
+        if (!cancelado) setLoading(false)
+      }
+    }
+
+    void cargarResumen()
+
+    return () => {
+      cancelado = true
+    }
+  }, [sucursal, reloadKey])
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 lg:gap-5">
@@ -91,7 +100,7 @@ function DashboardPage() {
           </div>
           <button
             type="button"
-            onClick={() => cargarResumen(sucursal)}
+            onClick={() => setReloadKey((key) => key + 1)}
             className="font-bold underline hover:opacity-80"
           >
             Reintentar
@@ -150,7 +159,7 @@ function DashboardPage() {
 
           {/* (7) Recordatorios */}
           <RecordatoriosCard
-            initialRecordatorios={data?.recordatorios ?? []}
+            recordatorios={data?.recordatorios ?? []}
             loading={loading}
           />
         </div>
