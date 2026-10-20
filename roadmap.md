@@ -610,12 +610,19 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 
 ## 19. Módulo de Auditoría y Trazabilidad
 
-- [x] Diseñar la bitácora de eventos (quién, qué, cuándo, desde qué IP) con `DataTable` — **simulado con datos mock**.
-- [x] Implementar filtros por usuario, módulo, tipo de acción y resultado — **simulado con datos mock** (rango de fechas pendiente).
-- [ ] Registrar automáticamente altas, ediciones, eliminaciones e importaciones masivas.
-- [x] Consultar el detalle de cada evento con `DetailDialog` (valores anteriores y nuevos) — **simulado con datos mock**.
+- [x] Diseñar la bitácora de eventos (quién, qué, cuándo) con `DataTable`, conectada a `GET /api/auditoria`; carga completa paginada (loop `limit=100`) y filtrado/paginación en cliente, igual que el resto de tablas.
+- [x] Implementar los filtros estándar con `FacetedFilter` (dimensiones Módulo, Acción y Usuario) más un filtro personalizado "Fecha" dentro del mismo popover (Desde/Hasta con `input type="date"`, `YYYY-MM-DD`) y búsqueda libre con debounce de 300 ms.
+- [ ] Registrar automáticamente altas, ediciones, eliminaciones e importaciones masivas (**instrumentación del backend parcial**: cubiertos SECRETOS, ACTIVOS, ASIGNACIONES, MANTENIMIENTO, importaciones y algunos cambios de USUARIOS/LICENCIAS; ROLES, CATALOGOS e INCIDENCIAS aún no).
+- [x] Consultar el detalle de cada evento con `DetailDialog`; el detalle se renderiza de forma genérica (`campos` como chips, `resumen` como pares clave/valor y metadatos/JSON para claves desconocidas). **No hay valores anteriores/nuevos ni diff.**
 - [ ] Definir políticas de retención y exportación de la bitácora.
-- [ ] Conectar la auditoría con el backend y validar permisos de solo lectura (**pendiente**).
+- [x] Conectar la auditoría con el backend y validar permisos de solo lectura (`auditoria:leer`; 403 manejado en la UI). Sin acciones de escritura ni Socket.IO.
+
+### Integración implementada (2026-10-20)
+
+- Servicio: `src/features/audit/services/auditoria.service.ts` (`AuditoriaApiError`, `listarAuditoriaGlobal`, `obtenerAuditoria`).
+- Página: `src/features/audit/pages/AuditPage.tsx` con carga completa (`listarTodosLosEventosAuditoria`), filtrado/paginación en cliente (`ITEMS_PER_PAGE=20`), `FacetedFilter` (Módulo/Acción/Usuario), búsqueda, rango de fechas y botón "Actualizar" (refetch manual); tabla (fecha, módulo, acción, usuario, entidad, resumen de detalle) y `DetailDialog` sin `onEdit`.
+- Detalle genérico: `src/features/audit/utils/audit-detail.tsx` + `audit-detail-format.ts` (tolera `detalle` nulo, `campos`, `resumen` y claves desconocidas; nunca muestra valores sensibles).
+- El mock `src/features/audit/data/auditData.ts` se eliminó.
 
 ---
 

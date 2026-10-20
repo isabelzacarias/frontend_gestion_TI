@@ -1,38 +1,48 @@
-export type AuditModule =
-  | "TICKETS"
-  | "INVENTARIO"
-  | "LICENCIAS"
-  | "CONTRASENAS"
-  | "ASIGNACIONES"
+export type ModuloAuditoria =
+  | "SECRETOS"
+  | "ACTIVOS"
   | "USUARIOS"
+  | "ROLES"
+  | "CATALOGOS"
+  | "LICENCIAS"
+  | "INCIDENCIAS"
+  | "ASIGNACIONES"
+  | "IMPORTACIONES"
   | "MANTENIMIENTO"
-  | "AUTENTICACION"
-  | "AUDITORIA"
 
-export type AuditAction =
+export type AccionAuditoria =
   | "CREAR"
   | "ACTUALIZAR"
-  | "ELIMINAR"
+  | "DESACTIVAR"
+  | "REVELAR"
   | "IMPORTAR"
-  | "CONSULTAR"
-  | "LOGIN"
-  | "LOGOUT"
+  | "ASIGNAR"
+  | "DEVOLVER"
+  | "ELIMINAR"
 
-export type AuditResult = "EXITO" | "FALLO"
+export interface AuditoriaUsuario {
+  id: string
+  nombre: string
+}
 
-export interface AuditEvent {
+export interface AuditoriaGlobal {
   id: number
-  fecha: string
-  usuarioNombre: string
-  usuarioEmail: string
-  rol: string
-  modulo: AuditModule
-  accion: AuditAction
-  entidad: string
-  descripcion: string
-  ip: string
-  userAgent: string
-  resultado: AuditResult
-  valoresAnteriores: Record<string, string> | null
-  valoresNuevos: Record<string, string> | null
+  modulo: ModuloAuditoria
+  accion: AccionAuditoria
+  entidadId: string | null
+  detalle: unknown | null
+  realizadaEn: string
+  usuario: AuditoriaUsuario
+}
+
+export interface ParametrosListadoAuditoria {
+  page?: number
+  limit?: number
+  modulo?: ModuloAuditoria
+  accion?: AccionAuditoria
+  usuarioId?: string
+  entidadId?: string
+  desde?: string
+  hasta?: string
+  q?: string
 }

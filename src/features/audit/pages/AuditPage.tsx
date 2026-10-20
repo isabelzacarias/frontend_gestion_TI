@@ -1,14 +1,16 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Activity,
   Boxes,
   CalendarClock,
+  CalendarDays,
+  RefreshCw,
   ScrollText,
   Search,
-  ShieldCheck,
   User,
   X,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { ModuleHeader } from "@/components/common/ModuleHeader"
 import { Badge } from "@/components/ui/badge"
@@ -20,19 +22,33 @@ import type {
   FacetDimension,
   FacetSelections,
 } from "@/components/ui/faceted-filter"
-import { SAMPLE_AUDIT_EVENTS } from "@/features/audit/data/auditData"
-import type { AuditEvent } from "@/features/audit/types/audit"
+import {
+  AuditoriaApiError,
+  listarTodosLosEventosAuditoria,
+  obtenerAuditoria,
+} from "@/features/audit/services/auditoria.service"
+import type { AuditoriaGlobal } from "@/features/audit/types/audit"
 import {
   AUDIT_ACTION_BADGE_CLASS,
   AUDIT_ACTION_LABELS,
   AUDIT_MODULE_BADGE_CLASS,
   AUDIT_MODULE_LABELS,
-  AUDIT_RESULT_BADGE_CLASS,
-  AUDIT_RESULT_LABELS,
 } from "@/features/audit/utils/audit-display"
+import { AuditDetailView } from "@/features/audit/utils/audit-detail"
+import { resumenDetalle } from "@/features/audit/utils/audit-detail-format"
 
-const ITEMS_PER_PAGE = 10
+const ITEMS_PER_PAGE = 20
 const cellBase = "border-b border-border/70 px-4 py-3 text-foreground/90"
+const dateFieldClass =
+  "h-9 w-full rounded-xl border border-input bg-transparent px-2 text-xs outline-hidden focus:border-ring focus:ring-2 focus:ring-ring/40"
+
+const MODULO_OPTIONS = Object.entries(AUDIT_MODULE_LABELS).map(
+  ([value, label]) => ({ value, label }),
+)
+
+const ACCION_OPTIONS = Object.entries(AUDIT_ACTION_LABELS).map(
+  ([value, label]) => ({ value, label }),
+)
 
 function formatDateTime(value: string): string {
   const date = new Date(value)
@@ -46,157 +62,144 @@ function formatDateTime(value: string): string {
   }).format(date)
 }
 
-function DiffField({
-  previous,
-  next,
-}: {
-  previous: Record<string, string> | null
-  next: Record<string, string> | null
-}) {
-  const keys = Array.from(
-    new Set([...Object.keys(previous ?? {}), ...Object.keys(next ?? {})]),
-  )
-
-  if (keys.length === 0) {
-    return (
-      <span className="text-xs italic text-muted-foreground">
-        Este evento no registra cambios de valores.
-      </span>
-    )
+function mensajeDeError(error: unknown): string {
+  if (error instanceof AuditoriaApiError) {
+    if (error.status === 403) {
+      return "No tienes permiso para consultar la auditoría (auditoria:leer)."
+    }
+    return error.message
   }
-
-  return (
-    <div className="space-y-2">
-      {keys.map((key) => {
-        const previousValue = previous?.[key]
-        const nextValue = next?.[key]
-        const hasPrevious = previousValue !== undefined
-        const hasNext = nextValue !== undefined
-
-        return (
-          <div
-            key={key}
-            className="rounded-xl border border-border/70 bg-background/60 px-3 py-2"
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {key}
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-              {hasPrevious ? (
-                <span className="rounded-md bg-rose-500/10 px-2 py-0.5 font-mono text-rose-700 line-through dark:text-rose-400">
-                  {previousValue}
-                </span>
-              ) : null}
-              {hasPrevious && hasNext ? (
-                <span className="text-muted-foreground">→</span>
-              ) : null}
-              {hasNext ? (
-                <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 font-mono text-emerald-700 dark:text-emerald-400">
-                  {nextValue}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
+  return "No se pudo completar la operación."
 }
 
 function AuditPage() {
-  const [search, setSearch] = useState("")
-  const [facetSelecciones, setFacetSelecciones] = useState<FacetSelections>({})
+  const [eventos, setEventos] = useState<AuditoriaGlobal[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [reloadKey, setReloadKey] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
+
+  const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [desde, setDesde] = useState("")
+  const [hasta, setHasta] = useState("")
+  const [facetSelecciones, setFacetSelecciones] = useState<FacetSelections>({})
+
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null)
+  const [detalleEvento, setDetalleEvento] = useState<AuditoriaGlobal | null>(
+    null,
+  )
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
 
-  const selectedEvent = useMemo(
-    () => SAMPLE_AUDIT_EVENTS.find((event) => event.id === selectedEventId) ?? null,
-    [selectedEventId],
-  )
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+    }, 300)
+
+    return () => window.clearTimeout(id)
+  }, [search])
+
+  useEffect(() => {
+    let cancelado = false
+
+    async function cargarAuditoria() {
+      setIsLoading(true)
+
+      try {
+        const lista = await listarTodosLosEventosAuditoria()
+        if (cancelado) return
+        setEventos(lista)
+      } catch (error) {
+        if (cancelado) return
+        setEventos([])
+        toast.error(mensajeDeError(error))
+      } finally {
+        if (!cancelado) setIsLoading(false)
+      }
+    }
+
+    void cargarAuditoria()
+
+    return () => {
+      cancelado = true
+    }
+  }, [reloadKey])
+
+  const recargar = () => setReloadKey((key) => key + 1)
 
   const usuarioOptions = useMemo(() => {
     const usuarios = new Map<string, string>()
-    SAMPLE_AUDIT_EVENTS.forEach((event) => {
-      if (!usuarios.has(event.usuarioEmail)) {
-        usuarios.set(event.usuarioEmail, event.usuarioNombre)
+    eventos.forEach((event) => {
+      if (!usuarios.has(event.usuario.id)) {
+        usuarios.set(event.usuario.id, event.usuario.nombre)
       }
     })
-    return Array.from(usuarios, ([email, nombre]) => ({
-      value: email,
-      label: `${nombre} (${email})`,
+    return Array.from(usuarios, ([id, nombre]) => ({
+      value: id,
+      label: `${nombre} (${id})`,
     }))
-  }, [])
-
-  const filteredEvents = useMemo(() => {
-    const term = search.trim().toLowerCase()
-
-    const matchDimension = (dimensionId: string, value: string) => {
-      const selected = facetSelecciones[dimensionId] ?? []
-      return selected.length === 0 || selected.includes(value)
-    }
-
-    return SAMPLE_AUDIT_EVENTS.filter((event) => {
-      const matchSearch =
-        term.length === 0 ||
-        event.entidad.toLowerCase().includes(term) ||
-        event.descripcion.toLowerCase().includes(term) ||
-        event.ip.toLowerCase().includes(term) ||
-        event.usuarioNombre.toLowerCase().includes(term) ||
-        event.usuarioEmail.toLowerCase().includes(term)
-
-      return (
-        matchSearch &&
-        matchDimension("usuario", event.usuarioEmail) &&
-        matchDimension("modulo", event.modulo) &&
-        matchDimension("accion", event.accion) &&
-        matchDimension("resultado", event.resultado)
-      )
-    })
-  }, [search, facetSelecciones])
-
-  const hayFiltros =
-    search.trim() !== "" ||
-    Object.values(facetSelecciones).some((values) => values.length > 0)
+  }, [eventos])
 
   const facetDimensions = useMemo<FacetDimension[]>(
     () => [
+      {
+        id: "modulo",
+        label: "Módulo",
+        icon: Boxes,
+        options: MODULO_OPTIONS,
+      },
+      {
+        id: "accion",
+        label: "Acción",
+        icon: Activity,
+        options: ACCION_OPTIONS,
+      },
       {
         id: "usuario",
         label: "Usuario",
         icon: User,
         options: usuarioOptions,
       },
-      {
-        id: "modulo",
-        label: "Módulo",
-        icon: Boxes,
-        options: Object.entries(AUDIT_MODULE_LABELS).map(([value, label]) => ({
-          value,
-          label,
-        })),
-      },
-      {
-        id: "accion",
-        label: "Acción",
-        icon: Activity,
-        options: Object.entries(AUDIT_ACTION_LABELS).map(([value, label]) => ({
-          value,
-          label,
-        })),
-      },
-      {
-        id: "resultado",
-        label: "Resultado",
-        icon: ShieldCheck,
-        options: Object.entries(AUDIT_RESULT_LABELS).map(([value, label]) => ({
-          value,
-          label,
-        })),
-      },
     ],
     [usuarioOptions],
   )
+
+  const filteredEvents = useMemo(() => {
+    const term = debouncedSearch.toLowerCase()
+
+    const matchDimension = (dimensionId: string, value: string) => {
+      const selected = facetSelecciones[dimensionId] ?? []
+      return selected.length === 0 || selected.includes(value)
+    }
+
+    return eventos.filter((event) => {
+      const matchSearch =
+        term.length === 0 ||
+        event.modulo.toLowerCase().includes(term) ||
+        event.accion.toLowerCase().includes(term) ||
+        (event.entidadId ?? "").toLowerCase().includes(term) ||
+        event.usuario.nombre.toLowerCase().includes(term) ||
+        event.usuario.id.toLowerCase().includes(term)
+
+      const fecha = event.realizadaEn.slice(0, 10)
+      const matchDesde = desde === "" || fecha >= desde
+      const matchHasta = hasta === "" || fecha <= hasta
+
+      return (
+        matchSearch &&
+        matchDesde &&
+        matchHasta &&
+        matchDimension("modulo", event.modulo) &&
+        matchDimension("accion", event.accion) &&
+        matchDimension("usuario", event.usuario.id)
+      )
+    })
+  }, [eventos, debouncedSearch, facetSelecciones, desde, hasta])
+
+  const hayFiltros =
+    search.trim() !== "" ||
+    desde !== "" ||
+    hasta !== "" ||
+    Object.values(facetSelecciones).some((values) => values.length > 0)
 
   function handleFacetChange(dimensionId: string, values: string[]) {
     setFacetSelecciones((prev) => ({ ...prev, [dimensionId]: values }))
@@ -205,6 +208,8 @@ function AuditPage() {
 
   function limpiarFiltros() {
     setSearch("")
+    setDesde("")
+    setHasta("")
     setFacetSelecciones({})
     setCurrentPage(1)
   }
@@ -219,37 +224,26 @@ function AuditPage() {
     return filteredEvents.slice(start, start + ITEMS_PER_PAGE)
   }, [filteredEvents, activePage])
 
-  const openDetail = (event: AuditEvent) => {
+  const openDetail = (event: AuditoriaGlobal) => {
     setSelectedEventId(event.id)
+    setDetalleEvento(event)
     setIsDetailDialogOpen(true)
+
+    void obtenerAuditoria(event.id)
+      .then((actualizado) => {
+        setDetalleEvento((prev) =>
+          prev && prev.id === actualizado.id ? actualizado : prev,
+        )
+      })
+      .catch(() => undefined)
   }
 
-  const columns: DataTableColumn<AuditEvent>[] = [
+  const columns: DataTableColumn<AuditoriaGlobal>[] = [
     {
       key: "fecha",
       header: "Fecha",
       cellClassName: `${cellBase} whitespace-nowrap text-xs text-muted-foreground`,
-      render: (event) => formatDateTime(event.fecha),
-    },
-    {
-      key: "usuario",
-      header: "Usuario",
-      cellClassName: `${cellBase} min-w-[220px]`,
-      render: (event) => (
-        <div className="flex items-center gap-2">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <User aria-hidden="true" className="size-3.5" />
-          </span>
-          <div className="min-w-0">
-            <div className="truncate text-xs font-semibold text-foreground">
-              {event.usuarioNombre}
-            </div>
-            <div className="truncate text-[11px] text-muted-foreground">
-              {event.usuarioEmail}
-            </div>
-          </div>
-        </div>
-      ),
+      render: (event) => formatDateTime(event.realizadaEn),
     },
     {
       key: "modulo",
@@ -272,32 +266,42 @@ function AuditPage() {
       ),
     },
     {
+      key: "usuario",
+      header: "Usuario",
+      cellClassName: `${cellBase} min-w-[200px]`,
+      render: (event) => (
+        <div className="flex items-center gap-2">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <User aria-hidden="true" className="size-3.5" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-foreground">
+              {event.usuario.nombre}
+            </p>
+            <p className="truncate font-mono text-[11px] text-muted-foreground">
+              {event.usuario.id}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
       key: "entidad",
       header: "Entidad",
-      cellClassName: `${cellBase} min-w-[180px] font-mono text-xs`,
-      render: (event) => (
-        <span className="block max-w-[220px] truncate">{event.entidad}</span>
-      ),
+      cellClassName: `${cellBase} whitespace-nowrap font-mono text-xs`,
+      render: (event) => event.entidadId ?? "—",
     },
     {
-      key: "resultado",
-      header: "Resultado",
-      cellClassName: "border-b border-border/70 px-4 py-3 whitespace-nowrap",
+      key: "detalle",
+      header: "Detalle",
+      cellClassName: `${cellBase} max-w-[280px] text-xs text-muted-foreground`,
       render: (event) => (
-        <Badge className={AUDIT_RESULT_BADGE_CLASS[event.resultado]}>
-          {AUDIT_RESULT_LABELS[event.resultado]}
-        </Badge>
+        <span className="block truncate">{resumenDetalle(event.detalle)}</span>
       ),
-    },
-    {
-      key: "ip",
-      header: "IP",
-      cellClassName: `${cellBase} whitespace-nowrap font-mono text-xs text-muted-foreground`,
-      render: (event) => event.ip,
     },
   ]
 
-  const detailSections: DetailSection[] = selectedEvent
+  const detailSections: DetailSection[] = detalleEvento
     ? [
         {
           title: "Evento",
@@ -307,29 +311,16 @@ function AuditPage() {
             {
               key: "fecha",
               label: "Fecha y hora",
-              value: formatDateTime(selectedEvent.fecha),
+              value: formatDateTime(detalleEvento.realizadaEn),
             },
-            {
-              key: "resultado",
-              label: "Resultado",
-              value: (
-                <Badge className={AUDIT_RESULT_BADGE_CLASS[selectedEvent.resultado]}>
-                  {AUDIT_RESULT_LABELS[selectedEvent.resultado]}
-                </Badge>
-              ),
-            },
-            {
-              key: "usuario",
-              label: "Usuario",
-              value: `${selectedEvent.usuarioNombre} (${selectedEvent.usuarioEmail})`,
-            },
-            { key: "rol", label: "Rol", value: selectedEvent.rol },
             {
               key: "modulo",
               label: "Módulo",
               value: (
-                <Badge className={AUDIT_MODULE_BADGE_CLASS[selectedEvent.modulo]}>
-                  {AUDIT_MODULE_LABELS[selectedEvent.modulo]}
+                <Badge
+                  className={AUDIT_MODULE_BADGE_CLASS[detalleEvento.modulo]}
+                >
+                  {AUDIT_MODULE_LABELS[detalleEvento.modulo]}
                 </Badge>
               ),
             },
@@ -337,65 +328,38 @@ function AuditPage() {
               key: "accion",
               label: "Acción",
               value: (
-                <Badge className={AUDIT_ACTION_BADGE_CLASS[selectedEvent.accion]}>
-                  {AUDIT_ACTION_LABELS[selectedEvent.accion]}
+                <Badge
+                  className={AUDIT_ACTION_BADGE_CLASS[detalleEvento.accion]}
+                >
+                  {AUDIT_ACTION_LABELS[detalleEvento.accion]}
                 </Badge>
               ),
             },
             {
+              key: "usuario",
+              label: "Usuario",
+              value: `${detalleEvento.usuario.nombre} (${detalleEvento.usuario.id})`,
+            },
+            {
               key: "entidad",
-              label: "Entidad",
+              label: "ID de entidad",
               value: (
-                <span className="break-all font-mono text-xs">
-                  {selectedEvent.entidad}
-                </span>
-              ),
-            },
-            {
-              key: "descripcion",
-              label: "Descripción",
-              colSpan: "sm:col-span-2",
-              value: selectedEvent.descripcion,
-            },
-          ],
-        },
-        {
-          title: "Origen",
-          color: "cyan",
-          gridCols: "sm:grid-cols-1",
-          fields: [
-            {
-              key: "ip",
-              label: "Dirección IP",
-              value: (
-                <span className="font-mono text-xs">{selectedEvent.ip}</span>
-              ),
-            },
-            {
-              key: "userAgent",
-              label: "Agente de usuario",
-              value: (
-                <span className="break-all font-mono text-xs">
-                  {selectedEvent.userAgent}
+                <span className="font-mono text-xs">
+                  {detalleEvento.entidadId ?? "—"}
                 </span>
               ),
             },
           ],
         },
         {
-          title: "Cambios registrados",
+          title: "Detalle",
           color: "amber",
           gridCols: "sm:grid-cols-1",
           fields: [
             {
-              key: "diff",
-              label: "Antes → Después",
-              value: (
-                <DiffField
-                  previous={selectedEvent.valoresAnteriores}
-                  next={selectedEvent.valoresNuevos}
-                />
-              ),
+              key: "detalle",
+              label: "Información registrada",
+              value: <AuditDetailView detalle={detalleEvento.detalle} />,
             },
           ],
         },
@@ -407,13 +371,28 @@ function AuditPage() {
       <ModuleHeader
         eyebrow="Seguridad y Trazabilidad"
         title="Auditoría"
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={recargar}
+            disabled={isLoading}
+            className="inline-flex items-center gap-2 rounded-xl px-3 text-xs font-semibold"
+          >
+            <RefreshCw
+              aria-hidden="true"
+              className={`size-4 ${isLoading ? "animate-spin" : ""}`}
+            />
+            Actualizar
+          </Button>
+        }
         filters={
           <div className="flex flex-1 flex-wrap items-center gap-3">
             <div className="relative w-full min-w-0 flex-1 sm:max-w-md">
               <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar por entidad, descripción, usuario o IP..."
+                placeholder="Buscar por módulo, acción, entidad o usuario..."
                 value={search}
                 onChange={(event) => {
                   setSearch(event.target.value)
@@ -429,8 +408,63 @@ function AuditPage() {
               onChange={handleFacetChange}
               onClearAll={() => {
                 setFacetSelecciones({})
+                setDesde("")
+                setHasta("")
                 setCurrentPage(1)
               }}
+              customFilters={[
+                {
+                  id: "fechas",
+                  label: "Fecha",
+                  icon: CalendarDays,
+                  active: desde !== "" || hasta !== "",
+                  onClear: () => {
+                    setDesde("")
+                    setHasta("")
+                    setCurrentPage(1)
+                  },
+                  content: (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="auditoria-desde"
+                          className="text-[11px] font-medium text-foreground"
+                        >
+                          Desde
+                        </label>
+                        <input
+                          id="auditoria-desde"
+                          type="date"
+                          value={desde}
+                          onChange={(event) => {
+                            setDesde(event.target.value)
+                            setCurrentPage(1)
+                          }}
+                          className={dateFieldClass}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="auditoria-hasta"
+                          className="text-[11px] font-medium text-foreground"
+                        >
+                          Hasta
+                        </label>
+                        <input
+                          id="auditoria-hasta"
+                          type="date"
+                          value={hasta}
+                          onChange={(event) => {
+                            setHasta(event.target.value)
+                            setCurrentPage(1)
+                          }}
+                          className={dateFieldClass}
+                        />
+                      </div>
+                    </div>
+                  ),
+                },
+              ]}
             />
 
             {hayFiltros && (
@@ -449,14 +483,16 @@ function AuditPage() {
         summary={
           <span className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-2.5 py-1.5 font-semibold text-violet-800 shadow-[0_4px_12px_rgba(124,58,237,0.14)] dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
             <CalendarClock className="size-3.5 text-violet-700 dark:text-violet-200" />
-            {hayFiltros
-              ? `${filteredEvents.length} de ${SAMPLE_AUDIT_EVENTS.length} eventos`
-              : `${filteredEvents.length} eventos registrados`}
+            {isLoading
+              ? "Cargando..."
+              : hayFiltros
+                ? `${filteredEvents.length} de ${eventos.length} eventos`
+                : `${filteredEvents.length} eventos registrados`}
           </span>
         }
       />
 
-      <DataTable<AuditEvent>
+      <DataTable<AuditoriaGlobal>
         columns={columns}
         data={paginatedEvents}
         rowKey={(event) => event.id}
@@ -468,15 +504,21 @@ function AuditPage() {
         onRowClick={openDetail}
         onRowDoubleClick={openDetail}
         selectedRowKey={selectedEventId}
-        emptyMessage="No se encontraron eventos con los criterios de búsqueda seleccionados."
+        emptyMessage={
+          isLoading
+            ? "Cargando eventos de auditoría..."
+            : "No se encontraron eventos. El módulo puede no estar instrumentado para este filtro."
+        }
       />
 
-      {selectedEvent ? (
+      {detalleEvento ? (
         <DetailDialog
           open={isDetailDialogOpen}
           onOpenChange={setIsDetailDialogOpen}
-          title={AUDIT_ACTION_LABELS[selectedEvent.accion]}
-          description={`Evento #${selectedEvent.id} · ${AUDIT_MODULE_LABELS[selectedEvent.modulo]} · ${formatDateTime(selectedEvent.fecha)}`}
+          title={`Evento #${detalleEvento.id}`}
+          description={`${AUDIT_ACTION_LABELS[detalleEvento.accion]} · ${
+            AUDIT_MODULE_LABELS[detalleEvento.modulo]
+          } · ${formatDateTime(detalleEvento.realizadaEn)}`}
           icon={<ScrollText className="size-6 text-white" />}
           sections={detailSections}
         />
