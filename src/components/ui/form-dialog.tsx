@@ -10,6 +10,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  SEARCHABLE_SELECT_MIN_OPTIONS,
+  SearchableSelect,
+} from "@/components/ui/searchable-select"
 
 /* ──────────────────────────────────────────────
  * Estilos compartidos — extraídos de AssetFormDialog
@@ -61,6 +65,8 @@ export interface FormField<T> {
   placeholder?: string
   /** Si es "select", las opciones disponibles */
   options?: SelectOption[]
+  /** Fuerza el control buscable en selects (por defecto: automático según la cantidad de opciones) */
+  searchable?: boolean
   /** Número de filas si es textarea — por defecto 3 */
   rows?: number
   /** Clases extra para el wrapper (ej: "sm:col-span-2") */
@@ -186,63 +192,88 @@ export function FormDialog<T extends Record<string, unknown>>({
                 <div
                   className={`grid gap-x-4 gap-y-2.5 ${section.gridCols ?? "sm:grid-cols-2"}`}
                 >
-                  {section.fields.map((field) => (
-                    <div
-                      key={field.key}
-                      className={`${fieldClass} ${field.colSpan ?? ""}`}
-                    >
-                      <label htmlFor={field.key} className={labelClass}>
-                        {field.label}
-                      </label>
+                  {section.fields.map((field) => {
+                    const totalOpciones = field.options?.length ?? 0
+                    const usarBuscador =
+                      field.searchable ??
+                      (field.type === "select" &&
+                        totalOpciones >= SEARCHABLE_SELECT_MIN_OPTIONS)
 
-                      {field.render ? (
-                        field.render(
-                          draft[field.key],
-                          (value) => onChange(field.key, value),
-                        )
-                      ) : field.type === "select" ? (
-                        <select
-                          id={field.key}
-                          value={draft[field.key] as string}
-                          onChange={(e) =>
-                            onChange(field.key, e.target.value as T[keyof T])
-                          }
-                          required={field.required}
-                          className={selectClass}
-                        >
-                          {field.options?.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      ) : field.type === "textarea" ? (
-                        <textarea
-                          id={field.key}
-                          value={draft[field.key] as string}
-                          onChange={(e) =>
-                            onChange(field.key, e.target.value as T[keyof T])
-                          }
-                          placeholder={field.placeholder}
-                          required={field.required}
-                          rows={field.rows ?? 3}
-                          className={textareaClass}
-                        />
-                      ) : (
-                        <Input
-                          id={field.key}
-                          type={field.type ?? "text"}
-                          value={draft[field.key] as string}
-                          onChange={(e) =>
-                            onChange(field.key, e.target.value as T[keyof T])
-                          }
-                          placeholder={field.placeholder}
-                          required={field.required}
-                          className={inputClass}
-                        />
-                      )}
-                    </div>
-                  ))}
+                    return (
+                      <div
+                        key={field.key}
+                        className={`${fieldClass} ${field.colSpan ?? ""}`}
+                      >
+                        <label htmlFor={field.key} className={labelClass}>
+                          {field.label}
+                        </label>
+
+                        {field.render ? (
+                          field.render(
+                            draft[field.key],
+                            (value) => onChange(field.key, value),
+                          )
+                        ) : field.type === "select" ? (
+                          usarBuscador ? (
+                            <SearchableSelect
+                              id={field.key}
+                              value={draft[field.key] as string}
+                              onChange={(value) =>
+                                onChange(field.key, value as T[keyof T])
+                              }
+                              options={field.options ?? []}
+                              placeholder={field.placeholder}
+                              required={field.required}
+                              className={selectClass}
+                            />
+                          ) : (
+                            <select
+                              id={field.key}
+                              value={draft[field.key] as string}
+                              onChange={(e) =>
+                                onChange(
+                                  field.key,
+                                  e.target.value as T[keyof T],
+                                )
+                              }
+                              required={field.required}
+                              className={selectClass}
+                            >
+                              {field.options?.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          )
+                        ) : field.type === "textarea" ? (
+                          <textarea
+                            id={field.key}
+                            value={draft[field.key] as string}
+                            onChange={(e) =>
+                              onChange(field.key, e.target.value as T[keyof T])
+                            }
+                            placeholder={field.placeholder}
+                            required={field.required}
+                            rows={field.rows ?? 3}
+                            className={textareaClass}
+                          />
+                        ) : (
+                          <Input
+                            id={field.key}
+                            type={field.type ?? "text"}
+                            value={draft[field.key] as string}
+                            onChange={(e) =>
+                              onChange(field.key, e.target.value as T[keyof T])
+                            }
+                            placeholder={field.placeholder}
+                            required={field.required}
+                            className={inputClass}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </section>
             ))}
@@ -261,7 +292,7 @@ export function FormDialog<T extends Record<string, unknown>>({
                     title={
                       deleteDisabled ? "Disponible próximamente" : undefined
                     }
-                    className="h-9 rounded-xl border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-600 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:hover:bg-rose-50 disabled:hover:text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 dark:disabled:hover:bg-rose-500/10 dark:disabled:hover:text-rose-400"
+                    className="h-9 rounded-xl border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-600 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:bg-rose-50 disabled:hover:text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 dark:disabled:hover:bg-rose-500/10 dark:disabled:hover:text-rose-400"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"

@@ -178,6 +178,8 @@ function AssignmentsPage() {
             puesto: null,
             tipoUsuario: null,
             rol: null,
+            permisosExtra: [],
+            permisosRevocados: [],
           },
         ]
       }
@@ -458,6 +460,19 @@ function AssignmentsPage() {
     setSelectedAssignmentId(item.id)
     setPendingReturnId(item.id)
     setIsReturnDialogOpen(true)
+  }
+
+  function handleDeleteAssignment() {
+    if (selectedAssignmentId === null) return
+
+    setAssignments((current) =>
+      current.filter((item) => item.id !== selectedAssignmentId),
+    )
+    setDraft(createEmptyAssignmentDraft())
+    setSelectedAssignmentId(null)
+    setDialogMode(null)
+    setCurrentPage(1)
+    toast.success("Asignación eliminada.")
   }
 
   async function confirmReturn() {
@@ -801,6 +816,7 @@ function AssignmentsPage() {
             ? (records) => void importAssignments(records)
             : undefined
         }
+        onDelete={dialogMode === "edit" ? handleDeleteAssignment : undefined}
       />
 
       <ConfirmDeleteDialog
