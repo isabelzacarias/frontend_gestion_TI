@@ -631,56 +631,21 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 
 ## 21. Módulo de Mantenimiento Preventivo y Correctivo
 
-- [x] Definir el modelo de órdenes de mantenimiento (activo, tipo, técnico, fechas, costos y evidencias) — **simulado con datos mock**.
-- [x] Implementar el listado y los filtros con `DataTable` — **simulado con datos mock**.
-- [x] Construir el `MaintenanceFormDialog` para el alta y edición de órdenes — **simulado con datos mock**.
-- [ ] Consultar el historial por activo con `DetailDialog`.
-- [ ] Vincular las órdenes con el estado del activo en Inventario (En mantenimiento / Baja).
-- [x] Añadir confirmación de cancelación o eliminación con `ConfirmDeleteDialog` — **eliminación local de la simulación**.
-- [ ] Conectar el módulo con la API REST (**pendiente**: depende del contrato de abajo).
+- [x] Definir el modelo de órdenes de mantenimiento en `src/features/maintenance/types/maintenance.ts` (`MaintenanceOrder`, `MaintenanceFormDraft`).
+- [x] Implementar el listado y los filtros con `DataTable` + `FacetedFilter` (búsqueda por folio/activo/técnico/descripción; filtrado y paginación en cliente vía `listarTodosLosMantenimientos`).
+- [x] Construir el `MaintenanceFormDialog` para el alta y edición de órdenes, conectado a `POST/PATCH /api/mantenimiento` (sin campo evidencias ni selector de estado: el backend asigna `PROGRAMADO` al crear).
+- [ ] Consultar el historial por activo con `DetailDialog` (el servicio `listarMantenimientosPorActivo` ya está disponible; la UI queda pendiente).
+- [x] Vincular las órdenes con el estado del activo: iniciar → `EN_MANTENIMIENTO`; completar/cancelar → restaura el estado previo (lógica del backend). El frontend refresca órdenes y activos tras cada cambio.
+- [x] Añadir confirmación de cancelación y eliminación con `ConfirmDeleteDialog`; el botón Eliminar se deshabilita en `EN_PROCESO`.
+- [x] Conectar el módulo con la API REST, con manejo de `400/403/404/409` y refresco por Socket.IO.
 
-### Contrato propuesto para el backend (Mantenimiento)
+### Integración implementada (2026-10-20)
 
-Referencia: **2026-10-20**. El frontend ya opera con datos mock en `src/features/maintenance/` (`MaintenanceOrder`, `MaintenanceFormDraft`). La conexión queda pendiente hasta que el backend exponga estos endpoints.
-
-**A. Modelo Prisma `OrdenMantenimiento`:**
-- `id: Int @id @default(autoincrement())`
-- `folio: String @unique` — generado por el servidor como `MTO-0001` (padding a 4).
-- `activoId: Int` → relación `Activo` (obligatorio; validar que exista y esté activo).
-- `tipo: MantenimientoTipo` — `PREVENTIVO | CORRECTIVO`.
-- `estado: MantenimientoEstado` — `PROGRAMADO | EN_PROCESO | COMPLETADO | CANCELADO`.
-- `prioridad: MantenimientoPrioridad` — `BAJA | MEDIA | ALTA`.
-- `tecnicoId: String` → relación `Usuario` (obligatorio; validar que exista y esté activo).
-- `fechaProgramada: DateTime` (obligatoria).
-- `fechaRealizada: DateTime?` (obligatoria solo si `estado = COMPLETADO`).
-- `costo: Decimal? @db.Decimal(10, 2)` (>= 0).
-- `descripcion: String? @db.Text`.
-- `evidencias: Json?` (fase 2: arreglo de URLs/rutas).
-- `activo: Boolean @default(true)` (baja lógica) + `createdAt`/`updatedAt`.
-- Índices sugeridos: `(activoId, fechaProgramada)`, `(estado)`, `(tecnicoId)`.
-
-**B. Permisos nuevos** en `models/rol.model.ts` (`PERMISOS_DISPONIBLES`) y `scripts/seedAdmin.ts`: `mantenimiento:leer`, `mantenimiento:crear`, `mantenimiento:editar`, `mantenimiento:eliminar`.
-
-**C. Endpoints:**
-- [ ] `GET /api/mantenimiento` (`mantenimiento:leer`): query `page`, `limit`, `q` (folio/descripcion/activo), `tipo`, `estado`, `prioridad`, `tecnicoId`, `activoId`; responde `{ success, message, errors, data, meta }` con `meta: { page, limit, total, totalPages }`.
-- [ ] `GET /api/mantenimiento/:id` (`mantenimiento:leer`): detalle con `activo` y `tecnico` incluidos.
-- [ ] `GET /api/mantenimiento/activo/:activoId` (`mantenimiento:leer`): historial de órdenes del activo (para `DetailDialog`).
-- [ ] `POST /api/mantenimiento` (`mantenimiento:crear`): body `{ activoId, tipo, estado, prioridad, tecnicoId, fechaProgramada, fechaRealizada?, costo?, descripcion? }`; genera `folio` en transacción.
-- [ ] `PATCH /api/mantenimiento/:id` (`mantenimiento:editar`): mismos campos, todos opcionales.
-- [ ] `DELETE /api/mantenimiento/:id` (`mantenimiento:eliminar`): baja lógica (`activo = false`); devolver `204`.
-
-**D. Reglas de validación:**
-- [ ] `activoId` y `tecnicoId` existentes y activos.
-- [ ] `fechaRealizada >= fechaProgramada` cuando ambas existan.
-- [ ] `costo >= 0`.
-- [ ] Transiciones permitidas: `PROGRAMADO → EN_PROCESO → COMPLETADO`; cualquier estado → `CANCELADO`; no se permite editar una orden `COMPLETADO` salvo `CANCELADO`.
-- [ ] Al pasar a `COMPLETADO` sin `fechaRealizada`, asignar la fecha actual; al salir de `COMPLETADO`, limpiarla.
-- [ ] Errores en español y códigos consistentes: `400` validación, `401` sin token, `403` sin permiso, `404` no encontrado, `409` conflicto.
-
-**E. Integración opcional (fase 2):**
-- [ ] Al pasar a `EN_PROCESO`, marcar el activo como `EN_MANTENIMIENTO`; al completar/cancelar, restaurar su estado previo (guardarlo o derivarlo).
-- [ ] Emitir eventos Socket.IO `mantenimiento:creado`, `mantenimiento:actualizado`, `mantenimiento:eliminado`.
-- [ ] Documentar en `src/docs/openapi.yaml` y agregar colección Bruno `bruno/Mantenimiento/`.
+- Servicio: `src/features/maintenance/services/mantenimiento.service.ts` (`MantenimientoApiError`, `listarTodosLosMantenimientos`, `obtenerMantenimiento`, `crearMantenimiento`, `actualizarMantenimiento`, `cambiarEstadoMantenimiento`, `eliminarMantenimiento`, `listarMantenimientosPorActivo`).
+- Página: carga real de órdenes, activos y técnicos activos; acciones Iniciar/Completar/Cancelar en la fila y en el diálogo de edición; activo bloqueado en `EN_PROCESO`; edición de campos bloqueada en `COMPLETADO`/`CANCELADO` (solo cancelar/eliminar).
+- Socket: los eventos `mantenimiento:creado`, `mantenimiento:actualizado` y `mantenimiento:eliminado` se manejan en la conexión global de notificaciones (`notification-socket.ts`) y se publican en `store/mantenimientoSyncStore.ts`; la página recarga ante cada evento y al reconectar.
+- Backend: ya cumple el contrato (endpoints, permisos, transiciones, auditoría con `origen=MANTENIMIENTO`, sincronización del estado del activo y eventos Socket.IO).
+- Pendiente fase 2: evidencias (campo reservado, sin S3) e historial por activo en la UI.
 
 ---
 

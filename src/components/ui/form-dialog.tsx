@@ -73,6 +73,8 @@ export interface FormField<T> {
   colSpan?: string
   /** Si el campo es requerido */
   required?: boolean
+  /** Deshabilita el control (solo lectura) */
+  disabled?: boolean
   /** Renderizado personalizado para controles específicos del formulario */
   render?: (
     value: T[keyof T],
@@ -124,6 +126,8 @@ export interface FormDialogProps<T extends Record<string, unknown>> {
   deleteLabel?: string
   /** Muestra el botón de eliminar deshabilitado (p. ej. mientras no exista un endpoint de borrado real) */
   deleteDisabled?: boolean
+  /** Texto explicativo cuando el botón de eliminar está deshabilitado */
+  deleteDisabledTitle?: string
   /** Callback opcional para cambiar el estado del registro (baja/alta lógica) */
   onToggleState?: () => void
   /** Texto del botón de estado — por defecto "Desactivar" */
@@ -151,6 +155,7 @@ export function FormDialog<T extends Record<string, unknown>>({
   onDelete,
   deleteLabel = "Eliminar",
   deleteDisabled = false,
+  deleteDisabledTitle = "Disponible próximamente",
   onToggleState,
   toggleStateLabel = "Desactivar",
   submitDisabled = false,
@@ -224,6 +229,7 @@ export function FormDialog<T extends Record<string, unknown>>({
                               options={field.options ?? []}
                               placeholder={field.placeholder}
                               required={field.required}
+                              disabled={field.disabled}
                               className={selectClass}
                             />
                           ) : (
@@ -237,6 +243,7 @@ export function FormDialog<T extends Record<string, unknown>>({
                                 )
                               }
                               required={field.required}
+                              disabled={field.disabled}
                               className={selectClass}
                             >
                               {field.options?.map((opt) => (
@@ -255,6 +262,7 @@ export function FormDialog<T extends Record<string, unknown>>({
                             }
                             placeholder={field.placeholder}
                             required={field.required}
+                            disabled={field.disabled}
                             rows={field.rows ?? 3}
                             className={textareaClass}
                           />
@@ -268,6 +276,7 @@ export function FormDialog<T extends Record<string, unknown>>({
                             }
                             placeholder={field.placeholder}
                             required={field.required}
+                            disabled={field.disabled}
                             className={inputClass}
                           />
                         )}
@@ -289,9 +298,7 @@ export function FormDialog<T extends Record<string, unknown>>({
                     type="button"
                     onClick={onDelete}
                     disabled={deleteDisabled}
-                    title={
-                      deleteDisabled ? "Disponible próximamente" : undefined
-                    }
+                    title={deleteDisabled ? deleteDisabledTitle : undefined}
                     className="h-9 rounded-xl border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-600 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:bg-rose-50 disabled:hover:text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 dark:disabled:hover:bg-rose-500/10 dark:disabled:hover:text-rose-400"
                   >
                     <svg

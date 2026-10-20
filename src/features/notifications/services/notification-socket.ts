@@ -6,6 +6,13 @@ import type {
   IncidentStatusChange,
   LicenseNotification,
 } from "@/features/notifications/types/notification"
+import type {
+  MaintenanceDeletedEvent,
+  MaintenancePriority,
+  MaintenanceSocketEvent,
+  MaintenanceStatus,
+  MaintenanceType,
+} from "@/features/maintenance/types/maintenance"
 
 interface NotificationSocketHandlers {
   onConnect: () => void
@@ -14,6 +21,9 @@ interface NotificationSocketHandlers {
   onNewIncident: (notification: IncidentNotification) => void
   onLicenseExpiring: (notification: LicenseNotification) => void
   onIncidentStatusChanged: (change: IncidentStatusChange) => void
+  onMaintenanceCreated: (event: MaintenanceSocketEvent) => void
+  onMaintenanceUpdated: (event: MaintenanceSocketEvent) => void
+  onMaintenanceDeleted: (event: MaintenanceDeletedEvent) => void
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -139,6 +149,78 @@ function parseIncidentStatusChange(
   }
 }
 
+function parseMaintenanceEvent(value: unknown): MaintenanceSocketEvent | null {
+  if (!isRecord(value)) {
+    console.error(
+      "Se recibió un evento de mantenimiento con un formato inválido.",
+    )
+    return null
+  }
+
+  const id = Number(value.id)
+  const activoId = Number(value.activoId)
+
+  if (
+    !Number.isFinite(id) ||
+    !Number.isFinite(activoId) ||
+    typeof value.folio !== "string" ||
+    value.folio.trim().length === 0 ||
+    typeof value.estado !== "string" ||
+    value.estado.trim().length === 0 ||
+    typeof value.tipo !== "string" ||
+    value.tipo.trim().length === 0 ||
+    typeof value.prioridad !== "string" ||
+    value.prioridad.trim().length === 0 ||
+    typeof value.tecnicoId !== "string" ||
+    value.tecnicoId.trim().length === 0 ||
+    typeof value.fechaProgramada !== "string" ||
+    !Number.isFinite(Date.parse(value.fechaProgramada))
+  ) {
+    console.error(
+      "Se recibió un evento de mantenimiento con un formato inválido.",
+    )
+    return null
+  }
+
+  return {
+    id,
+    folio: value.folio,
+    activoId,
+    estado: value.estado as MaintenanceStatus,
+    tipo: value.tipo as MaintenanceType,
+    prioridad: value.prioridad as MaintenancePriority,
+    tecnicoId: value.tecnicoId,
+    fechaProgramada: value.fechaProgramada,
+    ...(typeof value.estadoAnterior === "string" &&
+    value.estadoAnterior.trim().length > 0
+      ? { estadoAnterior: value.estadoAnterior as MaintenanceStatus }
+      : {}),
+  }
+}
+
+function parseMaintenanceDeleted(
+  value: unknown,
+): MaintenanceDeletedEvent | null {
+  if (
+    !isRecord(value) ||
+    !Number.isFinite(Number(value.id)) ||
+    !Number.isFinite(Number(value.activoId)) ||
+    typeof value.folio !== "string" ||
+    value.folio.trim().length === 0
+  ) {
+    console.error(
+      "Se recibió una eliminación de mantenimiento con un formato inválido.",
+    )
+    return null
+  }
+
+  return {
+    id: Number(value.id),
+    folio: value.folio,
+    activoId: Number(value.activoId),
+  }
+}
+
 function getSocketUrl(): string {
   if (import.meta.env.VITE_SOCKET_URL) {
     return import.meta.env.VITE_SOCKET_URL
@@ -191,6 +273,27 @@ export function connectNotificationSocket(
     }
   }
 
+  function handleMaintenanceCreated(value: unknown) {
+    const event = parseMaintenanceEvent(value)
+    if (event) {
+      handlers.onMaintenanceCreated(event)
+    }
+  }
+
+  function handleMaintenanceUpdated(value: unknown) {
+    const event = parseMaintenanceEvent(value)
+    if (event) {
+      handlers.onMaintenanceUpdated(event)
+    }
+  }
+
+  function handleMaintenanceDeleted(value: unknown) {
+    const event = parseMaintenanceDeleted(value)
+    if (event) {
+      handlers.onMaintenanceDeleted(event)
+    }
+  }
+
   socket.on("connect", handlers.onConnect)
   socket.on("disconnect", handleDisconnect)
   socket.on("connect_error", (error) => {
@@ -199,6 +302,9 @@ export function connectNotificationSocket(
   socket.on("incidencias:nueva", handleNewIncident)
   socket.on("incidencias:estado-cambiado", handleIncidentStatusChanged)
   socket.on("licencias:por-vencer", handleLicenseExpiring)
+  socket.on("mantenimiento:creado", handleMaintenanceCreated)
+  socket.on("mantenimiento:actualizado", handleMaintenanceUpdated)
+  socket.on("mantenimiento:eliminado", handleMaintenanceDeleted)
   socket.connect()
 
   return () => {
@@ -208,6 +314,9 @@ export function connectNotificationSocket(
     socket.off("incidencias:nueva", handleNewIncident)
     socket.off("incidencias:estado-cambiado", handleIncidentStatusChanged)
     socket.off("licencias:por-vencer", handleLicenseExpiring)
+    socket.off("mantenimiento:creado", handleMaintenanceCreated)
+    socket.off("mantenimiento:actualizado", handleMaintenanceUpdated)
+    socket.off("mantenimiento:eliminado", handleMaintenanceDeleted)
     socket.disconnect()
   }
 }

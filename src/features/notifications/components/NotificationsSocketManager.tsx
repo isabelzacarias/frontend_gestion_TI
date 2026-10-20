@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { connectNotificationSocket } from "@/features/notifications/services/notification-socket"
 import { useNotificationsStore } from "@/features/notifications/store/notificationsStore"
 import { useIncidenciasSyncStore } from "@/features/kanban/store/incidenciasSyncStore"
+import { useMantenimientoSyncStore } from "@/features/maintenance/store/mantenimientoSyncStore"
 import { useAuthStore } from "@/store/authStore"
 
 function NotificationsSocketManager() {
@@ -40,6 +41,7 @@ function NotificationsSocketManager() {
                 error,
               )
             })
+          useMantenimientoSyncStore.getState().publishEvent({ tipo: "resync" })
         },
         onDisconnect(_reason, willReconnect) {
           setConnectionStatus(willReconnect ? "reconnecting" : "disconnected")
@@ -70,6 +72,21 @@ function NotificationsSocketManager() {
         },
         onIncidentStatusChanged(change) {
           useIncidenciasSyncStore.getState().publishChange(change)
+        },
+        onMaintenanceCreated(event) {
+          useMantenimientoSyncStore
+            .getState()
+            .publishEvent({ tipo: "creado", mantenimiento: event })
+        },
+        onMaintenanceUpdated(event) {
+          useMantenimientoSyncStore
+            .getState()
+            .publishEvent({ tipo: "actualizado", mantenimiento: event })
+        },
+        onMaintenanceDeleted(event) {
+          useMantenimientoSyncStore
+            .getState()
+            .publishEvent({ tipo: "eliminado", eliminado: event })
         },
       })
     } catch (error) {

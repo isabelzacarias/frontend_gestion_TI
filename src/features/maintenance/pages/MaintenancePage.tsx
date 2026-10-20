@@ -1,9 +1,12 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import {
+  Ban,
   CalendarClock,
+  CheckCircle2,
   CircleDot,
   Flame,
   Pencil,
+  Play,
   Plus,
   Search,
   User,
@@ -24,17 +27,23 @@ import type {
 } from "@/components/ui/faceted-filter"
 import { MaintenanceFormDialog } from "@/features/maintenance/components/MaintenanceFormDialog"
 import {
-  SAMPLE_ACTIVOS,
-  SAMPLE_MAINTENANCE_ORDERS,
-  SAMPLE_TECNICOS,
-} from "@/features/maintenance/data/maintenanceData"
+  MantenimientoApiError,
+  actualizarMantenimiento,
+  cambiarEstadoMantenimiento,
+  crearMantenimiento,
+  eliminarMantenimiento,
+  listarTodosLosMantenimientos,
+} from "@/features/maintenance/services/mantenimiento.service"
 import type {
+  DatosCreacionMantenimiento,
+  DatosEdicionMantenimiento,
   MaintenanceFormDraft,
   MaintenanceOrder,
   MaintenancePriority,
   MaintenanceStatus,
   MaintenanceType,
 } from "@/features/maintenance/types/maintenance"
+import { useMantenimientoSyncStore } from "@/features/maintenance/store/mantenimientoSyncStore"
 import {
   MAINTENANCE_PRIORITY_BADGE_CLASS,
   MAINTENANCE_PRIORITY_LABELS,
@@ -43,14 +52,25 @@ import {
   MAINTENANCE_TYPE_BADGE_CLASS,
   MAINTENANCE_TYPE_LABELS,
 } from "@/features/maintenance/utils/maintenance-display"
+import { listarTodosLosActivos } from "@/services/activo.service"
+import {
+  listarTodosLosUsuarios,
+  type UsuarioLista,
+} from "@/services/usuario.service"
+import type { ActivoResumen } from "@/types/activo"
 
 const ITEMS_PER_PAGE = 10
 const cellBase = "border-b border-border/70 px-4 py-3 text-foreground/90"
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
 
+function toDateInput(value: string | null): string {
+  if (!value) return ""
+  return value.slice(0, 10)
+}
+
 function formatDate(value: string | null): string {
   if (!value) return "—"
-  const [year, month, day] = value.split("-")
+  const [year, month, day] = value.slice(0, 10).split("-")
   if (!year || !month || !day) return value
   return `${day}/${month}/${year}`
 }
@@ -64,12 +84,16 @@ function formatCurrency(value: number | null): string {
   }).format(value)
 }
 
+function mensajeDeError(error: unknown): string {
+  if (error instanceof MantenimientoApiError) return error.message
+  return "No se pudo completar la operación."
+}
+
 const createEmptyDraft = (): MaintenanceFormDraft => ({
   activoId: "",
   tipo: "PREVENTIVO",
-  estado: "PROGRAMADO",
   prioridad: "MEDIA",
-  tecnico: "",
+  tecnicoId: "",
   fechaProgramada: new Date().toISOString().slice(0, 10),
   fechaRealizada: "",
   costo: "",
@@ -77,21 +101,24 @@ const createEmptyDraft = (): MaintenanceFormDraft => ({
 })
 
 const toFormDraft = (order: MaintenanceOrder): MaintenanceFormDraft => ({
-  activoId: order.activoId,
+  activoId: String(order.activoId),
   tipo: order.tipo,
-  estado: order.estado,
   prioridad: order.prioridad,
-  tecnico: order.tecnico,
-  fechaProgramada: order.fechaProgramada,
-  fechaRealizada: order.fechaRealizada ?? "",
+  tecnicoId: order.tecnicoId,
+  fechaProgramada: toDateInput(order.fechaProgramada),
+  fechaRealizada: toDateInput(order.fechaRealizada),
   costo: order.costo === null ? "" : String(order.costo),
-  descripcion: order.descripcion,
+  descripcion: order.descripcion ?? "",
 })
 
 function MaintenancePage() {
-  const [orders, setOrders] = useState<MaintenanceOrder[]>(
-    SAMPLE_MAINTENANCE_ORDERS,
-  )
+  const [orders, setOrders] = useState<MaintenanceOrder[]>([])
+  const [activos, setActivos] = useState<ActivoResumen[]>([])
+  const [tecnicos, setTecnicos] = useState<UsuarioLista[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+
   const [search, setSearch] = useState("")
   const [facetSelecciones, setFacetSelecciones] = useState<FacetSelections>({})
   const [currentPage, setCurrentPage] = useState(1)
@@ -100,7 +127,49 @@ function MaintenancePage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
+  const [cancelTarget, setCancelTarget] = useState<MaintenanceOrder | null>(null)
   const [draft, setDraft] = useState<MaintenanceFormDraft>(createEmptyDraft())
+
+  const recargar = () => setReloadKey((key) => key + 1)
+
+  useEffect(() => {
+    let cancelado = false
+
+    async function cargarMantenimientos() {
+      setIsLoading(true)
+
+      try {
+        const [mantenimientos, activosLista, tecnicosLista] = await Promise.all([
+          listarTodosLosMantenimientos(),
+          listarTodosLosActivos(),
+          listarTodosLosUsuarios({ activo: true }),
+        ])
+        if (cancelado) return
+        setOrders(mantenimientos)
+        setActivos(activosLista)
+        setTecnicos(tecnicosLista)
+      } catch (error) {
+        if (cancelado) return
+        toast.error(mensajeDeError(error))
+      } finally {
+        if (!cancelado) setIsLoading(false)
+      }
+    }
+
+    void cargarMantenimientos()
+
+    return () => {
+      cancelado = true
+    }
+  }, [reloadKey])
+
+  useEffect(() => {
+    const unsubscribe = useMantenimientoSyncStore.subscribe((state, prev) => {
+      if (state.lastEvent === prev.lastEvent) return
+      setReloadKey((key) => key + 1)
+    })
+    return unsubscribe
+  }, [])
 
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) ?? null,
@@ -116,19 +185,21 @@ function MaintenancePage() {
     }
 
     return orders.filter((order) => {
+      const claveActivo = order.activo.cb23 ?? ""
       const matchSearch =
         term.length === 0 ||
         order.folio.toLowerCase().includes(term) ||
-        order.activoLabel.toLowerCase().includes(term) ||
-        order.tecnico.toLowerCase().includes(term) ||
-        order.descripcion.toLowerCase().includes(term)
+        claveActivo.toLowerCase().includes(term) ||
+        order.activo.tipo.toLowerCase().includes(term) ||
+        order.tecnico.nombre.toLowerCase().includes(term) ||
+        (order.descripcion ?? "").toLowerCase().includes(term)
 
       return (
         matchSearch &&
         matchDimension("tipo", order.tipo) &&
         matchDimension("estado", order.estado) &&
         matchDimension("prioridad", order.prioridad) &&
-        matchDimension("tecnico", order.tecnico)
+        matchDimension("tecnico", order.tecnicoId)
       )
     })
   }, [orders, search, facetSelecciones])
@@ -167,13 +238,13 @@ function MaintenancePage() {
         id: "tecnico",
         label: "Técnico",
         icon: User,
-        options: SAMPLE_TECNICOS.map((tecnico) => ({
-          value: tecnico,
-          label: tecnico,
+        options: tecnicos.map((tecnico) => ({
+          value: tecnico.id,
+          label: tecnico.nombre,
         })),
       },
     ],
-    [],
+    [tecnicos],
   )
 
   function handleFacetChange(dimensionId: string, values: string[]) {
@@ -221,7 +292,7 @@ function MaintenancePage() {
       toast.error("Selecciona el activo de la orden.")
       return false
     }
-    if (!draft.tecnico) {
+    if (!draft.tecnicoId) {
       toast.error("Selecciona el técnico responsable.")
       return false
     }
@@ -243,63 +314,171 @@ function MaintenancePage() {
     return true
   }
 
-  const buildOrderData = () => {
-    const activo = SAMPLE_ACTIVOS.find((item) => item.id === draft.activoId)
+  const buildDatos = (): DatosCreacionMantenimiento => {
     const costo = draft.costo.trim() === "" ? null : Number(draft.costo)
+    const descripcion = draft.descripcion.trim()
 
     return {
-      activoId: draft.activoId,
-      activoLabel: activo?.label ?? draft.activoId,
+      activoId: Number(draft.activoId),
       tipo: draft.tipo as MaintenanceType,
-      estado: draft.estado as MaintenanceStatus,
       prioridad: draft.prioridad as MaintenancePriority,
-      tecnico: draft.tecnico,
+      tecnicoId: draft.tecnicoId,
       fechaProgramada: draft.fechaProgramada,
       fechaRealizada: draft.fechaRealizada ? draft.fechaRealizada : null,
       costo,
-      descripcion: draft.descripcion.trim(),
+      descripcion: descripcion === "" ? null : descripcion,
     }
   }
 
-  const handleCreateOrder = (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateOrder = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!validarDraft()) return
 
-    const nextId = orders.reduce((max, order) => Math.max(max, order.id), 0) + 1
-    const nuevaOrden: MaintenanceOrder = {
-      id: nextId,
-      folio: `MTO-${String(nextId).padStart(4, "0")}`,
-      ...buildOrderData(),
+    setIsSaving(true)
+    try {
+      const nuevaOrden = await crearMantenimiento(buildDatos())
+      setIsAddDialogOpen(false)
+      toast.success(`Orden ${nuevaOrden.folio} creada correctamente.`)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
     }
-
-    setOrders((prev) => [nuevaOrden, ...prev])
-    setIsAddDialogOpen(false)
-    toast.success(`Orden ${nuevaOrden.folio} creada correctamente.`)
   }
 
-  const handleUpdateOrder = (event: FormEvent<HTMLFormElement>) => {
+  const handleUpdateOrder = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (selectedOrderId === null || !validarDraft()) return
 
-    const datos = buildOrderData()
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === selectedOrderId
-          ? { ...order, ...datos, id: order.id, folio: order.folio }
-          : order,
-      ),
-    )
-    setIsEditDialogOpen(false)
-    toast.success("Orden de mantenimiento actualizada correctamente.")
+    const datos: DatosEdicionMantenimiento = buildDatos()
+    if (selectedOrder?.estado === "EN_PROCESO") {
+      delete datos.activoId
+    }
+
+    setIsSaving(true)
+    try {
+      await actualizarMantenimiento(selectedOrderId, datos)
+      setIsEditDialogOpen(false)
+      toast.success("Orden de mantenimiento actualizada correctamente.")
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleDeleteOrder = () => {
+  const handleCambiarEstado = async (
+    order: MaintenanceOrder,
+    estado: MaintenanceStatus,
+  ) => {
+    setIsSaving(true)
+    try {
+      await cambiarEstadoMantenimiento(order.id, estado)
+      toast.success(`La orden ${order.folio} cambió a ${MAINTENANCE_STATUS_LABELS[estado].toLowerCase()}.`)
+      setIsEditDialogOpen(false)
+      setCancelTarget(null)
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+      recargar()
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDeleteOrder = async () => {
     if (selectedOrderId === null) return
-    setOrders((prev) => prev.filter((order) => order.id !== selectedOrderId))
-    setIsConfirmDeleteOpen(false)
-    setIsEditDialogOpen(false)
-    setSelectedOrderId(null)
-    toast.success("Orden de mantenimiento eliminada.")
+
+    setIsSaving(true)
+    try {
+      await eliminarMantenimiento(selectedOrderId)
+      setIsConfirmDeleteOpen(false)
+      setIsEditDialogOpen(false)
+      setSelectedOrderId(null)
+      toast.success("Orden de mantenimiento eliminada.")
+      recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const renderAcciones = (order: MaintenanceOrder) => {
+    const pendiente = isSaving
+
+    return (
+      <div className="flex items-center justify-end gap-1.5">
+        {order.estado === "PROGRAMADO" && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            title="Iniciar mantenimiento"
+            aria-label={`Iniciar orden ${order.folio}`}
+            disabled={pendiente}
+            className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
+            onClick={(event) => {
+              event.stopPropagation()
+              void handleCambiarEstado(order, "EN_PROCESO")
+            }}
+          >
+            <Play aria-hidden="true" className="size-3.5" />
+          </Button>
+        )}
+        {order.estado === "EN_PROCESO" && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            title="Completar mantenimiento"
+            aria-label={`Completar orden ${order.folio}`}
+            disabled={pendiente}
+            className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
+            onClick={(event) => {
+              event.stopPropagation()
+              void handleCambiarEstado(order, "COMPLETADO")
+            }}
+          >
+            <CheckCircle2 aria-hidden="true" className="size-3.5" />
+          </Button>
+        )}
+        {(order.estado === "PROGRAMADO" ||
+          order.estado === "EN_PROCESO" ||
+          order.estado === "COMPLETADO") && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            title="Cancelar orden"
+            aria-label={`Cancelar orden ${order.folio}`}
+            disabled={pendiente}
+            className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
+            onClick={(event) => {
+              event.stopPropagation()
+              setCancelTarget(order)
+            }}
+          >
+            <Ban aria-hidden="true" className="size-3.5" />
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
+          onClick={(event) => {
+            event.stopPropagation()
+            handleOpenEditDialog(order)
+          }}
+        >
+          <Pencil aria-hidden="true" className="size-3.5" />
+          Editar
+        </Button>
+      </div>
+    )
   }
 
   const columns: DataTableColumn<MaintenanceOrder>[] = [
@@ -313,15 +492,20 @@ function MaintenancePage() {
     {
       key: "activo",
       header: "Activo",
-      cellClassName: "border-b border-border/70 px-4 py-3 min-w-[260px]",
+      cellClassName: "border-b border-border/70 px-4 py-3 min-w-[240px]",
       render: (order) => (
         <div className="flex items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Wrench aria-hidden="true" className="size-4" />
           </span>
-          <span className="max-w-xs truncate font-semibold text-foreground">
-            {order.activoLabel}
-          </span>
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-foreground">
+              {order.activo.cb23 ?? `#${order.activo.id}`}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {order.activo.tipo}
+            </p>
+          </div>
         </div>
       ),
     },
@@ -355,7 +539,9 @@ function MaintenancePage() {
             aria-hidden="true"
             className="size-3.5 shrink-0 text-muted-foreground"
           />
-          <span className="truncate text-xs font-medium">{order.tecnico}</span>
+          <span className="truncate text-xs font-medium">
+            {order.tecnico.nombre}
+          </span>
         </div>
       ),
     },
@@ -385,21 +571,7 @@ function MaintenancePage() {
       key: "acciones",
       header: "",
       cellClassName: "border-b border-border/70 px-4 py-3 text-right",
-      render: (order) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
-          onClick={(event) => {
-            event.stopPropagation()
-            handleOpenEditDialog(order)
-          }}
-        >
-          <Pencil aria-hidden="true" className="size-3.5" />
-          Editar
-        </Button>
-      ),
+      render: renderAcciones,
     },
   ]
 
@@ -477,38 +649,70 @@ function MaintenancePage() {
         itemsPerPage={ITEMS_PER_PAGE}
         onPageChange={setCurrentPage}
         onRowClick={(order) => setSelectedOrderId(order.id)}
-        onRowDoubleClick={(order) => handleOpenEditDialog(order)}
+        onRowDoubleClick={handleOpenEditDialog}
         selectedRowKey={selectedOrderId}
-        emptyMessage="No se encontraron órdenes con los criterios de búsqueda seleccionados."
+        emptyMessage={
+          isLoading
+            ? "Cargando órdenes de mantenimiento..."
+            : "No se encontraron órdenes con los criterios de búsqueda seleccionados."
+        }
       />
 
       <MaintenanceFormDialog
         open={isAddDialogOpen}
         draft={draft}
         mode="create"
+        activos={activos}
+        tecnicos={tecnicos}
+        isSaving={isSaving}
         onOpenChange={setIsAddDialogOpen}
         onChange={handleDraftChange}
-        onSubmit={handleCreateOrder}
+        onSubmit={(event) => void handleCreateOrder(event)}
       />
 
       <MaintenanceFormDialog
         open={isEditDialogOpen}
         draft={draft}
         mode="edit"
+        estado={selectedOrder?.estado}
+        activos={activos}
+        tecnicos={tecnicos}
+        isSaving={isSaving}
         onOpenChange={setIsEditDialogOpen}
         onChange={handleDraftChange}
-        onSubmit={handleUpdateOrder}
+        onSubmit={(event) => void handleUpdateOrder(event)}
         onDelete={() => setIsConfirmDeleteOpen(true)}
+        onIniciar={() => {
+          if (selectedOrder) void handleCambiarEstado(selectedOrder, "EN_PROCESO")
+        }}
+        onCompletar={() => {
+          if (selectedOrder) void handleCambiarEstado(selectedOrder, "COMPLETADO")
+        }}
+        onCancelar={() => {
+          if (selectedOrder) setCancelTarget(selectedOrder)
+        }}
       />
 
       <ConfirmDeleteDialog
         open={isConfirmDeleteOpen}
         title="Eliminar orden de mantenimiento"
         itemName={selectedOrder?.folio ?? "esta orden"}
-        description="La orden se eliminará de la simulación. Esta acción no se puede deshacer."
+        description="La orden se eliminará del listado. Esta acción no se puede deshacer."
         confirmLabel="Eliminar Orden"
-        onConfirm={handleDeleteOrder}
+        onConfirm={() => void handleDeleteOrder()}
         onCancel={() => setIsConfirmDeleteOpen(false)}
+      />
+
+      <ConfirmDeleteDialog
+        open={cancelTarget !== null}
+        title="Cancelar orden de mantenimiento"
+        itemName={cancelTarget?.folio ?? "esta orden"}
+        description="La orden pasará a cancelada y el activo se liberará. Esta acción no se puede deshacer."
+        confirmLabel="Cancelar Orden"
+        onConfirm={() => {
+          if (cancelTarget) void handleCambiarEstado(cancelTarget, "CANCELADO")
+        }}
+        onCancel={() => setCancelTarget(null)}
       />
     </div>
   )
