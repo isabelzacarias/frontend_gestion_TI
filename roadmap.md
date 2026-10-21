@@ -621,12 +621,28 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 
 ## 18. Módulo de Reportes e Indicadores Analíticos
 
-- [ ] Diseñar la pantalla de reportes con filtros por rango de fechas, sucursal, tipo de activo y estado.
-- [ ] Implementar exportación a PDF y CSV/Excel respetando los filtros aplicados.
-- [ ] Desarrollar reportes de inventario, asignaciones, licencias por vencer y tickets por periodo.
+- [x] Diseñar la pantalla de reportes con catálogo real agrupado por módulo y tarjetas con formatos, permisos y `maxFilas`.
+- [x] Implementar formularios dinámicos de filtros a partir de `filtros` del catálogo (texto, enum, fecha y booleano).
+- [x] Implementar descargas síncronas XLSX, CSV y PDF con blob, `Content-Disposition` y manejo de errores 400/403/404/409/503.
+- [x] Implementar generaciones asíncronas (`POST /:codigo/generaciones`), historial paginado y polling de generaciones activas.
+- [x] Obtener URL presignada de generaciones completadas (`GET /generaciones/:id/descarga`) y permitir reintentar las fallidas.
+- [x] Mostrar el catálogo completo aunque falten permisos, bloqueando el reporte y explicando el permiso faltante en el 403.
 - [ ] Incorporar gráficas comparativas (histórico mensual) reutilizando la integración de Chart.js.
 - [ ] Definir plantillas de reporte programables y envío automático por correo.
-- [ ] Conectar los reportes con los endpoints del backend.
+- [x] Conectar los reportes con `/api/reportes` sin llamar a los endpoints de cada módulo.
+
+### Integración implementada (2026-10-21)
+
+- Tipos: `src/features/reports/types/report.ts` (`FormatoReporte`, `EstadoReporteGenerado` con `GENERANDO`, metadata, filtros y generaciones).
+- Servicio: `src/features/reports/services/reporte.service.ts` (catálogo, definición, generaciones, historial, URL presignada y descarga síncrona con `fetch` + Bearer).
+- Utilidades: `src/features/reports/utils/report-display.ts` (etiquetas de estados/formatos/opciones, nombres de filtros, tamaño, fechas, mes actual y query).
+- UI: `src/features/reports/pages/ReportsPage.tsx` con tabs **Catálogo | Historial** (`?vista=historial`), `ReportsCatalog.tsx`, `ReportFilterDialog.tsx` y `ReportsHistory.tsx`.
+- Catálogo: 8 reportes reales, agrupados por módulo; permisos mostrados; 403 marca el reporte como bloqueado sin ocultar los demás.
+- Filtros: dinámicos desde el catálogo; fechas `YYYY-MM-DD`; booleanos “Predeterminado/Sí/No”; el mes actual se precarga solo en los reportes con periodo real. En `proyectos-avance`, `desde`/`hasta` se dejan vacíos porque filtran fin planificado.
+- Descarga síncrona: `fetch` con Authorization, blob, nombre desde `Content-Disposition`, `<a download>` y `revokeObjectURL`; sin `Content-Type` manual ni URLs de S3.
+- Asíncrono: al crear una generación se cambia al Historial y se consultan las generaciones PENDIENTE/GENERANDO visibles cada 2.5 s, hasta completar/fallar o 2 minutos; después se permite actualización manual.
+- Historial: paginación server-side (`limit=20`), chips de estado, tamaño, error, descarga presignada y reintento.
+- Verificado: `tsc`, `eslint` y `vite build` limpios; catálogo real; descargas XLSX/CSV/PDF con cabeceras correctas; generación asíncrona creada y completada; historial y URL presignada; errores 400 de fechas/formato. La generación de prueba se eliminó de la base y de S3.
 
 ---
 
@@ -671,8 +687,9 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 
 - [x] Definir el modelo de órdenes de mantenimiento en `src/features/maintenance/types/maintenance.ts` (`MaintenanceOrder`, `MaintenanceFormDraft`).
 - [x] Implementar el listado y los filtros con `DataTable` + `FacetedFilter` (búsqueda por folio/activo/técnico/descripción; filtrado y paginación en cliente vía `listarTodosLosMantenimientos`).
-- [x] Construir el `MaintenanceFormDialog` para el alta y edición de órdenes, conectado a `POST/PATCH /api/mantenimiento` (sin campo evidencias ni selector de estado: el backend asigna `PROGRAMADO` al crear).
+- [x] Construir el `MaintenanceFormDialog` para el alta y edición de órdenes, conectado a `POST/PATCH /api/mantenimiento` (sin selector de estado: el backend asigna `PROGRAMADO` al crear).
 - [ ] Consultar el historial por activo con `DetailDialog` (el servicio `listarMantenimientosPorActivo` ya está disponible; la UI queda pendiente).
+- [x] Evidencias fotográficas por orden: subida, galería, descarga y eliminación mediante endpoints dedicados; solo editable en `PROGRAMADO` y `EN_PROCESO`.
 - [x] Vincular las órdenes con el estado del activo: iniciar → `EN_MANTENIMIENTO`; completar/cancelar → restaura el estado previo (lógica del backend). El frontend refresca órdenes y activos tras cada cambio.
 - [x] Añadir confirmación de cancelación y eliminación con `ConfirmDeleteDialog`; el botón Eliminar se deshabilita en `EN_PROCESO`.
 - [x] Conectar el módulo con la API REST, con manejo de `400/403/404/409` y refresco por Socket.IO.
@@ -683,7 +700,7 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 - Página: carga real de órdenes, activos y técnicos activos; acciones Iniciar/Completar/Cancelar en la fila y en el diálogo de edición; activo bloqueado en `EN_PROCESO`; edición de campos bloqueada en `COMPLETADO`/`CANCELADO` (solo cancelar/eliminar).
 - Socket: los eventos `mantenimiento:creado`, `mantenimiento:actualizado` y `mantenimiento:eliminado` se manejan en la conexión global de notificaciones (`notification-socket.ts`) y se publican en `store/mantenimientoSyncStore.ts`; la página recarga ante cada evento y al reconectar.
 - Backend: ya cumple el contrato (endpoints, permisos, transiciones, auditoría con `origen=MANTENIMIENTO`, sincronización del estado del activo y eventos Socket.IO).
-- Pendiente fase 2: evidencias (campo reservado, sin S3) e historial por activo en la UI.
+- Evidencias implementadas con `MaintenanceEvidencesSection` y `/api/mantenimiento/:id/evidencias`; historial por activo en la UI sigue pendiente.
 
 ---
 
@@ -730,9 +747,9 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 - [x] Componente reutilizable `AttachmentsSection`: validación PNG/JPEG/WebP de hasta 10 MB, vista previa local con `URL.createObjectURL`, progreso de subida y galería de miniaturas.
 - [x] URLs presignadas temporales: se solicitan al mostrar/descargar, no se guardan de forma permanente y se reintenta una vez si la imagen expira. Sin bucket, `s3Key` ni URLs construidas.
 - [x] Eliminación con `ConfirmDeleteDialog`; 404 elimina el elemento de la lista y 403 oculta la acción en la sesión.
-- [x] Integración en el detalle del activo (`InventoryPage`), detalle de incidencia (`TicketDetailDialog`) y acción "Adjuntos" en la fila de mantenimiento.
+- [x] Integración en el detalle del activo (`InventoryPage`), detalle de incidencia (`TicketDetailDialog`) y acción "Evidencias" en la fila de mantenimiento, con endpoints dedicados y bloqueo por estado.
 - [x] `DetailSection` admite `content?: ReactNode` para incrustar la galería interactiva.
-- [ ] Entidad `PROYECTO`: bloqueada hasta que exista su modelo/entidad en el backend.
+- [x] Entidad `PROYECTO` integrada en el bucket y validada contra proyectos activos.
 - Nota: `VITE_ADJUNTOS_GALERIA` y `VITE_ADJUNTOS_ELIMINAR` están activas por defecto (`true`) y permiten deshabilitar galería/eliminación por entorno.
 - Nota: `S3_PUBLIC_ENDPOINT` debe ser alcanzable desde el navegador; `http://localhost:4566` solo funciona en el mismo equipo, no en celular/LAN.
 - Nota: la descarga usa `<a download>`; con una URL cross-origin algunos navegadores pueden abrir la imagen en lugar de descargarla, según CORS/`Content-Disposition` de S3.

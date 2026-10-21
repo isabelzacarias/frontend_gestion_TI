@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 import {
   Download,
   Eye,
@@ -34,6 +34,7 @@ import {
 } from "@/features/attachments/services/adjunto.service"
 import type {
   Adjunto,
+  DescargaAdjunto,
   EntidadAdjunto,
 } from "@/features/attachments/types/attachment"
 import {
@@ -43,12 +44,23 @@ import {
   validarArchivoAdjunto,
 } from "@/features/attachments/utils/attachment-format"
 
+export interface AttachmentsDataSource {
+  listar: () => Promise<Adjunto[]>
+  subir: (
+    archivo: File,
+    opciones?: { onProgress?: (porcentaje: number) => void },
+  ) => Promise<Adjunto>
+  descargar: (adjuntoId: number) => Promise<DescargaAdjunto>
+  eliminar: (adjuntoId: number) => Promise<void>
+}
+
 interface AttachmentsSectionProps {
   entidadTipo: EntidadAdjunto
   entidadId: string
   puedeSubir?: boolean
   puedeEliminar?: boolean
   className?: string
+  dataSource?: AttachmentsDataSource
 }
 
 interface SesionAdjunto {
@@ -78,7 +90,13 @@ function mensajeErrorAdjunto(error: unknown, accion: string): string {
   return "No se pudo completar la operación."
 }
 
-function AttachmentThumbnail({ adjunto }: { adjunto: Adjunto }) {
+function AttachmentThumbnail({
+  adjunto,
+  descargar,
+}: {
+  adjunto: Adjunto
+  descargar: (adjuntoId: number) => Promise<DescargaAdjunto>
+}) {
   const [url, setUrl] = useState<string | null>(null)
   const [fallo, setFallo] = useState(false)
   const [intento, setIntento] = useState(0)
@@ -88,7 +106,7 @@ function AttachmentThumbnail({ adjunto }: { adjunto: Adjunto }) {
 
     async function cargar() {
       try {
-        const descarga = await obtenerDescargaAdjunto(adjunto.id)
+        const descarga = await descargar(adjunto.id)
         if (!cancelado) {
           setUrl(descarga.url)
           setFallo(false)
@@ -103,7 +121,7 @@ function AttachmentThumbnail({ adjunto }: { adjunto: Adjunto }) {
     return () => {
       cancelado = true
     }
-  }, [adjunto.id, intento])
+  }, [adjunto.id, descargar, intento])
 
   if (fallo) {
     return (
@@ -145,7 +163,18 @@ export function AttachmentsSection({
   puedeSubir = true,
   puedeEliminar = true,
   className,
+  dataSource,
 }: AttachmentsSectionProps) {
+  const fuente = useMemo<AttachmentsDataSource>(() => {
+    if (dataSource) return dataSource
+    return {
+      listar: () => listarTodosLosAdjuntos(entidadTipo, entidadId),
+      subir: (archivo, opciones) =>
+        subirAdjunto({ archivo, entidadTipo, entidadId }, opciones),
+      descargar: (adjuntoId) => obtenerDescargaAdjunto(adjuntoId),
+      eliminar: (adjuntoId) => eliminarAdjunto(adjuntoId),
+    }
+  }, [dataSource, entidadId, entidadTipo])
   const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(
     null,
   )
@@ -194,7 +223,7 @@ export function AttachmentsSection({
       setErrorGaleria(null)
 
       try {
-        const lista = await listarTodosLosAdjuntos(entidadTipo, entidadId)
+        const lista = await fuente.listar()
         if (!cancelado) setAdjuntos(lista)
       } catch (error) {
         if (cancelado) return
@@ -212,7 +241,7 @@ export function AttachmentsSection({
     return () => {
       cancelado = true
     }
-  }, [entidadTipo, entidadId, reloadKey])
+  }, [fuente, reloadKey])
 
   const sesionVisibles = sesion.filter(
     (item) => !adjuntos.some((adjunto) => adjunto.id === item.adjunto.id),
@@ -249,10 +278,9 @@ export function AttachmentsSection({
     setProgreso(0)
 
     try {
-      const adjunto = await subirAdjunto(
-        { archivo: archivoSeleccionado, entidadTipo, entidadId },
-        { onProgress: setProgreso },
-      )
+      const adjunto = await fuente.subir(archivoSeleccionado, {
+        onProgress: setProgreso,
+      })
       const url = URL.createObjectURL(archivoSeleccionado)
       setSesion((prev) => [
         { url, archivo: archivoSeleccionado, adjunto },
@@ -280,7 +308,7 @@ export function AttachmentsSection({
 
   async function handleVer(adjunto: Adjunto) {
     try {
-      const descarga = await obtenerDescargaAdjunto(adjunto.id)
+      const descarga = await fuente.descargar(adjunto.id)
       setVisor({ url: descarga.url, titulo: adjunto.nombreOriginal })
     } catch (error) {
       toast.error(mensajeErrorAdjunto(error, "consultar el adjunto"))
@@ -289,7 +317,7 @@ export function AttachmentsSection({
 
   async function handleDescargar(adjunto: Adjunto) {
     try {
-      const descarga = await obtenerDescargaAdjunto(adjunto.id)
+      const descarga = await fuente.descargar(adjunto.id)
       const enlace = document.createElement("a")
       enlace.href = descarga.url
       enlace.download = adjunto.nombreOriginal
@@ -310,7 +338,7 @@ export function AttachmentsSection({
     setEliminando(true)
 
     try {
-      await eliminarAdjunto(target.id)
+      await fuente.eliminar(target.id)
       setAdjuntos((prev) => prev.filter((adjunto) => adjunto.id !== target.id))
       setEliminarTarget(null)
       toast.success("Adjunto eliminado.")
@@ -471,7 +499,10 @@ export function AttachmentsSection({
                     className="block w-full"
                     title="Ver imagen"
                   >
-                    <AttachmentThumbnail adjunto={adjunto} />
+                    <AttachmentThumbnail
+                      adjunto={adjunto}
+                      descargar={fuente.descargar}
+                    />
                   </button>
                   <div className="space-y-1 p-2.5">
                     <p

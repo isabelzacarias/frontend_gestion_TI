@@ -27,7 +27,7 @@ import type {
   FacetDimension,
   FacetSelections,
 } from "@/components/ui/faceted-filter"
-import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection"
+import { MaintenanceEvidencesSection } from "@/features/maintenance/components/MaintenanceEvidencesSection"
 import { MaintenanceFormDialog } from "@/features/maintenance/components/MaintenanceFormDialog"
 import {
   MantenimientoApiError,
@@ -473,8 +473,8 @@ function MaintenancePage() {
           type="button"
           variant="outline"
           size="sm"
-          title="Adjuntos"
-          aria-label={`Adjuntos de la orden ${order.folio}`}
+          title="Evidencias"
+          aria-label={`Evidencias de la orden ${order.folio}`}
           className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
           onClick={(event) => {
             event.stopPropagation()
@@ -740,19 +740,22 @@ function MaintenancePage() {
           onOpenChange={(open) => {
             if (!open) setAdjuntosTarget(null)
           }}
-          title={`Adjuntos · ${adjuntosTarget.folio}`}
-          description="Imágenes asociadas a la orden de mantenimiento."
+          title={`Evidencias · ${adjuntosTarget.folio}`}
+          description="Evidencias fotográficas asociadas a la orden de mantenimiento."
           icon={<Paperclip className="size-6 text-white" />}
           sections={[
             {
-              title: "Adjuntos",
+              title: "Evidencias",
               color: "amber",
               gridCols: "sm:grid-cols-1",
               fields: [],
               content: (
-                <AttachmentsSection
-                  entidadTipo="MANTENIMIENTO"
-                  entidadId={String(adjuntosTarget.id)}
+                <MaintenanceEvidencesSection
+                  mantenimientoId={adjuntosTarget.id}
+                  editable={
+                    adjuntosTarget.estado === "PROGRAMADO" ||
+                    adjuntosTarget.estado === "EN_PROCESO"
+                  }
                 />
               ),
             },

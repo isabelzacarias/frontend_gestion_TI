@@ -36,7 +36,7 @@ function isApiErrorResponse(value: unknown): value is RespuestaApi<unknown> {
   )
 }
 
-function toAdjuntoApiError(error: unknown): AdjuntoApiError {
+export function toAdjuntoApiError(error: unknown): AdjuntoApiError {
   if (error instanceof AdjuntoApiError) return error
 
   if (axios.isAxiosError<unknown>(error)) {

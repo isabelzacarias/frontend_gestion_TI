@@ -32,7 +32,6 @@ export interface MaintenanceOrder {
   fechaRealizada: string | null
   costo: number | null
   descripcion: string | null
-  evidencias: unknown | null
   createdAt: string
   updatedAt: string
 }
