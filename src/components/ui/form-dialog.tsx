@@ -63,6 +63,8 @@ export interface FormField<T> {
   type?: "text" | "email" | "number" | "tel" | "url" | "password" | "select" | "textarea" | "date"
   /** Placeholder del input */
   placeholder?: string
+  /** Paso para inputs numéricos (por defecto el del navegador) */
+  step?: string
   /** Si es "select", las opciones disponibles */
   options?: SelectOption[]
   /** Fuerza el control buscable en selects (por defecto: automático según la cantidad de opciones) */
@@ -134,6 +136,8 @@ export interface FormDialogProps<T extends Record<string, unknown>> {
   toggleStateLabel?: string
   /** Deshabilita el envío cuando el formulario aún no es válido */
   submitDisabled?: boolean
+  /** Tamaño del diálogo: "wide" para formularios con muchos campos */
+  size?: "default" | "wide"
 }
 
 /* ──────────────────────────────────────────────
@@ -159,10 +163,16 @@ export function FormDialog<T extends Record<string, unknown>>({
   onToggleState,
   toggleStateLabel = "Desactivar",
   submitDisabled = false,
+  size = "default",
 }: FormDialogProps<T>) {
+  const sizeClass =
+    size === "wide"
+      ? "max-h-[min(94vh,900px)] w-[min(94vw,1180px)]"
+      : "max-h-[min(92vh,760px)] w-[min(86vw,980px)]"
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(92vh,760px)] w-[min(86vw,980px)] max-w-none flex-col gap-0 overflow-hidden rounded-[28px] border border-white/50 bg-[radial-gradient(circle_at_top_left,_rgba(123,64,163,0.22),transparent_32%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.18),transparent_30%),linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(245,237,255,0.9),_rgba(233,248,255,0.88))] p-0 shadow-[0_30px_90px_rgba(91,36,128,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[radial-gradient(circle_at_top_left,_rgba(123,64,163,0.28),transparent_32%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.2),transparent_30%),linear-gradient(135deg,_rgba(17,11,28,0.97),_rgba(15,23,42,0.97),_rgba(17,24,39,0.95))] sm:max-w-none">
+      <DialogContent className={`flex ${sizeClass} max-w-none flex-col gap-0 overflow-hidden rounded-[28px] border border-white/50 bg-[radial-gradient(circle_at_top_left,_rgba(123,64,163,0.22),transparent_32%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.18),transparent_30%),linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(245,237,255,0.9),_rgba(233,248,255,0.88))] p-0 shadow-[0_30px_90px_rgba(91,36,128,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[radial-gradient(circle_at_top_left,_rgba(123,64,163,0.28),transparent_32%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.2),transparent_30%),linear-gradient(135deg,_rgba(17,11,28,0.97),_rgba(15,23,42,0.97),_rgba(17,24,39,0.95))] sm:max-w-none`}>
         {/* ─── Header ─── */}
         <DialogHeader className="relative shrink-0 overflow-hidden border-b border-border/80 px-6 pb-4 pt-5 sm:px-7">
           <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,var(--primary-600),var(--primary-500),var(--secondary-500))]" />
@@ -277,6 +287,7 @@ export function FormDialog<T extends Record<string, unknown>>({
                             placeholder={field.placeholder}
                             required={field.required}
                             disabled={field.disabled}
+                            step={field.step}
                             className={inputClass}
                           />
                         )}

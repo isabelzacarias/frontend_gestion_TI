@@ -31,6 +31,8 @@ export interface DetailSection {
   color?: DetailSectionColor
   gridCols?: string
   fields: DetailField[]
+  /** Contenido libre adicional, como una galería de adjuntos */
+  content?: ReactNode
 }
 
 interface DetailDialogProps {
@@ -117,6 +119,9 @@ export function DetailDialog({
                   </div>
                 ))}
               </dl>
+              {section.content ? (
+                <div className="mt-3">{section.content}</div>
+              ) : null}
             </section>
           ))}
         </div>

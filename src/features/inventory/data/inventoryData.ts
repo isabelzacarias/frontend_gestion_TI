@@ -19,6 +19,8 @@ export interface InventoryItem {
   estadoGeneral: string
   nombreRed: string
   responsable: Responsable
+  /** Indica si el activo proviene de la API (false = creado solo en el frontend). */
+  origenApi?: boolean
 }
 
 export const inventoryData: InventoryItem[] = [

@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleDot,
   Flame,
+  Paperclip,
   Pencil,
   Play,
   Plus,
@@ -20,11 +21,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import { DetailDialog } from "@/components/ui/detail-dialog"
 import { FacetedFilter } from "@/components/ui/faceted-filter"
 import type {
   FacetDimension,
   FacetSelections,
 } from "@/components/ui/faceted-filter"
+import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection"
 import { MaintenanceFormDialog } from "@/features/maintenance/components/MaintenanceFormDialog"
 import {
   MantenimientoApiError,
@@ -128,6 +131,8 @@ function MaintenancePage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
   const [cancelTarget, setCancelTarget] = useState<MaintenanceOrder | null>(null)
+  const [adjuntosTarget, setAdjuntosTarget] =
+    useState<MaintenanceOrder | null>(null)
   const [draft, setDraft] = useState<MaintenanceFormDraft>(createEmptyDraft())
 
   const recargar = () => setReloadKey((key) => key + 1)
@@ -468,6 +473,20 @@ function MaintenancePage() {
           type="button"
           variant="outline"
           size="sm"
+          title="Adjuntos"
+          aria-label={`Adjuntos de la orden ${order.folio}`}
+          className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
+          onClick={(event) => {
+            event.stopPropagation()
+            setAdjuntosTarget(order)
+          }}
+        >
+          <Paperclip aria-hidden="true" className="size-3.5" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
           className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
           onClick={(event) => {
             event.stopPropagation()
@@ -714,6 +733,32 @@ function MaintenancePage() {
         }}
         onCancel={() => setCancelTarget(null)}
       />
+
+      {adjuntosTarget && (
+        <DetailDialog
+          open={adjuntosTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setAdjuntosTarget(null)
+          }}
+          title={`Adjuntos · ${adjuntosTarget.folio}`}
+          description="Imágenes asociadas a la orden de mantenimiento."
+          icon={<Paperclip className="size-6 text-white" />}
+          sections={[
+            {
+              title: "Adjuntos",
+              color: "amber",
+              gridCols: "sm:grid-cols-1",
+              fields: [],
+              content: (
+                <AttachmentsSection
+                  entidadTipo="MANTENIMIENTO"
+                  entidadId={String(adjuntosTarget.id)}
+                />
+              ),
+            },
+          ]}
+        />
+      )}
     </div>
   )
 }

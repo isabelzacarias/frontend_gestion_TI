@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
 import { FacetedFilter } from "@/components/ui/faceted-filter"
+import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection"
 import type {
   FacetDimension,
   FacetOption,
@@ -241,6 +242,7 @@ function toInventoryItem(activo: ActivoResumen): InventoryItem {
       nombre: activo.responsable?.nombre ?? "Sin responsable",
       email: activo.responsable?.email ?? "",
     },
+    origenApi: true,
   }
 }
 
@@ -369,6 +371,29 @@ function InventoryPage() {
               value: selectedAsset.responsable.email,
             },
           ],
+        },
+        {
+          title: "Adjuntos",
+          color: "amber",
+          gridCols: "sm:grid-cols-1",
+          fields: [],
+          content:
+            selectedAsset.origenApi === false ? (
+              <p className="rounded-xl border border-dashed border-border bg-background/40 px-3 py-2 text-[11px] text-muted-foreground">
+                Este activo se creó localmente y aún no existe en el backend;
+                no es posible adjuntar imágenes hasta registrarlo en el
+                inventario.
+              </p>
+            ) : selectedAsset.estado === "DE_BAJA" ? (
+              <p className="rounded-xl border border-dashed border-border bg-background/40 px-3 py-2 text-[11px] text-muted-foreground">
+                El activo está dado de baja; no es posible adjuntar imágenes.
+              </p>
+            ) : (
+              <AttachmentsSection
+                entidadTipo="ACTIVO"
+                entidadId={String(selectedAsset.id)}
+              />
+            ),
         },
       ]
     : []
@@ -634,7 +659,10 @@ function InventoryPage() {
   const handleCreateAsset = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const nextItem = createInventoryItem(draft, Date.now())
+    const nextItem = {
+      ...createInventoryItem(draft, Date.now()),
+      origenApi: false,
+    }
 
     setActivos((current) => [nextItem, ...current])
     setDraft(createEmptyAssetDraft())

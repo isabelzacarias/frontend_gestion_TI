@@ -331,6 +331,7 @@ Esta sección define la arquitectura visual, fuentes de datos y componentes del 
 - [ ] Desarrollar el panel de **Licencias por Vencer** (2) con cálculo de fechas límite y alertas preventivas.
 - [ ] Integrar el panel de **Recordatorios de TI** (7) para notas y tareas de soporte técnico.
 - [ ] Integrar la **Gráfica de Activos por Tipo** (3) con `Chart.js` sincronizada con el inventario y el filtro de sucursal.
+- [ ] Integrar el bloque de **KPIs de Proyectos** (`GET /api/dashboard/proyectos`): el endpoint del backend está disponible, pero el consumo en el dashboard se retiró por ahora a petición del usuario. Cuando se reactive, debe mostrar proyectos activos/en progreso/vencidos, próximos 7/30 días, tareas e hitos, horas, distribución y top 5, respetando la visibilidad y el 403 de `proyectos:leer`.
 - [ ] Añadir estados de carga con skeleton screens adaptados a cada widget y manejo de errores de conexión.
 - [ ] Validar adaptabilidad responsiva en pantallas de escritorio, tablet y móvil.
 
@@ -456,13 +457,34 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 
 ## 10. Gestión de Proyectos y Tareas de TI
 
-- [ ] Diseñar e implementar el listado general de proyectos activos, planificados y concluidos utilizando `DataTable`.
-- [ ] Implementar filtros por fase del proyecto, departamento solicitante y líder técnico.
-- [ ] Diseñar el modal de creación y edición de proyectos mediante un wrapper `ProjectFormDialog` basado en `FormDialog`.
-- [ ] Integrar el diálogo de confirmación para archivar o eliminar proyectos con `ConfirmDeleteDialog`.
-- [ ] Crear la vista detallada del proyecto con cronograma de hitos, porcentaje de avance y entregables asociados.
-- [ ] Establecer la vinculación entre proyectos y los tickets o tareas operativas que lo componen.
-- [ ] Conectar las pantallas del módulo con los servicios del backend y validar reglas de negocio.
+- [x] Listado general de proyectos con dos vistas sincronizadas en la URL (`?vista=kanban`): **Tabla** (`DataTable`) y **Kanban** con tarjetas grandes agrupadas por estado. Ambos comparten filtros (`FacetedFilter`: estado, prioridad, responsable, departamento y activo/inactivo), búsqueda con debounce y contador.
+- [x] Crear y editar proyectos con `ProjectFormDialog` basado en `FormDialog`, ahora con tamaño `wide`; el código `PRY-xxxx` lo genera el backend y las transiciones de estado se limitan según la regla del backend. Los demás formularios del módulo (miembros, tareas, hitos y horas) también usan `size="wide"`.
+- [x] Baja lógica con `ConfirmDeleteDialog` y reactivación con `PATCH { activo: true }`.
+- [x] Detalle del proyecto en un diálogo con tabs: **Resumen** (progreso y resúmenes del backend), **Miembros**, **Tareas**, **Hitos**, **Horas** y **Adjuntos**.
+- [x] Gestión de miembros: agregar usuario, cambiar rol y quitar (204).
+- [x] Tareas y subtareas (un nivel), asignación a responsable/miembros, fechas, orden, completar/cancelar, edición y baja lógica.
+- [x] Dependencias entre tareas con listado, alta y baja; los ciclos/duplicados los valida el backend.
+- [x] Hitos con estado, fechas, orden y baja lógica.
+- [x] Registro de horas por tarea/usuario con filtros (tarea, usuario, rango de fechas), edición y baja lógica.
+- [x] Adjuntos de proyecto (`entidadTipo=PROYECTO`) con el componente reutilizable `AttachmentsSection`.
+- [ ] Vincular proyectos con tickets operativos (sin endpoint específico todavía).
+- [x] Visibilidad por proyecto implementada en backend: permiso `proyectos:ver-todos`; sin él, solo se ven proyectos activos donde el usuario es responsable o miembro (proyectos ajenos responden 404). El frontend consume la respuesta y maneja el 404; no aplica reglas de visibilidad propias.
+- [ ] KPIs de proyectos en el dashboard: endpoint backend implementado; integración en el dashboard retirada por ahora a petición del usuario.
+- [x] Conectar las pantallas del módulo con los servicios del backend y respetar las reglas de negocio.
+
+### Integración implementada (2026-10-21)
+
+- Tipos: `src/features/projects/types/project.ts` (proyecto, miembros, tareas, dependencias, hitos y horas).
+- Servicios: `services/proyecto.service.ts` (proyectos y miembros), `proyecto-tarea.service.ts` (tareas y dependencias), `proyecto-hito.service.ts`, `proyecto-horas.service.ts` y `project-api.ts` (error compartido).
+- Página: `pages/ProjectsPage.tsx`; formulario `components/ProjectFormDialog.tsx`; detalle `components/ProjectDetailDialog.tsx`; tabs en `components/tabs/`; dependencias en `components/TaskDependenciesDialog.tsx`.
+- Vistas: tabla y kanban comparten los mismos datos filtrados. El kanban agrupa por los 5 estados y muestra tarjetas amplias con código, nombre, prioridad, responsable, fin planificado y presupuesto; la vista se conserva en `?vista=kanban`.
+- Formularios: `FormDialog` acepta `size="wide"` (1180 px); se aplica a proyecto, miembro, tarea, hito y horas.
+- No se calcula el progreso en el frontend: se usa `progreso`, `resumenTareas` y `resumenHoras` del detalle.
+- Permisos: el perfil no expone permisos efectivos; las acciones se muestran y se ocultan al recibir 403. Los subrecursos requieren `proyectos:editar` y la baja de proyecto `proyectos:eliminar`.
+- Adjuntos de proyecto: se añadió `PROYECTO` a `EntidadAdjunto`; se reutiliza la galería existente.
+- Visibilidad: el backend aplica `proyectos:ver-todos`; sin ese permiso solo devuelve proyectos activos donde el usuario es responsable o miembro. El frontend no replica la regla y maneja 404 en detalle/subrecursos.
+- Dashboard: el consumo de `GET /api/dashboard/proyectos` se retiró por ahora; el endpoint del backend queda disponible para reactivarlo más adelante.
+- Verificado: `tsc`, `eslint` y `vite build` limpios; E2E real de proyecto, miembro, tarea, subtarea, dependencia, hito, horas y adjunto; el proyecto de prueba y sus hijos se eliminaron por completo. `GET /api/dashboard/proyectos` verificado con el shape esperado.
 
 ---
 
@@ -699,3 +721,20 @@ Módulo responsable de registrar la entrega y devolución de activos tecnológic
 - [ ] Validar que la compilación (`npm run build`) y el linter (`npm run lint`) pasen satisfactoriamente sin advertencias críticas.
 - [ ] Comprobar el recorrido completo del usuario (End-to-End básico) desde el acceso hasta la operación en módulos activos.
 - [ ] Respaldar y documentar los cambios implementados para la entrega formal.
+
+---
+
+## 25. Adjuntos de Activos, Incidencias y Mantenimiento
+
+- [x] Cliente API en `src/features/attachments/services/adjunto.service.ts`: `POST` multipart, `GET` listado paginado, `GET /:id/descarga` y `DELETE` (204).
+- [x] Componente reutilizable `AttachmentsSection`: validación PNG/JPEG/WebP de hasta 10 MB, vista previa local con `URL.createObjectURL`, progreso de subida y galería de miniaturas.
+- [x] URLs presignadas temporales: se solicitan al mostrar/descargar, no se guardan de forma permanente y se reintenta una vez si la imagen expira. Sin bucket, `s3Key` ni URLs construidas.
+- [x] Eliminación con `ConfirmDeleteDialog`; 404 elimina el elemento de la lista y 403 oculta la acción en la sesión.
+- [x] Integración en el detalle del activo (`InventoryPage`), detalle de incidencia (`TicketDetailDialog`) y acción "Adjuntos" en la fila de mantenimiento.
+- [x] `DetailSection` admite `content?: ReactNode` para incrustar la galería interactiva.
+- [ ] Entidad `PROYECTO`: bloqueada hasta que exista su modelo/entidad en el backend.
+- Nota: `VITE_ADJUNTOS_GALERIA` y `VITE_ADJUNTOS_ELIMINAR` están activas por defecto (`true`) y permiten deshabilitar galería/eliminación por entorno.
+- Nota: `S3_PUBLIC_ENDPOINT` debe ser alcanzable desde el navegador; `http://localhost:4566` solo funciona en el mismo equipo, no en celular/LAN.
+- Nota: la descarga usa `<a download>`; con una URL cross-origin algunos navegadores pueden abrir la imagen en lugar de descargarla, según CORS/`Content-Disposition` de S3.
+- Nota: los activos creados solo en el frontend (`origenApi === false`) no muestran la galería porque aún no existen en el backend.
+- Verificado: `tsc`, `eslint` y `vite build` limpios; E2E real de subida, listado, URL presignada, descarga `200 image/png` y DELETE `204` con limpieza total.

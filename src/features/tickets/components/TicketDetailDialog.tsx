@@ -4,6 +4,7 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { DetailDialog, type DetailSection } from "@/components/ui/detail-dialog"
+import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection"
 import {
   TicketApiError,
   obtenerTicket,
@@ -195,6 +196,18 @@ export function TicketDetailDialog({
           value: String(ticket.totalActualizaciones),
         },
       ],
+    },
+    {
+      title: "Adjuntos",
+      color: "amber",
+      gridCols: "sm:grid-cols-1",
+      fields: [],
+      content: (
+        <AttachmentsSection
+          entidadTipo="INCIDENCIA"
+          entidadId={String(ticket.id)}
+        />
+      ),
     },
     ...(ticketDetail && ticketDetail.actualizaciones.length > 0
       ? [
