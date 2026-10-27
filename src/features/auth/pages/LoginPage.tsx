@@ -274,6 +274,7 @@ function LoginPage() {
                 </label>
                 <Link
                   to="/recuperar"
+                  state={{ email }}
                   className="text-sm font-medium text-primary hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   ¿Olvidaste tu contraseña?

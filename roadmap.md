@@ -244,7 +244,8 @@ Define cómo deben **nombrarse los botones** de todo módulo que tenga formulari
 ## 2. Autenticación, Sesión y Control de Acceso
 
 - [x] Implementar la pantalla de Login con validación rigurosa de credenciales y feedback visual en tiempo real.
-- [ ] Implementar el flujo de recuperación de contraseña y restablecimiento seguro.
+- [x] Implementar la interfaz de recuperación de contraseña en `/recuperar` (correo → confirmación → nueva contraseña → éxito). La integración con backend queda pendiente.
+- [ ] Implementar el flujo real de recuperación de contraseña y restablecimiento seguro con backend.
 - [x] Configurar el almacenamiento seguro del token JWT y estado de sesión en almacenamiento local o cookies seguras.
 - [x] Centralizar el servicio de autenticación con control de ciclo de vida del usuario.
 - [x] Implementar el mecanismo de cierre de sesión (Logout) con invalidación de estado y limpieza de caché.

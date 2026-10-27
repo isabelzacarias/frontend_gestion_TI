@@ -3,7 +3,12 @@ import { createBrowserRouter, Navigate } from "react-router"
 import DashboardPage from "@/features/dashboard/pages/DashboardPage"
 import NotFoundPage from "@/components/common/NotFoundPage"
 import AppLayout from "@/components/layout/AppLayout"
-import { LoginRoute, RequireAuth } from "@/features/auth/components/AuthGuards"
+import {
+  LoginRoute,
+  PublicOnlyRoute,
+  RequireAuth,
+} from "@/features/auth/components/AuthGuards"
+import PasswordRecoveryPage from "@/features/auth/pages/PasswordRecoveryPage"
 import InventoryPage from "@/features/inventory/pages/InventoryPage"
 import LicensesPage from "@/features/licenses/pages/LicensesPage"
 import PasswordsPage from "@/features/passwords/pages/PasswordsPage"
@@ -24,6 +29,10 @@ const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginRoute />,
+  },
+  {
+    element: <PublicOnlyRoute />,
+    children: [{ path: "/recuperar", element: <PasswordRecoveryPage /> }],
   },
   {
     path: "/",

@@ -41,4 +41,16 @@ function LoginRoute() {
   return <LoginPage />
 }
 
-export { LoginRoute, RequireAuth }
+function PublicOnlyRoute() {
+  const status = useAuthStore((state) => state.status)
+  const token = useAuthStore((state) => state.token)
+
+  if (status === "loading") return <AuthLoading />
+  if (token && status === "authenticated") {
+    return <Navigate to="/" replace />
+  }
+
+  return <Outlet />
+}
+
+export { LoginRoute, PublicOnlyRoute, RequireAuth }
