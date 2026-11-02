@@ -138,10 +138,10 @@ export function ActivosChartCard({
     <div className="flex h-full min-h-0 flex-col rounded-2xl border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-card/60">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-bold text-foreground">
+          <h3 className="text-xs font-bold text-foreground">
             Activos por Tipo
           </h3>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             Distribución del inventario tecnológico
           </p>
         </div>
@@ -175,7 +175,7 @@ export function ActivosChartCard({
         </div>
       </div>
 
-      <div className="relative mt-4 flex min-h-[200px] flex-1 items-center justify-center lg:min-h-0">
+      <div className="relative mt-3 flex min-h-[200px] flex-1 items-center justify-center lg:min-h-0">
         {loading ? (
           <div className="flex size-48 animate-pulse rounded-full bg-muted/40" />
         ) : data.length === 0 ? (

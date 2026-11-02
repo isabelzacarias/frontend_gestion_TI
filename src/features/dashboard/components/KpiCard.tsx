@@ -53,22 +53,22 @@ export function KpiCard({
 
   const content = (
     <div
-      className={`group relative overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-card/60 xl:p-5 ${styles.hoverBorder}`}
+      className={`group relative overflow-hidden rounded-2xl border border-white/60 bg-white/70 px-3 py-2 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-card/60 ${styles.hoverBorder}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div
-            className={`flex size-10 items-center justify-center rounded-xl border transition-transform duration-300 group-hover:scale-105 xl:size-11 ${styles.bg} ${styles.text} ${styles.border}`}
+            className={`flex size-7 items-center justify-center rounded-md border transition-transform duration-300 group-hover:scale-105 ${styles.bg} ${styles.text} ${styles.border}`}
           >
             {icon}
           </div>
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               {title}
             </span>
             {badgeText && (
               <span
-                className={`ml-2 inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${styles.badge}`}
+                className={`ml-2 inline-flex items-center rounded-md border px-1 py-0.5 text-[8px] font-bold ${styles.badge}`}
               >
                 {badgeText}
               </span>
@@ -77,23 +77,23 @@ export function KpiCard({
         </div>
 
         {to && (
-          <div className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors group-hover:bg-primary/[0.06] group-hover:text-primary">
-            <ArrowUpRight className="size-4" />
+          <div className="rounded-lg p-0.5 text-muted-foreground/60 transition-colors group-hover:bg-primary/[0.06] group-hover:text-primary">
+            <ArrowUpRight className="size-3" />
           </div>
         )}
       </div>
 
-      <div className="mt-3 xl:mt-4">
+      <div className="mt-1.5">
         {loading ? (
-          <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
+          <div className="h-7 w-16 animate-pulse rounded-lg bg-muted" />
         ) : (
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold tracking-tight text-foreground xl:text-3xl">
+            <span className="text-2xl font-extrabold tracking-tight text-foreground">
               {value}
             </span>
           </div>
         )}
-        <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+        <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{subtitle}</p>
       </div>
     </div>
   )
