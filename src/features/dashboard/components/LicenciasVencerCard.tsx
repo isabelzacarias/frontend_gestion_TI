@@ -34,15 +34,15 @@ export function LicenciasVencerCard({
   return (
     <div className="flex min-h-0 flex-col rounded-2xl border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-card/60 lg:flex-1">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
-            <KeyRound className="size-5" />
+        <div className="flex items-center gap-2">
+          <div className="flex size-8 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <KeyRound className="size-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-foreground">
+            <h3 className="text-xs font-bold text-foreground">
               Licencias por Vencer
             </h3>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               Software que requiere renovación próxima
             </p>
           </div>
@@ -57,7 +57,7 @@ export function LicenciasVencerCard({
         </Link>
       </div>
 
-      <div className="mt-4 min-h-0 flex-1 space-y-2.5 overflow-y-auto">
+      <div className="mt-3 min-h-0 flex-1 space-y-2.5 overflow-y-auto">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <div

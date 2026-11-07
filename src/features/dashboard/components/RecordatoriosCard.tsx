@@ -21,16 +21,16 @@ export function RecordatoriosCard({
 }: RecordatoriosCardProps) {
   return (
     <div className="flex min-h-0 flex-col rounded-2xl border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-card/60 lg:flex-1">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-            <Bell className="size-5" />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex size-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+            <Bell className="size-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-foreground">
+            <h3 className="text-xs font-bold text-foreground">
               Próximos recordatorios
             </h3>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               Pendientes con fecha programada
             </p>
           </div>
@@ -38,14 +38,14 @@ export function RecordatoriosCard({
 
         <Link
           to="/reminder"
-          className="inline-flex items-center gap-1 rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-primary transition-colors hover:text-primary-700"
         >
           Ver todos
           <ArrowRight className="size-3.5" />
         </Link>
       </div>
 
-      <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto">
+      <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
         {loading ? (
           Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="h-12 animate-pulse rounded-xl bg-muted/60" />
