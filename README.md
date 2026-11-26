@@ -1,6 +1,6 @@
 # Sistema de Gestion de TI - Frontend Client
 
-Cliente web (Single Page Application - SPA) para el Sistema de Gestion de TI, desarrollado con React, TypeScript, Tailwind CSS, Shadcn UI y Zustand. Esta interfaz se comunica con la API RESTful del backend y mantiene conexion bidireccional en tiempo real para la gestion de tickets, tablero Kanban, inventarios y el asistente de IA con soporte de voz.
+Cliente web (Single Page Application - SPA) para el Sistema de Gestion de TI, desarrollado con React, TypeScript, Tailwind CSS, Shadcn UI y Zustand. Esta interfaz se comunica con la API RESTful del backend y mantiene conexion bidireccional en tiempo real para la gestion de tickets, tablero Kanban, inventarios, licencias, proyectos y reportes.
 
 ---
 
@@ -48,8 +48,7 @@ src/
  │    ├── licenses/  # Repositorio cifrado de licencias
  │    ├── projects/  # Gestion de proyectos
  │    ├── reports/   # Dashboard con KPIs
- │    └── chatbot/   # Widget flotante de IA con entrada/salida por voz
- ├── hooks/          # Custom hooks reutilizables (useTickets, useSocket, useSpeech)
+ ├── hooks/          # Custom hooks reutilizables (useTickets, useSocket)
  ├── services/       # Clientes de API REST (Axios) y WebSockets
  ├── store/          # Tiendas globales de Zustand (authStore, uiStore)
  ├── types/          # Interfaces y tipos globales de TypeScript

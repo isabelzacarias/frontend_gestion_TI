@@ -489,20 +489,7 @@ Nota (2026-10-12): tanto la lista de Tickets como el Kanban ahora **filtran en c
 
 ---
 
-## 11. Asistente Virtual y Chatbot de TI con IA
-
-- [ ] Diseñar e implementar el botón flotante y panel desplegable del asistente de soporte técnico.
-- [ ] Construir la interfaz de chat con diferenciación clara de burbujas (usuario, sistema, asistente con IA).
-- [ ] Integrar soporte de entrada por texto y controles para comandos de voz / dictado.
-- [ ] Implementar indicadores de escritura y estados de espera animados durante el procesamiento de la IA.
-- [ ] Establecer estrategias de fallback y respuestas predeterminadas ante fallos de conexión con el motor de IA.
-- [ ] Conectar el widget con el backend de IA o servicio conversacional del sistema.
-- [ ] Diseñar el historial de mensajes por sesión con capacidad para reiniciar o limpiar la conversación.
-- [ ] Auditar accesibilidad (foco, lector de pantalla, atajos de teclado) para el widget de chat.
-
----
-
-## 12. Estado Global, Arquitectura de Datos y Servicios
+## 11. Estado Global, Arquitectura de Datos y Servicios
 
 - [x] Completar la store de autenticación (`useAuthStore`) con persistencia segura y datos del usuario autenticado.
 - [x] Consumir notificaciones persistentes de incidencias por REST y Socket.IO, con paginación, lectura individual/masiva y sincronización al reconectar.
