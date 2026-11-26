@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import type { FormEvent } from "react"
 import {
   ArrowLeft,
@@ -18,6 +18,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import ThemeToggle from "@/components/theme/ThemeToggle"
 import PasswordStrengthIndicator from "@/features/passwords/components/PasswordStrengthIndicator"
+import {
+  mensajeErrorRecuperacion,
+  restablecerPassword,
+  solicitarRecuperacionPassword,
+} from "@/features/auth/services/password-recovery.service"
 import { useTheme } from "@/hooks/useTheme"
 import logo from "@/assets/Logo_footer.webp"
 
@@ -35,7 +40,11 @@ function PasswordRecoveryPage() {
     return state && typeof state.email === "string" ? state.email : ""
   })()
 
-  const [paso, setPaso] = useState<Paso>("correo")
+  const tokenUrl =
+    new URLSearchParams(location.search).get("token")?.trim() ?? ""
+
+  const [paso, setPaso] = useState<Paso>(tokenUrl ? "restablecer" : "correo")
+  const [token, setToken] = useState(tokenUrl)
   const [email, setEmail] = useState(emailDesdeLogin)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [isSending, setIsSending] = useState(false)
@@ -48,14 +57,6 @@ function PasswordRecoveryPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const timeoutRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
-    }
-  }, [])
-
   useEffect(() => {
     if (reenvioCooldown <= 0) return
     const id = window.setTimeout(() => {
@@ -64,11 +65,7 @@ function PasswordRecoveryPage() {
     return () => window.clearTimeout(id)
   }, [reenvioCooldown])
 
-  function programarAccion(accion: () => void, delay = 1100) {
-    timeoutRef.current = window.setTimeout(accion, delay)
-  }
-
-  function handleEnviar(event: FormEvent<HTMLFormElement>) {
+  async function handleEnviar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isSending) return
 
@@ -80,20 +77,42 @@ function PasswordRecoveryPage() {
 
     setEmailError(null)
     setIsSending(true)
-    programarAccion(() => {
-      setIsSending(false)
+    try {
+      await solicitarRecuperacionPassword(correo)
       setPaso("confirmacion")
       setReenvioCooldown(30)
-    })
+    } catch (error) {
+      setEmailError(
+        mensajeErrorRecuperacion(
+          error,
+          "No se pudo enviar el correo. Intenta de nuevo.",
+        ),
+      )
+    } finally {
+      setIsSending(false)
+    }
   }
 
-  function handleReenviar() {
+  async function handleReenviar() {
     if (isSending || reenvioCooldown > 0) return
+
+    const correo = email.trim()
+    if (!emailPattern.test(correo)) return
+
     setIsSending(true)
-    programarAccion(() => {
-      setIsSending(false)
+    try {
+      await solicitarRecuperacionPassword(correo)
       setReenvioCooldown(30)
-    }, 900)
+    } catch (error) {
+      setEmailError(
+        mensajeErrorRecuperacion(
+          error,
+          "No se pudo reenviar el correo. Intenta de nuevo.",
+        ),
+      )
+    } finally {
+      setIsSending(false)
+    }
   }
 
   function handleVolverCorreo() {
@@ -102,10 +121,15 @@ function PasswordRecoveryPage() {
     setEmailError(null)
   }
 
-  function handleRestablecer(event: FormEvent<HTMLFormElement>) {
+  async function handleRestablecer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isResetting) return
 
+    const tokenValor = token.trim()
+    if (!tokenValor) {
+      setPasswordError("Ingresa el código de recuperación del correo.")
+      return
+    }
     if (password.length < 8) {
       setPasswordError("La contraseña debe tener al menos 8 caracteres.")
       return
@@ -117,12 +141,22 @@ function PasswordRecoveryPage() {
 
     setPasswordError(null)
     setIsResetting(true)
-    programarAccion(() => {
-      setIsResetting(false)
+    try {
+      await restablecerPassword({ token: tokenValor, password })
       setPassword("")
       setConfirmPassword("")
+      setToken("")
       setPaso("listo")
-    })
+    } catch (error) {
+      setPasswordError(
+        mensajeErrorRecuperacion(
+          error,
+          "No se pudo actualizar la contraseña.",
+        ),
+      )
+    } finally {
+      setIsResetting(false)
+    }
   }
 
   const pasoIndice =
@@ -366,6 +400,30 @@ function PasswordRecoveryPage() {
 
           {paso === "restablecer" && (
             <form className="space-y-4" onSubmit={handleRestablecer}>
+              {!tokenUrl && (
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor="recovery-token"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Código de recuperación
+                  </label>
+                  <Input
+                    id="recovery-token"
+                    type="text"
+                    placeholder="Pega el código del correo"
+                    autoComplete="one-time-code"
+                    className="h-12 rounded-xl border-border bg-background px-4 text-sm focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-primary/30"
+                    value={token}
+                    onChange={(event) => {
+                      setToken(event.target.value)
+                      setPasswordError(null)
+                    }}
+                    required
+                  />
+                </div>
+              )}
+
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor="recovery-password"
