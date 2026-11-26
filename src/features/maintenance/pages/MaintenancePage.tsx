@@ -6,7 +6,6 @@ import {
   CircleDot,
   Flame,
   Paperclip,
-  Pencil,
   Play,
   Plus,
   Search,
@@ -21,7 +20,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
-import { DetailDialog } from "@/components/ui/detail-dialog"
+import {
+  DetailDialog,
+  type DetailSection,
+} from "@/components/ui/detail-dialog"
 import { FacetedFilter } from "@/components/ui/faceted-filter"
 import type {
   FacetDimension,
@@ -129,6 +131,7 @@ function MaintenancePage() {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
   const [cancelTarget, setCancelTarget] = useState<MaintenanceOrder | null>(null)
   const [adjuntosTarget, setAdjuntosTarget] =
@@ -289,7 +292,13 @@ function MaintenancePage() {
   const handleOpenEditDialog = (order: MaintenanceOrder) => {
     setSelectedOrderId(order.id)
     setDraft(toFormDraft(order))
+    setIsDetailDialogOpen(false)
     setIsEditDialogOpen(true)
+  }
+
+  const handleOpenDetails = (order: MaintenanceOrder) => {
+    setSelectedOrderId(order.id)
+    setIsDetailDialogOpen(true)
   }
 
   const validarDraft = (): boolean => {
@@ -483,22 +492,125 @@ function MaintenancePage() {
         >
           <Paperclip aria-hidden="true" className="size-3.5" />
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
-          onClick={(event) => {
-            event.stopPropagation()
-            handleOpenEditDialog(order)
-          }}
-        >
-          <Pencil aria-hidden="true" className="size-3.5" />
-          Editar
-        </Button>
       </div>
     )
   }
+
+  const detailSections: DetailSection[] = selectedOrder
+    ? [
+        {
+          title: "Orden de mantenimiento",
+          color: "primary",
+          fields: [
+            { key: "folio", label: "Folio", value: selectedOrder.folio },
+            {
+              key: "activo",
+              label: "Activo",
+              value: (
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-semibold text-foreground">
+                    {selectedOrder.activo.cb23 ??
+                      `#${selectedOrder.activo.id}`}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedOrder.activo.tipo}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: "tipo",
+              label: "Tipo",
+              value: (
+                <Badge
+                  className={MAINTENANCE_TYPE_BADGE_CLASS[selectedOrder.tipo]}
+                >
+                  {MAINTENANCE_TYPE_LABELS[selectedOrder.tipo]}
+                </Badge>
+              ),
+            },
+            {
+              key: "prioridad",
+              label: "Prioridad",
+              value: (
+                <Badge
+                  className={
+                    MAINTENANCE_PRIORITY_BADGE_CLASS[selectedOrder.prioridad]
+                  }
+                >
+                  {MAINTENANCE_PRIORITY_LABELS[selectedOrder.prioridad]}
+                </Badge>
+              ),
+            },
+            {
+              key: "estado",
+              label: "Estado",
+              value: (
+                <Badge
+                  className={
+                    MAINTENANCE_STATUS_BADGE_CLASS[selectedOrder.estado]
+                  }
+                >
+                  {MAINTENANCE_STATUS_LABELS[selectedOrder.estado]}
+                </Badge>
+              ),
+            },
+          ],
+        },
+        {
+          title: "Programación y responsable",
+          color: "cyan",
+          fields: [
+            {
+              key: "tecnico",
+              label: "Técnico responsable",
+              value: (
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-medium text-foreground">
+                    {selectedOrder.tecnico.nombre}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedOrder.tecnico.email ?? "Sin correo registrado"}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: "fechaProgramada",
+              label: "Fecha programada",
+              value: formatDate(selectedOrder.fechaProgramada),
+            },
+            {
+              key: "fechaRealizada",
+              label: "Fecha realizada",
+              value: formatDate(selectedOrder.fechaRealizada),
+            },
+            {
+              key: "costo",
+              label: "Costo estimado",
+              value: formatCurrency(selectedOrder.costo),
+            },
+          ],
+        },
+        {
+          title: "Detalle del trabajo",
+          color: "amber",
+          gridCols: "sm:grid-cols-1",
+          fields: [
+            {
+              key: "descripcion",
+              label: "Descripción",
+              value: selectedOrder.descripcion ?? "Sin descripción registrada.",
+            },
+            {
+              key: "registro",
+              label: "Registro",
+              value: `Creada el ${formatDate(selectedOrder.createdAt)} · Actualizada el ${formatDate(selectedOrder.updatedAt)}`,
+            },
+          ],
+        },
+      ]
+    : []
 
   const columns: DataTableColumn<MaintenanceOrder>[] = [
     {
@@ -668,7 +780,7 @@ function MaintenancePage() {
         itemsPerPage={ITEMS_PER_PAGE}
         onPageChange={setCurrentPage}
         onRowClick={(order) => setSelectedOrderId(order.id)}
-        onRowDoubleClick={handleOpenEditDialog}
+        onRowDoubleClick={handleOpenDetails}
         selectedRowKey={selectedOrderId}
         emptyMessage={
           isLoading
@@ -676,6 +788,18 @@ function MaintenancePage() {
             : "No se encontraron órdenes con los criterios de búsqueda seleccionados."
         }
       />
+
+      {selectedOrder && (
+        <DetailDialog
+          open={isDetailDialogOpen}
+          onOpenChange={setIsDetailDialogOpen}
+          title={`Orden ${selectedOrder.folio}`}
+          description="Consulta los detalles de la orden de mantenimiento."
+          icon={<Wrench className="size-6 text-white" />}
+          sections={detailSections}
+          onEdit={() => handleOpenEditDialog(selectedOrder)}
+        />
+      )}
 
       <MaintenanceFormDialog
         open={isAddDialogOpen}

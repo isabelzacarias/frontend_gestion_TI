@@ -381,36 +381,20 @@ export function ReportsHistory({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>{meta.total} generación(es) registradas.</span>
-          {activas > 0 && !pollingStopped && (
-            <Badge
-              variant="secondary"
-              className="inline-flex items-center gap-1 text-[10px]"
-            >
-              <Loader2
-                aria-hidden="true"
-                className="size-3 animate-spin"
-              />
-              Actualizando {activas}...
-            </Badge>
-          )}
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={loading}
-          onClick={recargar}
-          className="h-9 rounded-xl px-3 text-xs font-semibold"
-        >
-          <RefreshCw
-            aria-hidden="true"
-            className={`size-3.5 ${loading ? "animate-spin" : ""}`}
-          />
-          Actualizar
-        </Button>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>{meta.total} generación(es) registradas.</span>
+        {activas > 0 && !pollingStopped && (
+          <Badge
+            variant="secondary"
+            className="inline-flex items-center gap-1 text-[10px]"
+          >
+            <Loader2
+              aria-hidden="true"
+              className="size-3 animate-spin"
+            />
+            Actualizando {activas}...
+          </Badge>
+        )}
       </div>
 
       {error && (

@@ -4,11 +4,9 @@ import {
   CheckCircle2,
   Circle,
   ListTodo,
-  Pencil,
   Plus,
   RotateCcw,
   Search,
-  Trash2,
   X,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -19,6 +17,10 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import {
+  DetailDialog,
+  type DetailSection,
+} from "@/components/ui/detail-dialog"
 import { FacetedFilter } from "@/components/ui/faceted-filter"
 import type {
   FacetDimension,
@@ -108,6 +110,7 @@ function ReminderPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
   const [draft, setDraft] = useState<RecordatorioFormDraft>(createEmptyDraft())
 
@@ -271,7 +274,13 @@ function ReminderPage() {
   const handleOpenEditDialog = (recordatorio: Recordatorio) => {
     setSelectedId(recordatorio.id)
     setDraft(toFormDraft(recordatorio))
+    setIsDetailDialogOpen(false)
     setIsEditDialogOpen(true)
+  }
+
+  const handleOpenDetails = (recordatorio: Recordatorio) => {
+    setSelectedId(recordatorio.id)
+    setIsDetailDialogOpen(true)
   }
 
   const validarDraft = (): boolean => {
@@ -497,39 +506,78 @@ function ReminderPage() {
               <CheckCircle2 aria-hidden="true" className="size-3.5" />
             )}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
-            onClick={(event) => {
-              event.stopPropagation()
-              handleOpenEditDialog(recordatorio)
-            }}
-          >
-            <Pencil aria-hidden="true" className="size-3.5" />
-            Editar
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            title="Eliminar"
-            aria-label={`Eliminar ${recordatorio.titulo}`}
-            disabled={isSaving}
-            className="h-8 rounded-xl px-2.5 text-[11px] font-semibold"
-            onClick={(event) => {
-              event.stopPropagation()
-              setSelectedId(recordatorio.id)
-              setIsConfirmDeleteOpen(true)
-            }}
-          >
-            <Trash2 aria-hidden="true" className="size-3.5" />
-          </Button>
         </div>
       ),
     },
   ]
+
+  const detailSections: DetailSection[] = selectedRecordatorio
+    ? (() => {
+        const estado = estadoRecordatorio(selectedRecordatorio)
+        return [
+          {
+            title: "Recordatorio",
+            color: "primary",
+            fields: [
+              {
+                key: "titulo",
+                label: "Título",
+                value: selectedRecordatorio.titulo,
+                colSpan: "sm:col-span-2",
+              },
+              {
+                key: "prioridad",
+                label: "Prioridad",
+                value: (
+                  <Badge
+                    className={
+                      PRIORIDAD_BADGE_CLASS[selectedRecordatorio.prioridad]
+                    }
+                  >
+                    {PRIORIDAD_LABELS[selectedRecordatorio.prioridad]}
+                  </Badge>
+                ),
+              },
+              {
+                key: "fecha",
+                label: "Fecha",
+                value: formatFechaRecordatorio(selectedRecordatorio.fecha),
+              },
+              {
+                key: "estado",
+                label: "Estado",
+                value: (
+                  <Badge className={ESTADO_RECORDATORIO_BADGE_CLASS[estado]}>
+                    {ESTADO_RECORDATORIO_LABELS[estado]}
+                  </Badge>
+                ),
+              },
+              {
+                key: "completadoEn",
+                label: "Completado el",
+                value: selectedRecordatorio.completadoEn
+                  ? formatFechaRecordatorio(selectedRecordatorio.completadoEn)
+                  : "—",
+              },
+            ],
+          },
+          {
+            title: "Notas",
+            color: "cyan",
+            gridCols: "sm:grid-cols-1",
+            fields: [
+              {
+                key: "descripcion",
+                label: "Descripción",
+                value:
+                  selectedRecordatorio.descripcion ??
+                  "Sin descripción registrada.",
+              },
+            ],
+          },
+        ]
+      })()
+    : []
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -690,13 +738,25 @@ function ReminderPage() {
           itemsPerPage={ITEMS_PER_PAGE}
           onPageChange={setCurrentPage}
           onRowClick={(recordatorio) => setSelectedId(recordatorio.id)}
-          onRowDoubleClick={handleOpenEditDialog}
+          onRowDoubleClick={handleOpenDetails}
           selectedRowKey={selectedId}
           emptyMessage={
             isLoading
               ? "Cargando recordatorios..."
               : "No se encontraron recordatorios con los criterios de búsqueda seleccionados."
           }
+        />
+      )}
+
+      {selectedRecordatorio && (
+        <DetailDialog
+          open={isDetailDialogOpen}
+          onOpenChange={setIsDetailDialogOpen}
+          title={selectedRecordatorio.titulo}
+          description="Consulta los detalles del recordatorio."
+          icon={<ListTodo className="size-6 text-white" />}
+          sections={detailSections}
+          onEdit={() => handleOpenEditDialog(selectedRecordatorio)}
         />
       )}
 
